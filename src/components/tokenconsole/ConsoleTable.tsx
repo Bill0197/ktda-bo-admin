@@ -1,0 +1,96 @@
+import { Badge, Button, DataTable, GlassPanel, NotePanel, SectionTitle, Skeleton, type Column } from "../../ui";
+import type { ReactNode } from "react";
+import { label, toneFor } from "../../lib/tokenConsole/format";
+
+/** What useAsyncData returns, narrowed to what a table needs. */
+export type Source<T> = {
+  data: T[] | null;
+  loading: boolean;
+  error: string | null;
+  reload: () => void | Promise<void>;
+};
+
+export type Row<T> = T & { id: string };
+
+export function SourceError({ what, error, onRetry, className = "mb-4" }: {
+  what: string;
+  error: string;
+  onRetry: () => void | Promise<void>;
+  className?: string;
+}) {
+  return (
+    <NotePanel tone="danger" className={className} title={`Could not load ${what}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span>{error}</span>
+        <Button size="sm" variant="outline" onClick={() => void onRetry()}>Retry</Button>
+      </div>
+    </NotePanel>
+  );
+}
+
+/** A status straight from the accounting service, coloured by toneFor. */
+export function StatusBadge({ status }: { status: string | null | undefined }) {
+  if (!status) return <span className="text-text-faint">—</span>;
+  return <Badge tone={toneFor(status)} className="whitespace-nowrap">{label(status)}</Badge>;
+}
+
+/** Monospace identifier, the way ids and codes read in every console table. */
+export function Code({ children }: { children: ReactNode }) {
+  return <span className="tabular text-xs text-text-soft break-all">{children ?? "—"}</span>;
+}
+
+/** DataTable needs a unique `id` per row. The service's own key is used when
+ * it is present and unique; otherwise the row's position stands in, so a
+ * missing or repeated key can never collapse two rows into one. */
+function withIds<T>(rows: T[], rowId: (row: T) => string | null | undefined): Row<T>[] {
+  const seen = new Set<string>();
+  return rows.map((r, i) => {
+    const key = rowId(r);
+    const id = key && !seen.has(key) ? key : `row-${i}`;
+    seen.add(id);
+    return { ...r, id };
+  });
+}
+
+/**
+ * One accounting-service list: a title, its loading, error and empty states,
+ * and the table. Every console page is built from these, so a failing
+ * source shows its own error and retry without blanking the rest of the page.
+ */
+export function ConsoleTable<T extends object>({
+  title, description, actions, what, source, rows, rowId, columns, emptyLabel, onRowClick, className = "mb-6",
+}: {
+  title?: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+  /** Used in the error message: "Could not load <what>". */
+  what: string;
+  source: Source<T>;
+  /** Rows to show when the page filters the source; defaults to all of it. */
+  rows?: T[];
+  rowId: (row: T) => string | null | undefined;
+  columns: Column<Row<T>>[];
+  emptyLabel: string;
+  onRowClick?: (row: Row<T>) => void;
+  className?: string;
+}) {
+  return (
+    <section className={className}>
+      {title && <SectionTitle title={title} description={description} actions={actions} />}
+      {source.error ? (
+        <SourceError what={what} error={source.error} onRetry={source.reload} className="" />
+      ) : source.loading && !source.data ? (
+        <Skeleton className="h-40" />
+      ) : (
+        <GlassPanel className="p-1" sheen={false}>
+          <DataTable
+            columns={columns}
+            rows={withIds(rows ?? source.data ?? [], rowId)}
+            emptyLabel={emptyLabel}
+            onRowClick={onRowClick}
+          />
+        </GlassPanel>
+      )}
+    </section>
+  );
+}
