@@ -45,8 +45,15 @@ export async function onRequest({ request, env }) {
   }
   // The session cookie must land on THIS origin. Strip any Domain the service
   // might name and mark it Secure: pages.dev is https-only.
-  for (const cookie of upstream.headers.getSetCookie?.() ?? []) {
-    out.append("set-cookie", rewriteCookie(cookie));
+  //
+  // Never on a 401: the service opens a fresh anonymous session on every
+  // unauthenticated request and sets its cookie. A 401 that lands after a
+  // login (an in-flight /auth/me, say) would replace the real session with
+  // that empty one and sign the user straight back out.
+  if (upstream.status !== 401) {
+    for (const cookie of upstream.headers.getSetCookie?.() ?? []) {
+      out.append("set-cookie", rewriteCookie(cookie));
+    }
   }
   out.set("cache-control", "no-store");
   return new Response(upstream.body, { status: upstream.status, headers: out });

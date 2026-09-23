@@ -17,13 +17,22 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      "/tok": {
+      // Anchored with a trailing slash: Vite matches keys as plain prefixes,
+      // and a bare "/tok" would also swallow /tokenization/* and /token-console/*.
+      "^/tok/": {
         target: TOK_TARGET,
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/tok/, "/api"),
+        // Same rule as functions/tok: a 401's anonymous-session cookie would
+        // clobber a session established a moment earlier.
+        configure: (proxy) => {
+          proxy.on("proxyRes", (res) => {
+            if (res.statusCode === 401) delete res.headers["set-cookie"];
+          });
+        },
       },
-      "/omni/api/operator": {
+      "^/omni/api/operator/": {
         target: OMNI_TARGET,
         changeOrigin: true,
         secure: false,

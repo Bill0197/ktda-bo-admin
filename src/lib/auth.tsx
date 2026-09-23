@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ADMIN_USERS, ROLE_LABELS, type AdminRole } from "../mock";
 import { tokApi, TokApiError, UNAUTHENTICATED_EVENT } from "./tokApi";
 import type { MeResponse } from "./tokenConsole/types.gen";
@@ -62,13 +62,20 @@ function toUser(me: MeResponse): StaffUser {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Session checks still in flight. The service answers an unauthenticated
+  // request with a new anonymous session cookie, so one of these landing
+  // after a login would overwrite the new session — login waits them out.
+  const pendingChecks = useRef(new Set<Promise<unknown>>());
 
   // The cookie is HttpOnly — GET /auth/me on mount is the only way to learn
   // whether this tab is already signed in.
   useEffect(() => {
     let cancelled = false;
-    tokApi
-      .get<MeResponse>("/auth/me")
+    const check = tokApi.get<MeResponse>("/auth/me");
+    pendingChecks.current.add(check);
+    const settled = () => pendingChecks.current.delete(check);
+    check.then(settled, settled);
+    check
       .then((me) => {
         if (!cancelled) setUser(toUser(me));
       })
@@ -95,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    await Promise.allSettled([...pendingChecks.current]);
     await tokApi.form("/auth/login", { email, password });
     // Login answers {admin, email} only; /me carries the name and roles.
     const me = await tokApi.get<MeResponse>("/auth/me");
