@@ -27,10 +27,53 @@ const shortRef = (prefix: string, id?: string) => `${prefix}-${(id ?? "").replac
 const priceOf = (amount?: number, quantity?: number) => (amount != null && quantity ? amount / quantity : null);
 const currencyOf = (c?: string): InvestmentOrder["currency"] => (c === "USD" ? "USD" : "KES");
 
-/** Every subscription and redemption across every offering, newest first —
- *  the service keeps order books per offering, so this is one call per book. */
-export async function getInvestmentOrders(): Promise<InvestmentOrder[]> {
-  const [offerings, investors] = await Promise.all([tokenConsole.offerings(), tokenConsole.investors()]);
+/* Orders are read from one call per offering book, so they are kept for a
+   minute: coming back to the page is instant rather than another fan-out.
+   Concurrent callers share one fetch. Cleared on sign-out. */
+const ORDERS_TTL_MS = 60_000;
+let ordersCache: { at: number; rows: InvestmentOrder[] } | null = null;
+let ordersInFlight: Promise<InvestmentOrder[]> | null = null;
+
+export function clearLiveCache() {
+  ordersCache = null;
+  ordersInFlight = null;
+}
+
+/** Every subscription and redemption across every offering, newest first. */
+export function getInvestmentOrders(): Promise<InvestmentOrder[]> {
+  if (ordersCache && Date.now() - ordersCache.at < ORDERS_TTL_MS) return Promise.resolve(ordersCache.rows);
+  if (!ordersInFlight) {
+    const run = fetchInvestmentOrders();
+    ordersInFlight = run;
+    run.then(
+      (rows) => {
+        // A sign-out while this was in flight must not repopulate the cache.
+        if (ordersInFlight === run) ordersCache = { at: Date.now(), rows };
+      },
+      () => undefined,
+    ).finally(() => {
+      if (ordersInFlight === run) ordersInFlight = null;
+    });
+  }
+  return ordersInFlight;
+}
+
+async function fetchInvestmentOrders(): Promise<InvestmentOrder[]> {
+  // The books need only the offerings; the investor names are fetched
+  // alongside them rather than holding the books up.
+  const investorsReq = tokenConsole.investors();
+  // Observed below; this only stops a failed offerings call leaving it unhandled.
+  investorsReq.catch(() => undefined);
+  const offerings = await tokenConsole.offerings();
+  const booksReq = Promise.all(
+    offerings.map(async (o: OfferingResponse) => {
+      const id = o.offeringId ?? "";
+      const [subs, reds] = await Promise.all([tokenConsole.subscriptions(id), tokenConsole.redemptions(id)]);
+      return { o, subs, reds };
+    }),
+  );
+  const [investors, books] = await Promise.all([investorsReq, booksReq]);
+
   const who = new Map<string, Investor>(investors.map((i) => [i.investorId ?? "", i]));
   const client = (investorId?: string) => {
     const i = who.get(investorId ?? "");
@@ -40,10 +83,9 @@ export async function getInvestmentOrders(): Promise<InvestmentOrder[]> {
     };
   };
 
-  const books = await Promise.all(
-    offerings.map(async (o: OfferingResponse) => {
+  return books
+    .flatMap(({ o, subs, reds }) => {
       const id = o.offeringId ?? "";
-      const [subs, reds] = await Promise.all([tokenConsole.subscriptions(id), tokenConsole.redemptions(id)]);
       const product = o.productId ?? id;
       const subscriptions = subs.map<InvestmentOrder>((s) => ({
         id: s.subscriptionId ?? `${id}-sub-${s.createdAt}`,
@@ -78,8 +120,6 @@ export async function getInvestmentOrders(): Promise<InvestmentOrder[]> {
         channel: "Tokenization",
       }));
       return [...subscriptions, ...redemptions];
-    }),
-  );
-
-  return books.flat().sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+    })
+    .sort((a, b) => b.placedAt.localeCompare(a.placedAt));
 }

@@ -1,3 +1,5 @@
+import { Agent as HttpAgent } from "node:http";
+import { Agent as HttpsAgent } from "node:https";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -13,6 +15,13 @@ import tailwindcss from "@tailwindcss/vite";
 const TOK_TARGET = process.env.TOK_TARGET ?? "https://tokenization-web-lb-1075088900.us-east-1.elb.amazonaws.com";
 const OMNI_TARGET = process.env.OMNI_TARGET ?? "https://tokenization-omnichannel-lb-1369560458.us-east-1.elb.amazonaws.com";
 
+/* One pooled, kept-alive connection set per backend. Without it every proxied
+   request pays a fresh TLS handshake to the load balancer, which on UAT is most
+   of its cost — a page that fans out (Orders reads every offering's book) queued
+   up to 8 s per request. */
+const pool = (target: string) =>
+  target.startsWith("https:") ? new HttpsAgent({ keepAlive: true, maxSockets: 64 }) : new HttpAgent({ keepAlive: true, maxSockets: 64 });
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
@@ -22,6 +31,7 @@ export default defineConfig({
       // and a bare "/tok" would also swallow /tokenization/* and /token-console/*.
       "^/tok/": {
         target: TOK_TARGET,
+        agent: pool(TOK_TARGET),
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/tok/, "/api"),
@@ -36,6 +46,7 @@ export default defineConfig({
       },
       "^/omni/api/operator/": {
         target: OMNI_TARGET,
+        agent: pool(OMNI_TARGET),
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/omni/, ""),
