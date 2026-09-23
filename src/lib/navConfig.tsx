@@ -8,7 +8,7 @@ import {
   BookOpenCheck, PackageSearch, Inbox, ListChecks, Contact, Megaphone, Target, Gauge,
   Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart,
   PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2,
-  Percent, Send, ShieldX, Gavel, ScanEye,
+  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, HandCoins, KeyRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -47,10 +47,13 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Reconciliation", to: "/token-console/reconciliation", section: "Tokenization Console", icon: GitCompareArrows },
   { label: "Batch runs", to: "/token-console/runs", section: "Tokenization Console", icon: CalendarClock },
   { label: "Policies", to: "/token-console/policies", section: "Tokenization Console", icon: FileSignature },
+  { label: "Loans", to: "/token-console/loans", section: "Tokenization Console", icon: HandCoins },
+  { label: "KYC desk", to: "/token-console/kyc", section: "Tokenization Console", icon: BadgeCheck },
   { label: "Review queue", to: "/token-console/compliance", section: "Tokenization Console", icon: ShieldCheck },
   { label: "Funds", to: "/token-console/funds", section: "Tokenization Console", icon: Landmark },
   { label: "Tariffs", to: "/token-console/tariffs", section: "Tokenization Console", icon: Percent },
   { label: "Configuration", to: "/token-console/configuration", section: "Tokenization Console", icon: SlidersHorizontal },
+  { label: "Tokenization users", to: "/token-console/users", section: "Tokenization Console", icon: KeyRound },
   { label: "Market abuse", to: "/market-conduct/market-abuse", section: "Market Conduct", icon: ScanEye },
   { label: "Conflicts of interest", to: "/market-conduct/conflicts", section: "Market Conduct", icon: Handshake },
   { label: "Employee trading", to: "/market-conduct/employee-trading", section: "Market Conduct", icon: UserRoundCheck },

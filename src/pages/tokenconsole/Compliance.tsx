@@ -5,8 +5,9 @@ import { dateTime, shortId } from "../../lib/tokenConsole/format";
 import type { ComplianceReviewItem } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 
-/** Read-only here. Clearing or rejecting an item stays with the Compliance
- * queues BO Admin already has, until it is decided which one owns these. */
+/** Read-only here, as in tokenization-web. KYC items are decided on the KYC
+ * desk (and BO Admin's KYC Onboarding queue); anything else stays with
+ * Compliance until it is decided which queue owns it. */
 export default function TokenConsoleCompliance() {
   const reviews = useAsyncData(tokenConsole.complianceReviews);
   const open = (reviews.data ?? []).filter((r) => r.status === "OPEN").length;
