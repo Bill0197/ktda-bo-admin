@@ -4,7 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 /* Local twins of functions/tok and functions/omni (the Cloudflare Pages proxies).
    Neither backend sends CORS headers, and the tokenization session is a cookie,
-   so every call must be same-origin.
+   so every call must be same-origin — and the browser's Origin is dropped,
+   as the deployed proxies do.
 
    TOK_TARGET / OMNI_TARGET pick the backends (default: UAT). `secure: false`
    because the UAT load balancers present self-signed certificates — acceptable
@@ -27,6 +28,7 @@ export default defineConfig({
         // Same rule as functions/tok: a 401's anonymous-session cookie would
         // clobber a session established a moment earlier.
         configure: (proxy) => {
+          proxy.on("proxyReq", (req) => req.removeHeader("origin"));
           proxy.on("proxyRes", (res) => {
             if (res.statusCode === 401) delete res.headers["set-cookie"];
           });
@@ -37,6 +39,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/omni/, ""),
+        // Omnichannel's CORS list is localhost:5173-5178 only and it 403s any
+        // other Origin — same-origin needs none, so drop it (as functions/omni does).
+        configure: (proxy) => {
+          proxy.on("proxyReq", (req) => req.removeHeader("origin"));
+        },
       },
     },
   },
