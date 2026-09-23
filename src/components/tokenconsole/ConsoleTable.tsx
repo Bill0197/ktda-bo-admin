@@ -58,7 +58,7 @@ function withIds<T>(rows: T[], rowId: (row: T) => string | null | undefined): Ro
  * source shows its own error and retry without blanking the rest of the page.
  */
 export function ConsoleTable<T extends object>({
-  title, description, actions, what, source, rows, rowId, columns, emptyLabel, onRowClick, className = "mb-6",
+  title, description, actions, what, source, rows, rowId, columns, emptyLabel, onRowClick, selectedId, className = "mb-6",
 }: {
   title?: string;
   description?: ReactNode;
@@ -72,6 +72,8 @@ export function ConsoleTable<T extends object>({
   columns: Column<Row<T>>[];
   emptyLabel: string;
   onRowClick?: (row: Row<T>) => void;
+  /** Highlights the row whose rowId matches — master-detail lists. */
+  selectedId?: string | null;
   className?: string;
 }) {
   return (
@@ -88,6 +90,7 @@ export function ConsoleTable<T extends object>({
             rows={withIds(rows ?? source.data ?? [], rowId)}
             emptyLabel={emptyLabel}
             onRowClick={onRowClick}
+            selectedId={selectedId}
           />
         </GlassPanel>
       )}
