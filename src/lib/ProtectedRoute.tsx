@@ -1,9 +1,10 @@
 import { Suspense, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { ShieldOff } from "lucide-react";
-import { RouteLoader } from "../ui";
+import { Badge, InfoTip, RouteLoader } from "../ui";
 import { useAuth, ROLE_LABELS } from "./auth";
 import { AdminLayout } from "../layout/AdminLayout";
+import { isDemoRoute } from "./dataSource";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { role, isLoading, canAccess } = useAuth();
@@ -33,7 +34,21 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   return (
     <AdminLayout>
+      {isDemoRoute(location.pathname) && <DemoDataNotice />}
       <Suspense fallback={<RouteLoader />}>{children}</Suspense>
     </AdminLayout>
+  );
+}
+
+/** Says, on every page it applies to, that the figures are sample data — so a
+ * demo number is never mistaken for a real one. */
+function DemoDataNotice() {
+  return (
+    <div className="mb-3 flex justify-end">
+      <span className="inline-flex items-center gap-1.5">
+        <Badge tone="accent" className="whitespace-nowrap">Demo data</Badge>
+        <InfoTip text="This page runs on sample data until CORE API is connected. Changes you make work, but only in this browser tab, and a reload resets them." />
+      </span>
+    </div>
   );
 }

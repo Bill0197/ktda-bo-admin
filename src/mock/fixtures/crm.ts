@@ -1,4 +1,5 @@
-import { SYSTEM_USERS } from "./admin";
+import { CLIENTS, LEADS, SYSTEM_USERS, type Lead } from "./admin";
+import { COMPLAINTS } from "./compliance";
 
 /** CRM domain — the Business Development & Client Services SOP made concrete.
  *
@@ -28,6 +29,8 @@ export type CrmOwnerId = string;
 export function ownerName(id: CrmOwnerId): string {
   return SYSTEM_USERS.find((u) => u.id === id)?.name ?? "Unassigned";
 }
+
+// ---- Enquiries ----
 
 /** The object `enquiry_ack_days` finally has something to measure. Before
  * this, the SOP's one-business-day acknowledgement standard was a number in
@@ -106,6 +109,19 @@ export type Enquiry = {
   campaignId?: string;
 };
 
+export const ENQUIRIES: Enquiry[] = [
+  { id: "enq_1", clientId: null, name: "Felix Ndungu", contact: "+254711220099", channel: "web_form", category: "how_to_invest", subject: "Minimum to start?", body: "Saw the KES 100 minimum on your site. Do I need a bank account or can I use M-Pesa only?", status: "new", ownerId: null, receivedAt: "2026-09-02T05:40:00Z", campaignId: "cmp_search" },
+  { id: "enq_2", clientId: "inv_2891", name: "Amina Wanjiru", contact: "amina.wanjiru@example.com", channel: "app", category: "transaction_query", subject: "Double deduction on 1 August", body: "M-Pesa took KES 50,000 twice but only one investment shows.", status: "in_progress", ownerId: "u_3", receivedAt: "2026-08-08T08:05:00Z", acknowledgedAt: "2026-08-08T08:20:00Z" },
+  { id: "enq_3", clientId: null, name: "Mercy Adhiambo", contact: "+254700998877", channel: "phone", category: "product_information", subject: "Is the USD fund open to me?", body: "Wants to know whether the Eurobond sub-fund is available to a Kenyan resident and what the minimum is.", status: "resolved", ownerId: "u_9", receivedAt: "2026-08-28T09:15:00Z", acknowledgedAt: "2026-08-28T09:22:00Z", resolvedAt: "2026-08-28T09:48:00Z", resolution: "Confirmed USD 10 minimum, resident-eligible, wire-funded. Sent the fund factsheet." },
+  { id: "enq_4", clientId: null, name: "Kilimo SACCO", contact: "treasury@kilimosacco.co.ke", channel: "email", category: "institutional", subject: "Placement of KES 40M reserve", body: "Treasury committee is looking for a liquid, CMA-registered fixed-income vehicle for part of the reserve.", status: "acknowledged", ownerId: "u_10", receivedAt: "2026-08-25T11:30:00Z", acknowledgedAt: "2026-08-25T13:00:00Z" },
+  { id: "enq_5", clientId: null, name: "Kevin Mutuku", contact: "kevin.mutuku@advisors.co.ke", channel: "ifa", category: "ifa_partnership", subject: "Adding BRF to my client offering", body: "Certified IFA, currently distributing two money-market funds. Wants the BRF partner pack.", status: "converted", ownerId: "u_10", receivedAt: "2026-08-04T10:00:00Z", acknowledgedAt: "2026-08-04T10:35:00Z", resolvedAt: "2026-08-05T14:20:00Z", resolution: "Referred into the IFA due-diligence track.", convertedLeadId: "ld_3" },
+  // Deliberately breached: received Friday, acknowledged the following Tuesday.
+  // A CRM whose fixtures all pass its own SLA proves nothing about whether the
+  // breach path renders.
+  { id: "enq_6", clientId: null, name: "Josphat Kariuki", contact: "+254720445566", channel: "branch", category: "statement_request", subject: "Statement for my late father's account", body: "Walked in asking for a statement on a deceased relative's holding.", status: "in_progress", ownerId: "u_9", receivedAt: "2026-08-21T15:50:00Z", acknowledgedAt: "2026-08-25T09:10:00Z" },
+  { id: "enq_7", clientId: null, name: "Wanjiku Njeri", contact: "+254733889900", channel: "ussd", category: "account_access", subject: "Cannot get past the PIN screen", body: "Locked out after repeated PIN attempts on the USSD menu.", status: "new", ownerId: null, receivedAt: "2026-09-02T06:10:00Z" },
+];
+
 /** Business days between two instants. The SLA is stated in business days by
  * the SOP, so counting calendar days would report weekend breaches that are
  * not breaches and let a genuine Friday-to-Tuesday lapse look like one day. */
@@ -142,6 +158,8 @@ export function acknowledgementSla(enquiry: Enquiry, slaBusinessDays: number, no
   if (elapsed === slaBusinessDays) return { state: "due_today", elapsed };
   return { state: "within", elapsed };
 }
+
+// ---- Interactions ----
 
 /** The timeline. Every conversation with a lead, client, IFA or institutional
  * counterparty lands here, so "what have we already told this person" has an
@@ -213,6 +231,8 @@ export function visibleInteraction(i: Interaction, canSeeComplianceDetail: boole
   };
 }
 
+// ---- Tasks ----
+
 export type TaskStatus = "open" | "done" | "cancelled";
 export type TaskSource = "manual" | "sla" | "interaction" | "review_cycle";
 
@@ -249,6 +269,8 @@ export const CRM_TASKS: CrmTask[] = [
   { id: "tsk_7", title: "Annual servicing review — Cynthia Njeri", ownerId: "u_1", dueDate: "2027-05-03", status: "open", source: "review_cycle", subjectType: "client", subjectId: "inv_3122", createdAt: "2026-08-15T13:30:00Z" },
   { id: "tsk_8", title: "Send fund factsheet to Mercy Adhiambo", ownerId: "u_9", dueDate: "2026-08-28", status: "done", source: "manual", subjectType: "enquiry", subjectId: "enq_3", createdAt: "2026-08-28T09:25:00Z", completedAt: "2026-08-28T09:47:00Z" },
 ];
+
+// ---- Coverage & commercial segmentation (dated assignments) ----
 
 /** Deliberately the same shape as `classifiers.ts`: a window with a validity
  * range, closed and reopened rather than overwritten. "Who covered this client
@@ -326,6 +348,33 @@ export function segmentAsOf(clientId: string, asOf = new Date().toISOString().sl
   return assignmentAsOf(SEGMENT_ASSIGNMENTS, clientId, asOf);
 }
 
+function reassign<T extends string>(rows: DatedAssignment<T>[], clientId: string, value: T, assignedBy: string, reason?: string, effectiveFrom = new Date().toISOString().slice(0, 10)): DatedAssignment<T> | null {
+  const open = rows.find((a) => a.clientId === clientId && a.validTo === null);
+  if (open?.value === value) return null;
+  if (open && effectiveFrom < open.validFrom) {
+    throw new Error(`Cannot backdate to ${effectiveFrom}: the current window opened ${open.validFrom}`);
+  }
+  if (open) open.validTo = effectiveFrom;
+  const next = dated(clientId, value, effectiveFrom, null, assignedBy, reason, open?.value);
+  rows.push(next);
+  return next;
+}
+
+export function assignCoverage(clientId: string, ownerId: CrmOwnerId, assignedBy: string, reason?: string) {
+  if (!SYSTEM_USERS.some((u) => u.id === ownerId)) throw new Error("Unknown owner");
+  return reassign(COVERAGE_ASSIGNMENTS, clientId, ownerId, assignedBy, reason);
+}
+
+export function assignSegment(clientId: string, segment: CommercialSegment, assignedBy: string, reason?: string) {
+  // Validated for the same reason `assignCoverage` validates its owner: the
+  // value is a key into SEGMENT_SERVICE_MODEL, so an unrecognised one writes a
+  // window whose service model is `undefined` and every consumer downstream
+  // renders a blank instead of failing. TypeScript does not help here — the
+  // call arrives from a Dropdown carrying a plain string.
+  if (!(segment in SEGMENT_LABELS)) throw new Error(`"${segment}" is not a configured commercial segment`);
+  return reassign(SEGMENT_ASSIGNMENTS, clientId, segment, assignedBy, reason);
+}
+
 export function coverageHistory(clientId: string) {
   return [...COVERAGE_ASSIGNMENTS.filter((a) => a.clientId === clientId)].sort((a, b) => b.validFrom.localeCompare(a.validFrom));
 }
@@ -333,6 +382,42 @@ export function coverageHistory(clientId: string) {
 export function segmentHistory(clientId: string) {
   return [...SEGMENT_ASSIGNMENTS.filter((a) => a.clientId === clientId)].sort((a, b) => b.validFrom.localeCompare(a.validFrom));
 }
+
+// ---- Campaigns ----
+
+/** `Lead.source` is free text, so "which channel actually converts" has never
+ * been answerable. A campaign id on the enquiry and the lead makes it a join
+ * rather than a guess. */
+export type Campaign = {
+  id: string;
+  name: string;
+  channel: string;
+  startedAt: string;
+  endedAt: string | null;
+  /** What was spent, in KES. Null where the channel has no direct cost —
+   * zero would claim it was free, which is a different statement. */
+  spendKes: number | null;
+  note?: string;
+};
+
+export const CAMPAIGNS: Campaign[] = [
+  { id: "cmp_search", name: "Search — 'invest in government bonds Kenya'", channel: "Paid search", startedAt: "2026-06-01", endedAt: null, spendKes: 840_000, note: "Highest volume, lowest ticket size." },
+  { id: "cmp_radio", name: "Radio — Swahili drive-time", channel: "Radio", startedAt: "2026-07-01", endedAt: "2026-08-31", spendKes: 1_200_000, note: "Drives phone and USSD enquiries rather than app signups." },
+  { id: "cmp_ifa", name: "IFA partner programme", channel: "Advisor referral", startedAt: "2026-04-01", endedAt: null, spendKes: null, note: "Cost sits in trailing commission, not campaign spend — do not read a zero here as free." },
+  { id: "cmp_branch", name: "Branch counter cards", channel: "Branch", startedAt: "2026-05-15", endedAt: null, spendKes: 180_000 },
+];
+
+/** Lead-side attribution. Kept as a lookup rather than a column on `Lead` so
+ * the existing register in `admin.ts` is not reshaped underneath the pages
+ * already reading it. */
+export const LEAD_CAMPAIGNS: Record<string, string> = {
+  ld_1: "cmp_search",
+  ld_2: "cmp_search",
+  ld_3: "cmp_ifa",
+  ld_4: "cmp_branch",
+};
+
+// ---- Institutional pipeline (Bid / No-Bid) ----
 
 /** The SOP's Bid/No-Bid framework, verbatim on its seven criteria: "strategic
  * fit, capability, profitability, operational complexity, compliance, win
@@ -363,6 +448,73 @@ export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
   no_bid: "No-bid (declined)",
 };
 
+export type Opportunity = {
+  id: string;
+  counterparty: string;
+  type: "institutional" | "corporate" | "sacco" | "pension" | "ifa_channel";
+  stage: OpportunityStage;
+  currency: "KES" | "USD";
+  /** Indicative ticket. Institutional mandates move, so this is what they said,
+   * not what has been committed. */
+  indicativeAmount: number;
+  ownerId: CrmOwnerId;
+  openedAt: string;
+  expectedDecisionAt?: string;
+  closedAt?: string;
+  scores: Partial<Record<BidCriterion, number>>;
+  decision?: "bid" | "no_bid";
+  decisionBy?: string;
+  decisionNote?: string;
+  sourceEnquiryId?: string;
+};
+
+export const OPPORTUNITIES: Opportunity[] = [
+  {
+    id: "opp_1", counterparty: "Kilimo SACCO", type: "sacco", stage: "bid_no_bid", currency: "KES",
+    indicativeAmount: 40_000_000, ownerId: "u_10", openedAt: "2026-08-25", expectedDecisionAt: "2026-09-15",
+    scores: { strategic_fit: 4, capability: 4, profitability: 3, operational_complexity: 3, compliance: 3, win_probability: 3, reputation: 4 },
+    sourceEnquiryId: "enq_4",
+  },
+  {
+    id: "opp_2", counterparty: "Mwangaza Pension Scheme", type: "pension", stage: "proposal", currency: "KES",
+    indicativeAmount: 120_000_000, ownerId: "u_10", openedAt: "2026-07-14", expectedDecisionAt: "2026-09-30",
+    scores: { strategic_fit: 5, capability: 3, profitability: 4, operational_complexity: 2, compliance: 4, win_probability: 3, reputation: 5 },
+    decision: "bid", decisionBy: "Head of BD", decisionNote: "Bid despite operational complexity — trustee reporting is the gap; Operations to size it before proposal goes out.",
+  },
+  {
+    id: "opp_3", counterparty: "Offshore family office (Gulf)", type: "institutional", stage: "no_bid", currency: "USD",
+    indicativeAmount: 2_000_000, ownerId: "u_10", openedAt: "2026-06-02", closedAt: "2026-06-20",
+    scores: { strategic_fit: 2, capability: 3, profitability: 4, operational_complexity: 2, compliance: 1, win_probability: 3, reputation: 2 },
+    decision: "no_bid", decisionBy: "Head of BD", decisionNote: "Declined on compliance: UBO chain runs through two jurisdictions the tokenization whitelist marks under review, and the fund is not licensed to distribute there.",
+  },
+  {
+    id: "opp_4", counterparty: "Tuungane Chama Network", type: "corporate", stage: "won", currency: "KES",
+    indicativeAmount: 8_000_000, ownerId: "u_1", openedAt: "2026-05-10", closedAt: "2026-07-02",
+    scores: { strategic_fit: 5, capability: 5, profitability: 3, operational_complexity: 4, compliance: 4, win_probability: 4, reputation: 4 },
+    decision: "bid", decisionBy: "Head of BD", decisionNote: "Exactly the mass-market thesis — 400 members onboarding individually rather than one omnibus account.",
+  },
+  {
+    id: "opp_5", counterparty: "Rift Valley Traders Co-op", type: "sacco", stage: "qualifying", currency: "KES",
+    indicativeAmount: 15_000_000, ownerId: "u_10", openedAt: "2026-08-30",
+    scores: {},
+  },
+];
+
+/** Mean of the scored criteria, 1–5. Unscored criteria are excluded rather
+ * than counted as zero — a half-finished assessment should read as incomplete,
+ * not as a bad score. Operational complexity is already stored inverted (5 =
+ * simple), so no special-casing is needed here; the label carries the warning. */
+export function bidScore(opp: Opportunity): { score: number | null; scored: number; total: number } {
+  const values = BID_CRITERIA.map((c) => opp.scores[c.key]).filter((v): v is number => typeof v === "number");
+  return {
+    score: values.length ? Number((values.reduce((s, v) => s + v, 0) / values.length).toFixed(2)) : null,
+    scored: values.length,
+    total: BID_CRITERIA.length,
+  };
+}
+
+// ---- Service reviews ----
+
 export type ServiceReview = {
   id: string;
   clientId: string;
@@ -378,8 +530,79 @@ export const SERVICE_REVIEWS: ServiceReview[] = [
   { id: "svr_3", clientId: "inv_2601", dueDate: "2026-08-11", ownerId: "u_9", note: "Mass retail — no named review; raised only because the account went quiet." },
 ];
 
+// ---- BD performance (the SOP's own KPI list) ----
+
+/** "KPIs include response time, KYC turnaround, transaction accuracy,
+ * redemption turnaround, complaints, client satisfaction, RFP conversion and
+ * onboarding cycle time."
+ *
+ * Only the ones this platform can actually compute are computed. The rest are
+ * returned with `value: null` and a reason — a dashboard that invents a client
+ * satisfaction score because the tile looked empty is worse than one that says
+ * where the number would have to come from. */
+export type BdKpi = {
+  key: string;
+  label: string;
+  value: number | null;
+  unit: string;
+  target?: number;
+  /** Lower is better for turnaround metrics; higher for conversion. */
+  direction: "lower_better" | "higher_better";
+  source: string;
+  unavailableReason?: string;
+};
+
+export function bdKpis(ackSlaDays: number, now = new Date().toISOString()): BdKpi[] {
+  const acknowledged = ENQUIRIES.filter((e) => e.acknowledgedAt);
+  const avgAck = acknowledged.length
+    ? acknowledged.reduce((s, e) => s + businessDaysBetween(e.receivedAt, e.acknowledgedAt!), 0) / acknowledged.length
+    : null;
+  const withinSla = acknowledged.filter((e) => businessDaysBetween(e.receivedAt, e.acknowledgedAt!) <= ackSlaDays).length;
+
+  const decided = OPPORTUNITIES.filter((o) => o.stage === "won" || o.stage === "lost" || o.stage === "no_bid");
+  const won = OPPORTUNITIES.filter((o) => o.stage === "won").length;
+
+  const openComplaints = COMPLAINTS.filter((c) => c.status !== "resolved" && c.status !== "closed").length;
+
+  const converted = LEADS.filter((l) => l.stage === "converted").length;
+
+  const overdueTasks = CRM_TASKS.filter((t) => t.status === "open" && t.dueDate < now.slice(0, 10)).length;
+
+  return [
+    { key: "ack_time", label: "Average acknowledgement time", value: avgAck === null ? null : Number(avgAck.toFixed(2)), unit: "business days", target: ackSlaDays, direction: "lower_better", source: "Enquiry register" },
+    { key: "ack_sla", label: "Acknowledged within standard", value: acknowledged.length ? Number(((withinSla / acknowledged.length) * 100).toFixed(0)) : null, unit: "%", target: 100, direction: "higher_better", source: "Enquiry register" },
+    { key: "lead_conversion", label: "Lead conversion", value: LEADS.length ? Number(((converted / LEADS.length) * 100).toFixed(0)) : null, unit: "%", direction: "higher_better", source: "Lead register" },
+    { key: "rfp_conversion", label: "RFP / institutional conversion", value: decided.length ? Number(((won / decided.length) * 100).toFixed(0)) : null, unit: "%", direction: "higher_better", source: "Opportunity pipeline (decided only)" },
+    { key: "open_complaints", label: "Open complaints", value: openComplaints, unit: "open", direction: "lower_better", source: "Complaint register" },
+    { key: "overdue_tasks", label: "Overdue follow-ups", value: overdueTasks, unit: "overdue", direction: "lower_better", source: "Task queue" },
+    { key: "kyc_tat", label: "KYC turnaround", value: null, unit: "business days", direction: "lower_better", source: "Onboarding turnaround report", unavailableReason: "Computed by the onboarding TAT report from compliance timestamps, not from CRM data — surfaced there rather than duplicated here with a second definition." },
+    { key: "redemption_tat", label: "Redemption turnaround", value: null, unit: "business days", direction: "lower_better", source: "Transaction ledger", unavailableReason: "Belongs to Operations' settlement data. A CRM-side approximation would disagree with the operational number." },
+    { key: "transaction_accuracy", label: "Transaction accuracy", value: null, unit: "%", direction: "higher_better", source: "Reconciliation breaks", unavailableReason: "Needs an agreed denominator (per transaction, per value, per batch) before it means anything. Open with Operations." },
+    { key: "client_satisfaction", label: "Client satisfaction", value: null, unit: "score", direction: "higher_better", source: "Not collected", unavailableReason: "No survey instrument exists. The SOP names the KPI; nothing in the platform produces it, and inventing a proxy would be worse than the gap." },
+  ];
+}
+
+// ---- Cross-object helpers ----
+
 export function interactionsFor(subjectType: InteractionSubject, subjectId: string) {
   return INTERACTIONS
     .filter((i) => i.subjectType === subjectType && i.subjectId === subjectId)
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+}
+
+/** Every client with no coverage window open. Mass retail is legitimately
+ * unowned (pooled queue), so this is reported alongside the segment rather
+ * than as a flat error count. */
+export function coverageGaps() {
+  return CLIENTS.map((c) => {
+    const segment = segmentAsOf(c.id)?.value ?? null;
+    const owner = coverageAsOf(c.id)?.value ?? null;
+    const expectsOwner = segment !== null && segment !== "mass_retail";
+    return { clientId: c.id, name: c.name, segment, ownerId: owner, expectsOwner, gap: expectsOwner && !owner };
+  });
+}
+
+export function leadWithCampaign(lead: Lead) {
+  const campaignId = LEAD_CAMPAIGNS[lead.id];
+  return { ...lead, campaignId: campaignId ?? null, campaignName: CAMPAIGNS.find((c) => c.id === campaignId)?.name ?? null };
 }

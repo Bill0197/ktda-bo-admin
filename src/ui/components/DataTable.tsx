@@ -22,12 +22,16 @@ export function DataTable<T extends { id: string | number }>({
   onRowClick,
   emptyLabel = "No records",
   columnPicker = false,
+  selectedId,
 }: {
   columns: Column<T>[];
   rows: T[];
   onRowClick?: (row: T) => void;
   emptyLabel?: string;
   columnPicker?: boolean;
+  /** Marks one row as the current selection — for master-detail layouts,
+   *  where the list drives a panel beside it. */
+  selectedId?: string | number | null;
 }) {
   const [hidden, setHidden] = useState<Set<string>>(
     () => new Set(columns.filter((c) => c.defaultHidden).map((c) => c.key)),
@@ -110,15 +114,20 @@ export function DataTable<T extends { id: string | number }>({
               <tr
                 key={row.id}
                 onClick={() => onRowClick?.(row)}
+                aria-selected={selectedId !== undefined ? row.id === selectedId : undefined}
                 className={clsx(
                   "group relative border-b border-border last:border-0 transition-colors",
                   onRowClick && "cursor-pointer hover:bg-primary-500/[0.05]",
+                  selectedId !== undefined && row.id === selectedId && "bg-primary-500/[0.07]",
                 )}
               >
                 {visible.map((c, i) => (
                   <td key={c.key} className={clsx("relative px-4 py-3.5 align-middle", c.className)}>
                     {i === 0 && onRowClick && (
-                      <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-500 scale-y-0 group-hover:scale-y-100 transition-transform origin-center" />
+                      <span className={clsx(
+                        "absolute left-0 top-0 bottom-0 w-[2px] bg-primary-500 group-hover:scale-y-100 transition-transform origin-center",
+                        selectedId !== undefined && row.id === selectedId ? "scale-y-100" : "scale-y-0",
+                      )} />
                     )}
                     {c.render(row)}
                   </td>
@@ -134,7 +143,11 @@ export function DataTable<T extends { id: string | number }>({
           <div
             key={row.id}
             onClick={() => onRowClick?.(row)}
-            className={clsx("rounded-lg border border-border bg-surface p-4 flex flex-col gap-2", onRowClick && "cursor-pointer active:bg-surface-sunken")}
+            className={clsx(
+              "rounded-lg border bg-surface p-4 flex flex-col gap-2",
+              selectedId !== undefined && row.id === selectedId ? "border-primary-500" : "border-border",
+              onRowClick && "cursor-pointer active:bg-surface-sunken",
+            )}
           >
             {visible
               .filter((c) => !c.hideOnMobile)

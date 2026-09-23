@@ -65,7 +65,7 @@ export const ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
   // where it actually holds: `canSeeCase` filters restricted cases seam-side by
   // role, so opening the Cases page to System Admin shows the register without
   // suspicious-activity matters — the control is on the data, not the route.
-  system_admin: ["/", "/clients", "/leads", "/suitability", "/complaints", "/kyc-queue", "/kyc-periodic", "/kyc-dynamic", "/aml-alerts", "/cases", "/fraud-alerts", "/fraud-cases", "/screening", "/approvals", "/transactions", "/reconciliation", "/unallocated-funds", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/nav", "/distributions", "/liquidity", "/bond-ladder", "/ledger", "/catalogue", "/reports", "/settings", "/feature-flags", "/users", "/system", "/audit-log", "/tokenization/issuance", "/tokenization/lifecycle", "/tokenization/smart-contracts", "/token-console/overview", "/token-console/investors", "/token-console/accounts", "/token-console/offerings", "/token-console/products", "/token-console/journals", "/token-console/trial-balance", "/token-console/unit-ledger", "/token-console/reconciliation", "/token-console/runs", "/token-console/policies", "/token-console/compliance", "/token-console/funds", "/token-console/tariffs", "/token-console/configuration", "/market-conduct/market-abuse", "/market-conduct/conflicts", "/market-conduct/employee-trading", "/institutional-compliance/breaches", "/institutional-compliance/restrictions", "/institutional-compliance/counterparties", "/institutional-compliance/clients", "/investment/products", "/investment/orders", "/investment/portfolio", "/investment/holdings", "/investment/valuations", "/investment/redemptions", "/investment/corporate-actions", "/investment/ic-approvals", "/investment/mandates", "/institutional/clients", "/institutional/mandates", "/institutional/portfolios", "/institutional/fees", "/institutional/reporting"],
+  system_admin: ["/", "/clients", "/leads", "/suitability", "/complaints", "/kyc-queue", "/kyc-periodic", "/kyc-dynamic", "/aml-alerts", "/cases", "/fraud-alerts", "/fraud-cases", "/screening", "/approvals", "/transactions", "/reconciliation", "/unallocated-funds", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/nav", "/distributions", "/liquidity", "/bond-ladder", "/ledger", "/catalogue", "/reports", "/settings", "/feature-flags", "/users", "/system", "/audit-log", "/tokenization/issuance", "/tokenization/lifecycle", "/tokenization/smart-contracts", "/token-console/overview", "/token-console/investors", "/token-console/accounts", "/token-console/offerings", "/token-console/products", "/token-console/journals", "/token-console/trial-balance", "/token-console/unit-ledger", "/token-console/reconciliation", "/token-console/runs", "/token-console/policies", "/token-console/compliance", "/token-console/funds", "/token-console/tariffs", "/token-console/configuration", "/token-console/loans", "/token-console/kyc", "/token-console/users", "/market-conduct/market-abuse", "/market-conduct/conflicts", "/market-conduct/employee-trading", "/institutional-compliance/breaches", "/institutional-compliance/restrictions", "/institutional-compliance/counterparties", "/institutional-compliance/clients", "/investment/products", "/investment/orders", "/investment/portfolio", "/investment/holdings", "/investment/valuations", "/investment/redemptions", "/investment/corporate-actions", "/investment/ic-approvals", "/investment/mandates", "/institutional/clients", "/institutional/mandates", "/institutional/portfolios", "/institutional/fees", "/institutional/reporting"],
 };
 
 export const ADMIN_USERS: Record<AdminRole, { name: string; initials: string; email: string }> = {
@@ -165,6 +165,14 @@ export type ClientRow = {
   joinedAt: string;
 };
 
+export const CLIENTS: ClientRow[] = [
+  { id: "inv_2891", name: "Amina Wanjiru", middleName: "Njoki", email: "amina.wanjiru@example.com", phone: "+254 712 334 455", dateOfBirth: "1991-06-23", gender: "female", city: "Nairobi", nationality: "Kenyan", idNumber: "31245678", employmentType: "employed", industry: "Retail & wholesale trade", incomeRange: "150k_300k", kycStatus: "verified", suitabilityScore: 72, aum: 474_000, currency: "KES", channel: "Self-service", joinedAt: "2026-03-14" },
+  { id: "inv_3350", name: "Brian Otieno", email: "brian.otieno@example.com", phone: "+254 733 221 100", dateOfBirth: "1998-11-04", gender: "male", city: "Nairobi", nationality: "Kenyan", idNumber: "34112907", employmentType: "self_employed", industry: "Retail & wholesale trade", incomeRange: "50k_150k", kycStatus: "suitability_exception", suitabilityScore: 38, aum: 0, currency: "KES", channel: "Self-service", joinedAt: "2026-08-06" },
+  { id: "inv_3122", name: "Cynthia Njeri", middleName: "Wangui", email: "cynthia.njeri@example.com", phone: "+254 722 908 771", dateOfBirth: "1979-02-15", gender: "female", city: "Nakuru", nationality: "Kenyan", idNumber: "22884401", employmentType: "self_employed", industry: "Transport & logistics", incomeRange: "over_1m", kycStatus: "verified", suitabilityScore: 81, aum: 1_240_000, currency: "KES", channel: "IFA referral", joinedAt: "2026-05-02" },
+  { id: "inv_2765", name: "David Mwangi", email: "david.mwangi@example.com", phone: "+254 701 445 902", dateOfBirth: "1995-09-30", gender: "male", city: "Nairobi", nationality: "Kenyan", idNumber: "29903115", employmentType: "employed", industry: "ICT & technology", incomeRange: "300k_1m", kycStatus: "pending_review", suitabilityScore: null, aum: 0, currency: "KES", channel: "Self-service", joinedAt: "2026-08-05" },
+  { id: "inv_2601", name: "Esther Chebet", email: "esther.chebet@example.com", phone: "+254 728 660 143", dateOfBirth: "1984-12-08", gender: "female", city: "Other", nationality: "Kenyan", idNumber: "A1129045", employmentType: "employed", industry: "Healthcare", incomeRange: "300k_1m", kycStatus: "verified", suitabilityScore: 66, aum: 8_400, currency: "USD", channel: "BD officer", joinedAt: "2026-02-11" },
+];
+
 export type Lead = {
   id: string;
   name: string;
@@ -235,6 +243,11 @@ export type ReconciliationBreak = {
   detectedAt: string;
 };
 
+export const RECONCILIATION_BREAKS: ReconciliationBreak[] = [
+  { id: "rc_1", type: "custodian_statement", description: "Coupon receipt for IFB1/2023/6.5Yr posted a day early vs. custodian statement", variance: 0, currency: "KES", status: "resolved", detectedAt: "2026-08-05T07:00:00Z" },
+  { id: "rc_2", type: "cash", description: "M-Pesa settlement batch total is KES 1,240 short of Daraja's confirmation report", variance: -1240, currency: "KES", status: "open", detectedAt: "2026-08-06T06:30:00Z" },
+];
+
 export type UnallocatedFund = {
   id: string;
   reference: string;
@@ -244,6 +257,11 @@ export type UnallocatedFund = {
   reason: string;
   status: "unmatched" | "matched" | "returned";
 };
+
+export const UNALLOCATED_FUNDS: UnallocatedFund[] = [
+  { id: "uf_1", reference: "WIRE-KE-88301", amount: 500, currency: "USD", receivedAt: "2026-08-04T10:00:00Z", reason: "Reference missing investor ID", status: "unmatched" },
+  { id: "uf_2", reference: "WIRE-KE-88213", amount: 500, currency: "USD", receivedAt: "2026-07-22T11:05:00Z", reason: "Matched after manual review", status: "matched" },
+];
 
 export type SystemUser = {
   id: string;

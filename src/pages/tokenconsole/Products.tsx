@@ -1,138 +1,14 @@
 import { useState } from "react";
-import { Button, Field, Input, Modal, NotePanel, PageHeader, Select, useToast } from "../../ui";
+import { Button, PageHeader, useToast } from "../../ui";
 import { Plus } from "lucide-react";
 import { tokenConsole } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { label, shortId } from "../../lib/tokenConsole/format";
-import { useAction } from "../../lib/tokenConsole/useAction";
-import type { CreateProductRequest, Product } from "../../lib/tokenConsole/types.gen";
+import type { Product } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { NewProductModal } from "./NewProductModal";
 import { ProductConfigModal } from "./ProductConfigModal";
-
-const ASSET_CLASSES = ["BOND", "EQUITY", "FX", "DERIVATIVE", "MONEY_MARKET", "INDEX", "BALANCED", "LOAN"] as const;
-const STRUCTURES = ["POOLED_UNITIZED", "DISCRETIONARY_MANDATE"] as const;
-
-const BLANK: CreateProductRequest = {
-  productId: "", name: "", currency: "KES", assetClass: "BOND", structureType: "POOLED_UNITIZED", schemeId: "", packageId: "",
-};
-
-const opt = (v: string | undefined) => (v && v.trim() !== "" ? v : undefined);
-
-/** Reference lists for the create form, loaded only when the form opens. */
-function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: (p: Product) => void }) {
-  const schemes = useAsyncData(tokenConsole.schemes);
-  const packages = useAsyncData(tokenConsole.servicePackages);
-  const domains = useAsyncData(tokenConsole.tariffDomains);
-  const groups = useAsyncData(tokenConsole.productGroups);
-  const categories = useAsyncData(tokenConsole.productCategories);
-  const clientCategories = useAsyncData(tokenConsole.clientCategories);
-  const subtypes = useAsyncData(tokenConsole.contractSubtypes);
-  const dateSchemes = useAsyncData(tokenConsole.dateSchemes);
-  const reportTypes = useAsyncData(tokenConsole.reportTypes);
-  const create = useAction(tokenConsole.createProduct);
-
-  const [f, setF] = useState<CreateProductRequest>(BLANK);
-  const [tags, setTags] = useState("");
-  const set = <K extends keyof CreateProductRequest>(k: K, v: CreateProductRequest[K]) => setF((s) => ({ ...s, [k]: v }));
-
-  const listError = [schemes, packages, domains, groups, categories, clientCategories, subtypes, dateSchemes, reportTypes]
-    .map((s) => s.error).find(Boolean);
-  const valid = !!(f.productId.trim() && f.name.trim() && f.currency.trim() && f.schemeId && f.packageId);
-
-  const submit = async () => {
-    const body: CreateProductRequest = {
-      ...f,
-      productId: f.productId.trim(),
-      name: f.name.trim(),
-      currency: f.currency.trim().toUpperCase(),
-      tariffDomainId: opt(f.tariffDomainId),
-      productGroupId: opt(f.productGroupId),
-      productCategoryId: opt(f.productCategoryId),
-      clientCategoryId: opt(f.clientCategoryId),
-      contractSubtypeId: opt(f.contractSubtypeId),
-      dateSchemeId: opt(f.dateSchemeId),
-      reportTypeId: opt(f.reportTypeId),
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-    };
-    const created = await create.run(body);
-    if (created) onCreated(created);
-  };
-
-  const optional = <T,>(
-    fieldLabel: string, key: keyof CreateProductRequest, rows: T[] | null, value: (r: T) => string | undefined, text: (r: T) => string | undefined,
-  ) => (
-    <Field label={fieldLabel}>
-      <Select value={(f[key] as string | undefined) ?? ""} onChange={(e) => set(key, e.target.value as never)}>
-        <option value="">(none)</option>
-        {(rows ?? []).map((r) => {
-          const v = value(r);
-          return v ? <option key={v} value={v}>{text(r) ?? v}</option> : null;
-        })}
-      </Select>
-    </Field>
-  );
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title="New product"
-      size="lg"
-      footer={
-        <>
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={!valid || create.pending} onClick={() => void submit()}>
-            {create.pending ? "Creating…" : "Create product"}
-          </Button>
-        </>
-      }
-    >
-      <p className="mb-4 text-sm text-text-soft">Identity and bindings are required. Classification is optional.</p>
-      {listError && <NotePanel tone="warning" className="mb-4">Some lists could not be loaded: {listError}</NotePanel>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Product ID" required><Input value={f.productId} onChange={(e) => set("productId", e.target.value)} placeholder="BRF-KES-INC" /></Field>
-        <Field label="Name" required><Input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="BRF KES Income Fund" /></Field>
-        <Field label="Currency" required><Input value={f.currency} onChange={(e) => set("currency", e.target.value)} placeholder="KES" /></Field>
-        <Field label="Asset class" required>
-          <Select value={f.assetClass} onChange={(e) => set("assetClass", e.target.value as CreateProductRequest["assetClass"])}>
-            {ASSET_CLASSES.map((v) => <option key={v} value={v}>{label(v)}</option>)}
-          </Select>
-        </Field>
-        <Field label="Structure" required>
-          <Select value={f.structureType} onChange={(e) => set("structureType", e.target.value as CreateProductRequest["structureType"])}>
-            {STRUCTURES.map((v) => <option key={v} value={v}>{label(v)}</option>)}
-          </Select>
-        </Field>
-        <Field label="Accounting scheme" required>
-          <Select value={f.schemeId} onChange={(e) => set("schemeId", e.target.value)}>
-            <option value="">Select…</option>
-            {(schemes.data ?? []).map((s) => <option key={s.schemeId} value={s.schemeId}>{s.schemeId} — {s.name}</option>)}
-          </Select>
-        </Field>
-        <Field label="Service package" required>
-          <Select value={f.packageId} onChange={(e) => set("packageId", e.target.value)}>
-            <option value="">Select…</option>
-            {(packages.data ?? []).map((s) => <option key={s.packageId} value={s.packageId}>{s.packageId} — {s.name}</option>)}
-          </Select>
-        </Field>
-        {optional("Tariff domain", "tariffDomainId", domains.data, (d) => d.tariffDomainId, (d) => d.tariffDomainId)}
-        {optional("Product group", "productGroupId", groups.data, (g) => g.productGroupId, (g) => g.groupName)}
-        {optional("Product category", "productCategoryId", categories.data, (c) => c.productCategoryId, (c) => c.categoryName)}
-        {optional("Client category", "clientCategoryId", clientCategories.data, (c) => c.clientCategoryId, (c) => c.categoryName)}
-        {optional("Contract subtype", "contractSubtypeId", subtypes.data, (c) => c.contractSubtypeId, (c) => c.subtypeName)}
-        {optional("Date scheme", "dateSchemeId", dateSchemes.data, (d) => d.dateSchemeId, (d) => d.schemeName)}
-        {optional("Report type", "reportTypeId", reportTypes.data, (r) => r.reportTypeId, (r) => r.reportName)}
-        <div className="sm:col-span-2">
-          <Field label="Tags" hint="Comma-separated">
-            <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="flagship, income-variant" />
-          </Field>
-        </div>
-      </div>
-      {create.error && <NotePanel tone="danger" className="mt-4">{create.error}</NotePanel>}
-    </Modal>
-  );
-}
 
 export default function TokenConsoleProducts() {
   const { can } = useAuth();

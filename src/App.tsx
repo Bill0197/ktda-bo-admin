@@ -64,6 +64,9 @@ const TokenConsoleCompliance = lazy(() => import("./pages/tokenconsole/Complianc
 const TokenConsoleFunds = lazy(() => import("./pages/tokenconsole/Funds"));
 const TokenConsoleTariffs = lazy(() => import("./pages/tokenconsole/Tariffs"));
 const TokenConsoleConfiguration = lazy(() => import("./pages/tokenconsole/Configuration"));
+const TokenConsoleLoans = lazy(() => import("./pages/tokenconsole/Loans"));
+const TokenConsoleKyc = lazy(() => import("./pages/tokenconsole/Kyc"));
+const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
 const MarketAbuse = lazy(() => import("./pages/conduct/MarketAbuse"));
 const ConflictsOfInterest = lazy(() => import("./pages/conduct/ConflictsOfInterest"));
 const EmployeeTrading = lazy(() => import("./pages/conduct/EmployeeTrading"));
@@ -147,6 +150,9 @@ function AppRoutes() {
       <Route path="/token-console/funds" element={<ProtectedRoute><TokenConsoleFunds /></ProtectedRoute>} />
       <Route path="/token-console/tariffs" element={<ProtectedRoute><TokenConsoleTariffs /></ProtectedRoute>} />
       <Route path="/token-console/configuration" element={<ProtectedRoute><TokenConsoleConfiguration /></ProtectedRoute>} />
+      <Route path="/token-console/loans" element={<ProtectedRoute><TokenConsoleLoans /></ProtectedRoute>} />
+      <Route path="/token-console/kyc" element={<ProtectedRoute><TokenConsoleKyc /></ProtectedRoute>} />
+      <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />
       <Route path="/market-conduct/market-abuse" element={<ProtectedRoute><MarketAbuse /></ProtectedRoute>} />
       <Route path="/market-conduct/conflicts" element={<ProtectedRoute><ConflictsOfInterest /></ProtectedRoute>} />
       <Route path="/market-conduct/employee-trading" element={<ProtectedRoute><EmployeeTrading /></ProtectedRoute>} />

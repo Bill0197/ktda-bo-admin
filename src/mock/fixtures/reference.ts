@@ -12,6 +12,66 @@
  * BO-Admin-managed and version-controlled before production (System
  * Requirements CR-027, Screening §7). Do not treat this array as authoritative. */
 
+export type Country = {
+  code: string;
+  name: string;
+  higherRisk?: boolean;
+};
+
+export const COUNTRIES: Country[] = [
+  { code: "KE", name: "Kenya" },
+  { code: "UG", name: "Uganda" },
+  { code: "TZ", name: "Tanzania" },
+  { code: "RW", name: "Rwanda" },
+  { code: "BI", name: "Burundi" },
+  { code: "SS", name: "South Sudan", higherRisk: true },
+  { code: "ET", name: "Ethiopia" },
+  { code: "SO", name: "Somalia", higherRisk: true },
+  { code: "ZA", name: "South Africa" },
+  { code: "NG", name: "Nigeria", higherRisk: true },
+  { code: "GH", name: "Ghana" },
+  { code: "EG", name: "Egypt" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "QA", name: "Qatar" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "IN", name: "India" },
+  { code: "PK", name: "Pakistan" },
+  { code: "CN", name: "China" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "NL", name: "Netherlands" },
+  { code: "AU", name: "Australia" },
+  { code: "IR", name: "Iran", higherRisk: true },
+  { code: "KP", name: "North Korea", higherRisk: true },
+  { code: "MM", name: "Myanmar", higherRisk: true },
+  { code: "SY", name: "Syria", higherRisk: true },
+  { code: "OTHER", name: "Another country" },
+];
+
+export function countryName(code: string): string {
+  return COUNTRIES.find((c) => c.code === code)?.name ?? code;
+}
+
+export function isHigherRiskCountry(code: string): boolean {
+  return COUNTRIES.find((c) => c.code === code)?.higherRisk === true;
+}
+
+/** The default nationality for this product. Kenya is the only market the
+ * fund is distributed in, so the onboarding form pre-selects it rather than
+ * asking every applicant to find it in a list. It stays a controlled value
+ * (not a hard-coded string at the call site) because screening still needs a
+ * nationality and a diaspora applicant can change it. */
+export const DEFAULT_COUNTRY_CODE = "KE";
+
+/** Country of residence is no longer collected — the product is Kenya-only,
+ * and asking for it doubled up on nationality for effectively every
+ * applicant. Screening still requires a residence identifier (Screening §9.1),
+ * so it is supplied from here instead of from the customer. */
+export const DEFAULT_RESIDENCE_CODE = "KE";
+
 export type Gender = "female" | "male" | "other" | "undisclosed";
 
 export const GENDERS: { value: Gender; label: string }[] = [
@@ -25,6 +85,15 @@ export function genderLabel(value: string): string {
   return GENDERS.find((g) => g.value === value)?.label ?? value;
 }
 
+/** Towns and cities, for the address field. Free text would make the value
+ * useless for the geographic-risk view BO Admin reports on, so it is a
+ * controlled list with an "Other" escape hatch. */
+export const CITIES: string[] = [
+  "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Thika", "Nyeri", "Machakos",
+  "Meru", "Kakamega", "Kisii", "Malindi", "Naivasha", "Kitale", "Garissa", "Kericho",
+  "Embu", "Nanyuki", "Kitui", "Other",
+];
+
 /** Employment basis — the first of the three profile questions asked after the
  * account is created. */
 export type EmploymentType = "employed" | "self_employed";
@@ -37,6 +106,14 @@ export const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
 export function employmentTypeLabel(value: string): string {
   return EMPLOYMENT_TYPES.find((e) => e.value === value)?.label ?? value;
 }
+
+export const INDUSTRIES: string[] = [
+  "Agriculture", "Construction & real estate", "Education", "Financial services",
+  "Government & public sector", "Healthcare", "Hospitality & tourism", "ICT & technology",
+  "Manufacturing", "Media & creative", "Mining & extractives", "NGO & development",
+  "Professional services", "Retail & wholesale trade", "Transport & logistics",
+  "Utilities & energy", "Other",
+];
 
 /** Monthly income bands, KES. Bands rather than an exact figure: the value is
  * used for expected-activity profiling (Transaction Monitoring §6), which
@@ -52,3 +129,14 @@ export const INCOME_RANGES: { value: string; label: string }[] = [
 export function incomeRangeLabel(value: string): string {
   return INCOME_RANGES.find((r) => r.value === value)?.label ?? value;
 }
+
+/** Banks a payout account can be held with. A bank name alone cannot route a
+ * payment, but it is what the customer knows — the branch/SWIFT detail is
+ * resolved backend-side from the name plus account number. */
+export const BANKS: string[] = [
+  "Absa Bank Kenya", "Bank of Africa", "Co-operative Bank", "Credit Bank",
+  "Diamond Trust Bank", "Ecobank Kenya", "Equity Bank", "Family Bank",
+  "Gulf African Bank", "HFC Bank", "I&M Bank", "KCB Bank", "NCBA Bank",
+  "National Bank of Kenya", "Prime Bank", "Sidian Bank", "Stanbic Bank",
+  "Standard Chartered Bank", "Other",
+];

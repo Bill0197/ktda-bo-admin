@@ -1,6 +1,7 @@
 import {
-  ACCOUNT_TEMPLATES, INSTITUTION, INSTITUTION_ACCOUNTS, INVESTOR_CONTRACTS, DAY_COUNT_DIVISOR, productById,
-  resolveTariff, SERVICE_PACKAGES, type AccountRole, type Currency, type DayCountConvention,
+  ACCOUNT_TEMPLATES, INSTITUTION, INSTITUTION_ACCOUNTS, INVESTOR_CONTRACTS,
+  DAY_COUNT_DIVISOR, productById, resolveTariff, SERVICE_PACKAGES,
+  type AccountRole, type Currency, type DayCountConvention,
 } from "./catalogue";
 import { SUB_FUNDS } from "./fund";
 import { TRANSACTIONS } from "./investor";
@@ -20,6 +21,8 @@ import { TRANSACTIONS } from "./investor";
  *
  * Nothing here is ever edited after posting. A correction is a new,
  * opposite-signed entry (`reverseJournal`), never a mutated row. */
+
+// ---- Chart of accounts ----
 
 export type AccountType = "asset" | "liability" | "income" | "expense";
 export type NormalBalance = "debit" | "credit";
@@ -48,6 +51,8 @@ export function chartAccount(code: string): ChartAccount {
   if (!a) throw new Error(`Unknown chart-of-accounts code ${code}`);
   return a;
 }
+
+// ---- GL account instances ----
 
 /** An instance of a chart-of-accounts *type*, for one owner: "contract
  * CTR-…'s principal account", "the KES bank mirror".
@@ -92,6 +97,10 @@ export const GL_ACCOUNTS: GlAccount[] = [
   ),
 ];
 
+export function glAccountOwnerIsValid(a: GlAccount): boolean {
+  return (a.contractId === null) !== (a.institutionAccountId === null);
+}
+
 function shared(role: AccountRole, currency: Currency): string {
   return `GL-${ACCOUNT_TEMPLATES.find((t) => t.role === role)!.code}-${currency}`;
 }
@@ -99,6 +108,8 @@ function shared(role: AccountRole, currency: Currency): string {
 function perContract(role: AccountRole, contractId: string): string {
   return `GL-${ACCOUNT_TEMPLATES.find((t) => t.role === role)!.code}-${contractId}`;
 }
+
+// ---- Journal entries ----
 
 /** `initiated → pending_approval → posted`. The middle state is what gates
  * redemptions above the approval threshold: held for sign-off before they
@@ -271,6 +282,40 @@ export function availableBalance(contractId: string): number {
     .reduce((sum, g) => sum + balanceOf(g.id), 0);
 }
 
+/** Corrections are new, opposite-signed entries.
+ *
+ * The original STAYS `posted` and keeps counting toward balances. That is not
+ * an oversight: the reversal already carries the offsetting amount, so also
+ * excluding the original would remove the effect twice and leave the books
+ * short by the value of the entry. The reversal is visible through
+ * `reversedById` / `reversalOfId`, which is what "append-only" means here —
+ * the original is never unwound, only answered. */
+export function reverseJournal(entryId: string, reason: string, actor: string): JournalEntry {
+  const original = JOURNAL_ENTRIES.find((e) => e.id === entryId);
+  if (!original) throw new Error("Journal entry not found");
+  if (original.status !== "posted") throw new Error("Only a posted entry can be reversed");
+  if (original.reversedById) throw new Error("Entry has already been reversed");
+
+  const reversal: JournalEntry = {
+    id: `JE-${String(journalSeq++).padStart(6, "0")}`,
+    eventType: "correction",
+    currency: original.currency,
+    contractId: original.contractId,
+    status: "posted",
+    referenceTxId: original.referenceTxId,
+    postedAt: new Date().toISOString(),
+    valueDated: new Date().toISOString().slice(0, 10),
+    narrative: `Reversal of ${original.id} — ${reason} (${actor})`,
+    reversalOfId: original.id,
+    lines: original.lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit })),
+  };
+  original.reversedById = reversal.id;
+  JOURNAL_ENTRIES.push(reversal);
+  return reversal;
+}
+
+// ---- Unit ledger ----
+
 /** Append-only record of every unit issuance, cancellation, transfer and
  * distribution against a contract, priced at that day's NAV. Answers "how many
  * units does this contract hold" — a different question from the general
@@ -327,6 +372,8 @@ export function unitLedgerCost(contractId: string): number {
       .toFixed(2),
   );
 }
+
+// ---- Seed: build both books from the existing transaction fixture ----
 
 /* The seeded journals are derived from TRANSACTIONS rather than typed out, so
    the ledger and everything BO Admin already shows on /transactions cannot
@@ -463,6 +510,8 @@ function seed() {
 }
 
 seed();
+
+// ---- Accrual ----
 
 /** Interest is computed live nowhere. A nightly batch computes and stores
  * every contract's accrual for that day; the application layer only ever reads
@@ -602,6 +651,8 @@ export function runAccrualBatch(runDate: string, actor = "System (Accrual Engine
 runAccrualBatch("2026-08-08");
 runAccrualBatch("2026-08-09");
 
+// ---- Day-end close ----
+
 /** The reconciliation the whole two-book design exists for: units held,
  * priced at NAV, against the general ledger's principal-plus-accrued.
  *
@@ -700,6 +751,8 @@ export function runDayEndClose(date: string, actor = "System (Day-end)"): DayEnd
 }
 
 runDayEndClose("2026-08-09");
+
+// ---- Business rule catalogue ----
 
 /** Every rule carries a stable ID and an honest status: actually enforced in
  * this layer, or policy still awaiting implementation. Copied from the data

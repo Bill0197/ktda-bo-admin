@@ -1,24 +1,25 @@
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "../ui";
-import { ROLE_PAGE_ACCESS, useContentField } from "../mock";
-import { useAuth, ADMIN_USERS, ROLE_LABELS } from "../lib/auth";
-import { navForRole, SECTION_ICONS } from "../lib/navConfig";
+import { useContentField } from "../mock";
+import { useAuth } from "../lib/auth";
+import { navForRole, NAV_DEFS, SECTION_ICONS } from "../lib/navConfig";
+
+// Every signed-in user sees every page (see lib/auth.tsx).
+const ALL_PAGES = NAV_DEFS.map((n) => n.to);
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { role, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const footerNote = useContentField("regulatory_footer", "text", "Bond Retail Fund is regulated by the Capital Markets Authority (CMA).");
-  if (!role) return null;
-
-  const user = ADMIN_USERS[role];
+  if (!user) return null;
 
   return (
     <AppShell
       appName="BRF BO Admin"
       appTag="Investcent Investment Bank"
-      nav={navForRole(ROLE_PAGE_ACCESS[role])}
-      user={{ name: user.name, role: ROLE_LABELS[role], avatarInitials: user.initials }}
+      nav={navForRole(ALL_PAGES)}
+      user={{ name: user.name, role: user.tokRoles.join(", ") || "Staff", avatarInitials: user.initials }}
       footerNote={footerNote}
       onLogout={() => { logout(); navigate("/login"); }}
       collapsibleNav

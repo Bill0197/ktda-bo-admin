@@ -23,6 +23,8 @@ import { HOLDINGS } from "./investor";
 
 export type Currency = "KES" | "USD";
 
+// ---- Institution (the tenant root) ----
+
 export type Institution = {
   id: string;
   name: string;
@@ -81,6 +83,8 @@ export const INSTITUTION_ACCOUNTS: InstitutionAccount[] = PURPOSES.flatMap((purp
     purpose,
   })),
 );
+
+// ---- Tariffs ----
 
 export type TariffValueKind = "percentage" | "amount";
 
@@ -205,6 +209,24 @@ export function resolveTariff(
   return null;
 }
 
+// ---- Service packages ----
+
+export type TransactionTypeDef = { id: string; label: string };
+
+export const TRANSACTION_TYPES: TransactionTypeDef[] = [
+  { id: "TXN-SUBSCRIPTION", label: "Subscription" },
+  { id: "TXN-REDEMPTION", label: "Redemption" },
+  { id: "TXN-TRANSFER", label: "Transfer" },
+  { id: "TXN-DISTRIBUTION", label: "Distribution" },
+];
+
+export type FeeTypeDef = { id: string; label: string; tariffTypeId: string | null };
+
+export const FEE_TYPES: FeeTypeDef[] = [
+  { id: "FEE-MGMT", label: "Management fee", tariffTypeId: "TT-MGMT-FEE" },
+  { id: "FEE-REDEEM", label: "Redemption fee", tariffTypeId: "TT-REDEEM" },
+];
+
 export type PackageType = "product" | "additional";
 
 export type ServicePackage = {
@@ -224,9 +246,54 @@ export const SERVICE_PACKAGES: ServicePackage[] = [
   { id: "SP-BRF-USD", institutionId: INSTITUTION.id, name: "BRF retail — USD", packageType: "product", currency: "USD", tariffDomainId: "TD-BRF-PKG-USD", distributionFrequency: "Monthly — last business day", minSubscription: 10, liquidityFacility: 500_000 },
 ];
 
+/** One operating rule inside a package. `itemRole` used to be the only
+ * meaning-carrier (a free-text string); it now sits beside real lookups —
+ * which transaction the rule applies to, what kind of fee it is, and the
+ * tariff row carrying the actual rate. */
+export type ServicePackageItem = {
+  id: string;
+  packageId: string;
+  itemRole: string;
+  label: string;
+  transactionTypeId: string | null;
+  feeTypeId: string | null;
+  tariffId: string | null;
+  note?: string;
+};
+
+export const SERVICE_PACKAGE_ITEMS: ServicePackageItem[] = [
+  { id: "spi_mgmt_kes", packageId: "SP-BRF-KES", itemRole: "MANAGEMENT_FEE", label: "Management fee", transactionTypeId: null, feeTypeId: "FEE-MGMT", tariffId: "tv_mgmt_kes", note: "Periodic, not transaction-triggered — accrued nightly against NAV." },
+  { id: "spi_mgmt_usd", packageId: "SP-BRF-USD", itemRole: "MANAGEMENT_FEE", label: "Management fee", transactionTypeId: null, feeTypeId: "FEE-MGMT", tariffId: "tv_mgmt_usd" },
+  { id: "spi_exit_kes", packageId: "SP-BRF-KES", itemRole: "EARLY_EXIT_FEE", label: "Early-exit fee (inside lock-up)", transactionTypeId: "TXN-REDEMPTION", feeTypeId: "FEE-REDEEM", tariffId: "tv_redeem_kes" },
+  { id: "spi_exit_usd", packageId: "SP-BRF-USD", itemRole: "EARLY_EXIT_FEE", label: "Early-exit fee (inside lock-up)", transactionTypeId: "TXN-REDEMPTION", feeTypeId: "FEE-REDEEM", tariffId: "tv_redeem_usd" },
+  // The redemption tiers deliberately carry no fee type. Their direction is
+  // paid_to_investor — they are notice-period/payout bands, not the
+  // REDEMPTION_FEE charge FEE-REDEEM represents. Linking them would be a
+  // plausible-looking but wrong connection (data spec §3).
+  { id: "spi_tiers_kes", packageId: "SP-BRF-KES", itemRole: "REDEMPTION_TIERS", label: "Redemption notice tiers (4 bands)", transactionTypeId: "TXN-REDEMPTION", feeTypeId: null, tariffId: null, note: "Notice periods, not a charge — see REDEMPTION_TIERS in investor.ts." },
+  { id: "spi_tiers_usd", packageId: "SP-BRF-USD", itemRole: "REDEMPTION_TIERS", label: "Redemption notice tiers (4 bands)", transactionTypeId: "TXN-REDEMPTION", feeTypeId: null, tariffId: null },
+  { id: "spi_liq_kes", packageId: "SP-BRF-KES", itemRole: "LIQUIDITY_FACILITY", label: "Liquidity facility", transactionTypeId: null, feeTypeId: null, tariffId: "tv_liq_kes", note: "A capacity limit, not a transaction. The rate prices the fund's own cost of the facility." },
+  { id: "spi_liq_usd", packageId: "SP-BRF-USD", itemRole: "LIQUIDITY_FACILITY", label: "Liquidity facility", transactionTypeId: null, feeTypeId: null, tariffId: "tv_liq_usd" },
+  // No transfer fee has ever been priced here. TXN-TRANSFER exists as a lookup
+  // so one can be added later, not because a rate exists today.
+];
+
+// ---- Accounting schemes ----
+
 export type AccountRole =
   | "PRINCIPAL" | "ACCRUED_INTEREST" | "TAX_WITHHELD"
   | "BANK_CASH" | "UNALLOCATED" | "FEE_INCOME" | "LIQUIDITY_EXPENSE" | "INVESTOR_EXPENSE";
+
+export type AccountingScheme = {
+  id: string;
+  institutionId: string;
+  name: string;
+  parentSchemeId: string | null;
+};
+
+export const ACCOUNTING_SCHEMES: AccountingScheme[] = [
+  { id: "AS-BRF-STD", institutionId: INSTITUTION.id, name: "Retail bond fund, standard scheme", parentSchemeId: null },
+];
 
 /** Maps an abstract account role to a chart-of-accounts code for one scheme —
  * what turns a product configuration into actual, named ledger accounts.
@@ -253,6 +320,8 @@ export const ACCOUNT_TEMPLATES: AccountTemplate[] = [
   { schemeId: "AS-BRF-STD", role: "LIQUIDITY_EXPENSE", code: "3100", scope: "per_institution", isAvailableBalance: false },
   { schemeId: "AS-BRF-STD", role: "INVESTOR_EXPENSE", code: "3200", scope: "per_institution", isAvailableBalance: false },
 ];
+
+// ---- Products ----
 
 export type AssetClass = "bond" | "equity" | "fx" | "derivative" | "money_market";
 export type StructureType = "pooled_unitized" | "discretionary_mandate";
@@ -343,6 +412,25 @@ export function productById(id: string): Product | undefined {
   return PRODUCTS.find((p) => p.id === id);
 }
 
+/** A product should never issue more units than its ladder can back. The data
+ * spec is explicit that nothing enforces this at the database level today —
+ * it is a documented rule, not a constraint. Modelled here as a readable
+ * check so a capacity breach is at least visible rather than silent. */
+export function productCapacity(productId: string): { capacityUnits: number; issuedUnits: number; withinCapacity: boolean } {
+  const product = productById(productId)!;
+  const fund = SUB_FUNDS.find((f) => f.code === product.subFund)!;
+  const siblings = PRODUCTS.filter((p) => p.subFund === product.subFund);
+  const siblingUnits = siblings.reduce((s, p) => s + p.unitsOutstanding, 0);
+  // A product family with no units issued has no share to compute — return a
+  // zero capacity rather than NaN, which would render as "—" everywhere and
+  // silently read as "unknown" instead of "nothing issued".
+  const share = siblingUnits > 0 ? product.unitsOutstanding / siblingUnits : 0;
+  const capacityUnits = Math.round((fund.aum / fund.nav) * share);
+  return { capacityUnits, issuedUnits: product.unitsOutstanding, withinCapacity: product.unitsOutstanding <= capacityUnits };
+}
+
+// ---- Contracts (the party layer; the contract is the wallet) ----
+
 /** Frequent and operational, so a plain current-value column — unlike the
  * investor lifecycle, which needs point-in-time regulatory reconstruction and
  * lives in `classifiers.ts` as dated assignments. */
@@ -403,4 +491,29 @@ export const INVESTOR_CONTRACTS: InvestorContract[] = HOLDINGS.map((h, i) => {
 
 export function contractsForClient(clientId: string): InvestorContract[] {
   return INVESTOR_CONTRACTS.filter((c) => c.clientId === clientId);
+}
+
+export function contractForHolding(clientId: string, subFund: SubFundCode): InvestorContract | undefined {
+  return INVESTOR_CONTRACTS.find((c) => c.clientId === clientId && productById(c.productId)?.subFund === subFund);
+}
+
+// ---- Tokenization readiness ----
+
+export type TokenizationHook = {
+  level: "product" | "investor" | "settlement";
+  what: string;
+  column: string;
+  populated: number;
+  total: number;
+};
+
+/** What Phase 2 activation would have to fill in. Reported rather than
+ * asserted: every one of these is dormant today, and the honest count is what
+ * makes "hooks present, not deployed" checkable instead of a claim. */
+export function tokenizationHooks(entryCount: number, hashedCount: number): TokenizationHook[] {
+  return [
+    { level: "product", what: "The whole unit supply, issued once as a single token contract", column: "products.onchainTokenId", populated: PRODUCTS.filter((p) => p.onchainTokenId).length, total: PRODUCTS.length },
+    { level: "investor", what: "The fraction of that supply an investor holds, in their own address", column: "investorContracts.address", populated: INVESTOR_CONTRACTS.filter((c) => c.address).length, total: INVESTOR_CONTRACTS.length },
+    { level: "settlement", what: "On-chain proof that a specific mint or transfer happened", column: "ledgerEntries.onchainTxHash", populated: hashedCount, total: entryCount },
+  ];
 }

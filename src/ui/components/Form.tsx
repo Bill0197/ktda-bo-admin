@@ -9,16 +9,22 @@ export function Field({
   hint,
   error,
   required,
+  group,
   children,
 }: {
   label?: string;
   hint?: string;
   error?: string;
   required?: boolean;
+  /** Render as a labelled group instead of a <label>. For a composite control
+   *  (a picker plus a button, a chip list) — a <label> would forward every
+   *  click inside it to the first button it contains. */
+  group?: boolean;
   children: ReactNode;
 }) {
+  const Wrapper = group ? "div" : "label";
   return (
-    <label className="flex flex-col gap-1.5">
+    <Wrapper className="flex flex-col gap-1.5" role={group ? "group" : undefined} aria-label={group ? label : undefined}>
       {label && (
         <span className="text-[13px] font-medium text-text-soft">
           {label} {required && <span className="text-danger">*</span>}
@@ -30,7 +36,7 @@ export function Field({
       ) : hint ? (
         <span className="text-xs text-text-faint">{hint}</span>
       ) : null}
-    </label>
+    </Wrapper>
   );
 }
 

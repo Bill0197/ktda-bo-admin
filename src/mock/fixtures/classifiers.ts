@@ -1,3 +1,4 @@
+import { COMPLIANCE_PROFILES, type RiskRating } from "./compliance";
 
 /** Classifiers, per data spec §8 and the proposal's §4.6.
  *
@@ -182,6 +183,11 @@ export function classifierHistory(entityId: string, typeId?: ClassifierTypeId): 
     .sort((a, b) => b.validFrom.localeCompare(a.validFrom) || b.id.localeCompare(a.id));
 }
 
+export function riskTierAsOf(entityId: string, asOf: string): RiskRating | null {
+  const found = classifierAsOf(entityId, "risk_tier", asOf);
+  return (found?.value as RiskRating) ?? null;
+}
+
 /** Closes the open window and opens a new one. The only writer — there is no
  * path that edits an assignment's value in place, by design.
  *
@@ -225,4 +231,18 @@ export function eligibleForProduct(entityId: string, asOf?: string): { eligible:
     }
   }
   return { eligible: failing.length === 0, failing };
+}
+
+/** Coverage report — how much of the register actually carries each
+ * classifier. The proposal's complaint about `investor_risk_history` was
+ * precisely that nobody could see it was empty; a count that can be read is
+ * the cheapest guard against the same thing recurring here. */
+export function classifierCoverage(): { typeId: ClassifierTypeId; label: string; covered: number; total: number }[] {
+  const clients = COMPLIANCE_PROFILES.map((p) => p.clientId);
+  return CLASSIFIER_TYPES.map((t) => ({
+    typeId: t.id,
+    label: t.label,
+    covered: clients.filter((id) => currentClassifier(id, t.id)).length,
+    total: clients.length,
+  }));
 }
