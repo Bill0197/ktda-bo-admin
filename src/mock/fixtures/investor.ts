@@ -1,5 +1,58 @@
 import type { SubFundCode } from "./fund";
 
+/** Where the customer sits in the compliance lifecycle, from the investor
+ * app's point of view.
+ *
+ * The first six values are onboarding states. The last three are *post*-
+ * activation control states required by the Invescent Customer Exit procedure
+ * (§18 — "controlled statuses: Restricted / Suspended / Closed"), the STR
+ * procedure (§16 — restriction of withdrawals/redemptions) and the Screening
+ * procedure (§14 — TFS freezing). An account can be fully KYC-verified and
+ * still be `restricted`; the two are different axes, and `restricted` always
+ * carries a `WalletRestriction[]` saying *what* is withheld.
+ *
+ * BO Admin is the only writer of the last three — the investor app renders
+ * them, never sets them. */
+export type KycStatus =
+  | "not_started"
+  | "in_progress"
+  | "pending_review"
+  | "verified"
+  | "rejected"
+  | "suitability_exception"
+  | "restricted"
+  | "suspended"
+  | "closed";
+
+export type Investor = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  nationalId: string;
+  kycStatus: KycStatus;
+  /** Legacy — the suitability questionnaire was retired from the investor
+   * apps. Null for anyone who onboarded after that; the investor app no
+   * longer surfaces it at all. */
+  suitabilityScore: number | null;
+  joinedAt: string;
+  channel: "self_service" | "ifa_referral" | "bd_officer";
+};
+
+export const CURRENT_INVESTOR: Investor = {
+  id: "inv_2891",
+  firstName: "Amina",
+  lastName: "Wanjiru",
+  email: "amina.wanjiru@example.com",
+  phone: "+254712345678",
+  nationalId: "31245678",
+  kycStatus: "verified",
+  suitabilityScore: 62,
+  joinedAt: "2026-03-14T09:20:00Z",
+  channel: "self_service",
+};
+
 export type Holding = {
   subFund: SubFundCode;
   units: number;
@@ -97,4 +150,47 @@ export const REDEMPTION_TIERS: RedemptionTier[] = [
   { id: "rt_usd_2", maxAmount: 5_000, label: "USD 501 – 5,000", settlementDays: 3, currency: "USD" },
   { id: "rt_usd_3", maxAmount: 50_000, label: "USD 5,001 – 50,000", settlementDays: 7, currency: "USD" },
   { id: "rt_usd_4", maxAmount: Infinity, label: "Above USD 50,000", settlementDays: 30, currency: "USD" },
+];
+
+export type Statement = { id: string; period: string; subFund: SubFundCode; generatedAt: string; sizeKb: number };
+
+export const STATEMENTS: Statement[] = [
+  { id: "st_1", period: "July 2026", subFund: "KES_FIXED_INCOME", generatedAt: "2026-08-01T06:00:00Z", sizeKb: 182 },
+  { id: "st_2", period: "June 2026", subFund: "KES_FIXED_INCOME", generatedAt: "2026-07-01T06:00:00Z", sizeKb: 178 },
+  { id: "st_3", period: "May 2026", subFund: "KES_FIXED_INCOME", generatedAt: "2026-06-01T06:00:00Z", sizeKb: 175 },
+  { id: "st_4", period: "July 2026", subFund: "USD_EUROBOND", generatedAt: "2026-08-01T06:00:00Z", sizeKb: 96 },
+];
+
+// ---- Payout destinations ----
+
+/** Where redemption proceeds are paid.
+ *
+ * Verification is a control, not a formality. Transaction Monitoring §9.1
+ * (TM-005) treats payment to an unrelated third party as a red flag, and the
+ * Screening Policy §17 requires payout counterparties to be screened on a
+ * risk basis. So an account is only payable once its registered name has been
+ * matched against the customer's own — which is also exactly what the app has
+ * always *told* customers happens ("payouts only ever go to an account in your
+ * own name"). Until now nothing enforced it. */
+export type PayoutAccountStatus = "pending_verification" | "verified" | "name_mismatch";
+
+export type PayoutAccount = {
+  id: string;
+  type: "mpesa" | "bank";
+  label: string;
+  /** The bank the account is held with, from the controlled `BANKS` list. Set
+   * for bank accounts only — an account number cannot be routed, or shown back
+   * to the customer meaningfully, without it. */
+  bankName?: string;
+  /** Masked for display — the full number never leaves the backend. */
+  value: string;
+  /** Name registered against the account at the bank or with Safaricom. */
+  registeredName?: string;
+  status: PayoutAccountStatus;
+  isDefault: boolean;
+};
+
+export const PAYOUT_ACCOUNTS: PayoutAccount[] = [
+  { id: "pa_1", type: "mpesa", label: "M-Pesa", value: "•••• 5678", registeredName: "AMINA WANJIRU", status: "verified", isDefault: true },
+  { id: "pa_2", type: "bank", label: "Equity Bank", bankName: "Equity Bank", value: "•••• 4412", registeredName: "AMINA WANJIRU", status: "verified", isDefault: false },
 ];

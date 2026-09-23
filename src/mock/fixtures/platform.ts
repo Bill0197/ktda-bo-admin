@@ -7,6 +7,8 @@ import type { AdminRole, ApprovalKind } from "./admin";
  * once a second person signs it off (maker-checker), and every change lands
  * in the audit trail. */
 
+// ---- Platform settings (business parameters) ----
+
 export type PlatformSettingSection =
   | "fund_parameters"
   | "liquidity_policy"
@@ -108,6 +110,8 @@ export const PLATFORM_SETTINGS: PlatformSetting[] = [
   { key: "pin_lockout_attempts", section: "security_policy", label: "PIN lockout threshold", description: "Failed PIN attempts before the investor account locks pending re-verification.", value: "5", unit: "attempts", updatedAt: "2026-06-02T09:00:00Z", updatedBy: "IT Admin" },
 ];
 
+// ---- Feature flags (per platform, incl. the upcoming investor mobile app) ----
+
 export type FlagPlatform = "investor_web" | "investor_mobile" | "investor_ussd" | "ifa_portal" | "trustee_portal" | "payment_ops" | "bo_admin";
 
 export const FLAG_PLATFORM_LABELS: Record<FlagPlatform, { title: string; note?: string }> = {
@@ -130,6 +134,35 @@ export type FeatureFlag = {
   updatedAt: string;
   updatedBy: string;
 };
+
+export const FEATURE_FLAGS: FeatureFlag[] = [
+  { key: "web_usd_subscriptions", platform: "investor_web", label: "USD Eurobond subscriptions", description: "Expose the USD sub-fund for subscription (bank wire rail).", enabled: true, stage: "ga", updatedAt: "2026-07-18T08:30:00Z", updatedBy: "IT Admin" },
+  { key: "web_redemption_gate_banner", platform: "investor_web", label: "Redemption gate notice", description: "Show the gate explainer on the redeem screen when utilisation crosses the watch level.", enabled: true, stage: "ga", updatedAt: "2026-07-18T08:30:00Z", updatedBy: "IT Admin" },
+  { key: "web_swahili_locale", platform: "investor_web", label: "Swahili locale", description: "Serve the sw content blocks where the CMS has translations.", enabled: false, stage: "beta", updatedAt: "2026-08-01T10:00:00Z", updatedBy: "IT Admin" },
+  { key: "web_statement_downloads", platform: "investor_web", label: "Statement downloads", description: "Monthly PDF statements from the investor dashboard.", enabled: true, stage: "ga", updatedAt: "2026-07-18T08:30:00Z", updatedBy: "IT Admin" },
+
+  { key: "mob_biometric_login", platform: "investor_mobile", label: "Biometric login", description: "Face/fingerprint unlock instead of PIN on supported devices.", enabled: true, stage: "planned", updatedAt: "2026-08-05T09:00:00Z", updatedBy: "IT Admin" },
+  { key: "mob_push_notifications", platform: "investor_mobile", label: "Push notifications", description: "Distribution, settlement and gate notices as native push.", enabled: true, stage: "planned", updatedAt: "2026-08-05T09:00:00Z", updatedBy: "IT Admin" },
+  { key: "mob_mpesa_stk", platform: "investor_mobile", label: "In-app M-Pesa STK Push", description: "Subscribe with an in-app STK prompt rather than a Paybill reference.", enabled: true, stage: "planned", updatedAt: "2026-08-05T09:00:00Z", updatedBy: "IT Admin" },
+  { key: "mob_token_waitlist", platform: "investor_mobile", label: "Tokenized units waitlist", description: "Phase-2 teaser: register diaspora interest ahead of the ERC-3643 launch.", enabled: false, stage: "planned", updatedAt: "2026-08-05T09:00:00Z", updatedBy: "IT Admin" },
+
+  /* USSD is a third access point onto the same investor identity, not a
+     cut-down product: a USSD subscription is subject to exactly the same
+     eligibility checks as an app subscription. The flags exist now so the
+     channel's scope is a decision Compliance and Ops can make in config rather
+     than discover at build time. */
+  { key: "ussd_balance_enquiry", platform: "investor_ussd", label: "Balance enquiry", description: "Holdings and NAV over USSD. Read-only, so it can open ahead of the transactional menus.", enabled: true, stage: "planned", updatedAt: "2026-08-20T09:00:00Z", updatedBy: "IT Admin" },
+  { key: "ussd_subscribe", platform: "investor_ussd", label: "Subscribe / top-up", description: "Initiate a subscription over USSD, settling via an M-Pesa STK prompt. Reads the same entitlement check as the app.", enabled: false, stage: "planned", updatedAt: "2026-08-20T09:00:00Z", updatedBy: "IT Admin" },
+  { key: "ussd_redeem", platform: "investor_ussd", label: "Redemption request", description: "Request a redemption over USSD. Tier and gate rules apply identically — the channel does not change the notice period.", enabled: false, stage: "planned", updatedAt: "2026-08-20T09:00:00Z", updatedBy: "IT Admin" },
+  { key: "ussd_pin_confirmation", platform: "investor_ussd", label: "PIN transaction confirmation", description: "Confirm money-moving actions with the investor PIN in-session, since a feature phone has no biometric fallback.", enabled: true, stage: "planned", updatedAt: "2026-08-20T09:00:00Z", updatedBy: "IT Admin" },
+
+  { key: "ifa_client_invites", platform: "ifa_portal", label: "Client invite links", description: "Let advisors send tracked onboarding invites by SMS/email.", enabled: true, stage: "ga", updatedAt: "2026-07-18T08:30:00Z", updatedBy: "IT Admin" },
+  { key: "trustee_nav_variance_view", platform: "trustee_portal", label: "NAV variance review", description: "Surface day-over-day NAV variance flags for trustee sign-off.", enabled: true, stage: "ga", updatedAt: "2026-07-18T08:30:00Z", updatedBy: "IT Admin" },
+  { key: "payops_auto_retry", platform: "payment_ops", label: "Auto-retry failed settlements", description: "Retry failed Daraja callbacks up to 3 times before flagging manual review.", enabled: false, stage: "beta", updatedAt: "2026-08-02T14:00:00Z", updatedBy: "IT Admin" },
+  { key: "bo_leads_register", platform: "bo_admin", label: "Manual lead register", description: "Interim pre-CRM lead capture for BD Officers.", enabled: true, stage: "ga", updatedAt: "2026-07-18T08:30:00Z", updatedBy: "IT Admin" },
+];
+
+// ---- Reports centre ----
 
 export type ReportCategory = "regulatory" | "finance" | "operations" | "compliance" | "distributions" | "processes" | "audit_mis" | "miscellaneous";
 
@@ -160,6 +193,270 @@ export type ReportDef = {
   lastRun?: { at: string; by: string; sizeKb: number; columnCount?: number };
   generating?: boolean;
 };
+
+export const REPORTS: ReportDef[] = [
+  { id: "rp_cma_quarterly", name: "CMA quarterly CIS return", category: "regulatory", description: "Prescribed Capital Markets Authority return — AUM, unit-holder register summary, liquidity position.", frequency: "quarterly", format: "PDF", restrictedTo: ["head_of_finance", "compliance", "system_admin", "ceo"], columns: [
+    { key: "period", label: "Reporting period" },
+    { key: "sub_fund", label: "Sub-fund" },
+    { key: "aum_opening", label: "AUM — opening" },
+    { key: "aum_closing", label: "AUM — closing" },
+    { key: "net_flows", label: "Net subscriptions / redemptions" },
+    { key: "unit_holders", label: "Unit-holder count" },
+    { key: "nav_per_unit", label: "NAV per unit (period-end)" },
+    { key: "facility_size", label: "Liquidity facility size" },
+    { key: "facility_utilisation", label: "Facility utilisation %" },
+    { key: "gate_events", label: "Gate events in period" },
+    { key: "breaches", label: "Breaches & exceptions", description: "Covenant, mandate or regulatory breaches with remediation status." },
+  ], lastRun: { at: "2026-07-05T10:00:00Z", by: "Daniel Kiptoo", sizeKb: 812 } },
+  { id: "rp_nav_pack", name: "Daily NAV pack", category: "finance", description: "Per-sub-fund NAV computation with bond price sources and independent-review sign-off trail.", frequency: "daily", format: "PDF", restrictedTo: ["head_of_finance", "investment_committee", "system_admin", "ceo", "investment_manager"], columns: [
+    { key: "dealing_date", label: "Dealing date" },
+    { key: "sub_fund", label: "Sub-fund" },
+    { key: "isin", label: "Bond ISIN" },
+    { key: "market_price", label: "Market price" },
+    { key: "price_source", label: "Price source" },
+    { key: "accrued_interest", label: "Accrued interest" },
+    { key: "cash_balance", label: "Cash balance" },
+    { key: "expense_accrual", label: "Expense accrual" },
+    { key: "total_nav", label: "Total NAV" },
+    { key: "units_in_issue", label: "Units in issue" },
+    { key: "nav_per_unit", label: "NAV per unit" },
+    { key: "day_change_pct", label: "Day change %" },
+    { key: "variance_flag", label: "Variance flag", description: "Set when the day move exceeds the configured tolerance." },
+    { key: "reviewed_by", label: "Independent reviewer" },
+  ], lastRun: { at: "2026-08-08T16:10:00Z", by: "System (NAV Engine)", sizeKb: 240 } },
+  { id: "rp_dist_batch", name: "Distribution batch summary", category: "distributions", description: "Monthly coupon distribution — reinvest vs payout split, withholding tax, per-channel payout totals.", frequency: "monthly", format: "XLSX", restrictedTo: ["head_of_finance", "operations", "system_admin", "ceo"], columns: [
+    { key: "batch_id", label: "Batch ID" },
+    { key: "period", label: "Distribution period" },
+    { key: "sub_fund", label: "Sub-fund" },
+    { key: "investor_id", label: "Investor ID" },
+    { key: "investor_name", label: "Investor name" },
+    { key: "units_held", label: "Units held (record date)" },
+    { key: "gross_income", label: "Gross income" },
+    { key: "wht_rate", label: "WHT rate", description: "Per-instrument withholding rate from Platform Settings." },
+    { key: "wht_amount", label: "WHT amount" },
+    { key: "net_income", label: "Net income" },
+    { key: "election", label: "Election (reinvest / payout)" },
+    { key: "payout_channel", label: "Payout channel" },
+    { key: "payout_reference", label: "Payout reference" },
+    { key: "status", label: "Status" },
+  ], lastRun: { at: "2026-07-31T18:00:00Z", by: "System (Distribution Engine)", sizeKb: 154 } },
+  { id: "rp_aml_str", name: "AML monitoring & STR summary", category: "compliance", description: "Open alerts by rule and severity, escalations, and suspicious-transaction reports filed in the period.", frequency: "monthly", format: "PDF", restrictedTo: ["compliance", "mlro", "system_admin"], columns: [
+    { key: "alert_id", label: "Alert ID" },
+    { key: "raised_at", label: "Raised at" },
+    { key: "client_id", label: "Client ID" },
+    { key: "client_name", label: "Client name" },
+    { key: "rule", label: "Rule triggered" },
+    { key: "severity", label: "Severity" },
+    { key: "status", label: "Status" },
+    { key: "disposition", label: "Disposition", description: "Cleared, escalated, or pending investigation outcome." },
+    { key: "escalated_to", label: "Escalated to" },
+    { key: "str_filed", label: "STR filed (Y/N)" },
+    { key: "str_reference", label: "STR reference" },
+    { key: "days_open", label: "Days open" },
+  ], lastRun: { at: "2026-08-01T09:00:00Z", by: "Peter Otieno", sizeKb: 96 } },
+  { id: "rp_recon_ageing", name: "Reconciliation break ageing", category: "operations", description: "Open breaks by type and age bucket across cash, unit-holding, NAV and custodian reconciliations.", frequency: "weekly", format: "XLSX", restrictedTo: ["operations", "head_of_finance", "system_admin"], columns: [
+    { key: "break_id", label: "Break ID" },
+    { key: "type", label: "Reconciliation type" },
+    { key: "detected_at", label: "Detected at" },
+    { key: "age_days", label: "Age (days)" },
+    { key: "age_bucket", label: "Age bucket", description: "0–1, 2–5, 6–10, 10+ business days." },
+    { key: "description", label: "Description" },
+    { key: "variance", label: "Variance amount" },
+    { key: "currency", label: "Currency" },
+    { key: "status", label: "Status" },
+    { key: "owner", label: "Assigned owner" },
+    { key: "escalation_level", label: "Escalation level", description: "Driven by the configured age and materiality thresholds." },
+  ], lastRun: { at: "2026-08-04T07:30:00Z", by: "Grace Mumbi", sizeKb: 64 } },
+  { id: "rp_unallocated", name: "Unallocated funds register", category: "operations", description: "Unmatched receipts with age, investigation notes and return/match outcomes — mirrors the Ops SOP register.", frequency: "weekly", format: "CSV", restrictedTo: ["operations", "compliance", "system_admin"], columns: [
+    { key: "receipt_id", label: "Receipt ID" },
+    { key: "reference", label: "Payment reference" },
+    { key: "received_at", label: "Received at" },
+    { key: "amount", label: "Amount" },
+    { key: "currency", label: "Currency" },
+    { key: "channel", label: "Channel" },
+    { key: "reason", label: "Reason unmatched" },
+    { key: "age_days", label: "Age (days)" },
+    { key: "investigation_note", label: "Investigation note" },
+    { key: "outcome", label: "Outcome (matched / returned)" },
+    { key: "resolved_at", label: "Resolved at" },
+  ], lastRun: { at: "2026-08-04T07:35:00Z", by: "Grace Mumbi", sizeKb: 18 } },
+  { id: "rp_liquidity_stress", name: "Liquidity stress test", category: "finance", description: "Facility headroom and gate distance under the concept note's AUM stress scenarios.", frequency: "monthly", format: "PDF", restrictedTo: ["head_of_finance", "investment_committee", "system_admin", "ceo", "investment_manager"], columns: [
+    { key: "scenario", label: "Stress scenario", description: "AUM level with assumed daily redemption pressure (concept note §5.4)." },
+    { key: "sub_fund", label: "Sub-fund" },
+    { key: "aum", label: "AUM" },
+    { key: "daily_redemption_pct", label: "Assumed daily redemption %" },
+    { key: "facility_size", label: "Facility size" },
+    { key: "facility_utilisation", label: "Facility utilisation %" },
+    { key: "days_covered", label: "Days facility covers" },
+    { key: "gate_distance", label: "Distance to gate threshold" },
+    { key: "covenant_status", label: "5% scaling covenant status" },
+  ], lastRun: { at: "2026-07-28T11:00:00Z", by: "Daniel Kiptoo", sizeKb: 310 } },
+  { id: "rp_ifa_commissions", name: "IFA commission statement", category: "finance", description: "Per-advisor accrual and payment schedule at the configured commission rate.", frequency: "quarterly", format: "XLSX", restrictedTo: ["head_of_finance", "system_admin"], columns: [
+    { key: "advisor_id", label: "Advisor ID" },
+    { key: "advisor_name", label: "Advisor name" },
+    { key: "firm", label: "Firm" },
+    { key: "certification_status", label: "Certification status" },
+    { key: "period", label: "Accrual period" },
+    { key: "referred_clients", label: "Referred client count" },
+    { key: "referred_aum", label: "Referred AUM" },
+    { key: "rate", label: "Commission rate", description: "From Platform Settings — fees & commissions." },
+    { key: "accrued", label: "Accrued amount" },
+    { key: "paid", label: "Paid amount" },
+    { key: "payment_status", label: "Payment status" },
+  ], lastRun: { at: "2026-07-01T09:00:00Z", by: "Daniel Kiptoo", sizeKb: 42 } },
+  { id: "rp_kyc_status", name: "Client KYC status extract", category: "compliance", description: "Full register by KYC state, channel and suitability score — feeds the compliance MI pack.", frequency: "on_demand", format: "CSV", restrictedTo: ["compliance", "bd_officer", "system_admin"], columns: [
+    { key: "client_id", label: "Client ID" },
+    { key: "name", label: "Full name" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Phone" },
+    { key: "channel", label: "Acquisition channel" },
+    { key: "kyc_status", label: "KYC status" },
+    { key: "suitability_score", label: "Suitability score (0–100)" },
+    { key: "risk_rating", label: "Risk rating" },
+    { key: "pep_flag", label: "PEP flag" },
+    { key: "sanctions_result", label: "Sanctions screening result" },
+    { key: "onboarded_at", label: "Onboarding date" },
+    { key: "last_refresh", label: "Last KYC refresh" },
+    { key: "next_refresh_due", label: "Next refresh due", description: "Driven by the configured KYC refresh cadence." },
+  ] },
+  { id: "rp_tx_ledger", name: "Transaction ledger extract", category: "operations", description: "Append-only ledger entries for a period — subscriptions, redemptions, distributions, fees.", frequency: "on_demand", format: "CSV", restrictedTo: ["operations", "head_of_finance", "compliance", "system_admin"], columns: [
+    { key: "entry_id", label: "Ledger entry ID" },
+    { key: "timestamp", label: "Timestamp" },
+    { key: "investor_id", label: "Investor ID" },
+    { key: "investor_name", label: "Investor name" },
+    { key: "sub_fund", label: "Sub-fund" },
+    { key: "type", label: "Entry type" },
+    { key: "amount", label: "Amount" },
+    { key: "currency", label: "Currency" },
+    { key: "units", label: "Units" },
+    { key: "nav_applied", label: "NAV applied" },
+    { key: "channel", label: "Channel" },
+    { key: "reference", label: "Reference" },
+    { key: "status", label: "Status" },
+    { key: "settled_at", label: "Settled at" },
+  ], lastRun: { at: "2026-08-06T15:00:00Z", by: "Grace Mumbi", sizeKb: 388 } },
+
+  // ---- Regulatory pack additions (Compliance review) ----
+  { id: "rp_kyc_refresh", name: "KYC refresh report", category: "regulatory", description: "Clients due, overdue and completed for periodic KYC/tax re-verification in the period.", frequency: "monthly", format: "XLSX", restrictedTo: ["compliance", "mlro", "system_admin"], columns: [
+    { key: "client_id", label: "Client ID" },
+    { key: "name", label: "Client name" },
+    { key: "risk_rating", label: "Risk rating" },
+    { key: "last_refresh", label: "Last refresh" },
+    { key: "next_refresh_due", label: "Next refresh due" },
+    { key: "status", label: "Refresh status", description: "Due / overdue / completed in period." },
+    { key: "days_overdue", label: "Days overdue" },
+    { key: "assigned_to", label: "Assigned officer" },
+  ] },
+  { id: "rp_case_listing", name: "Case listing report", category: "regulatory", description: "All compliance cases in the period — AML, fraud, ABC and SAR — with status and outcome.", frequency: "monthly", format: "XLSX", restrictedTo: ["compliance", "mlro", "system_admin"], columns: [
+    { key: "case_id", label: "Case ID" },
+    { key: "type", label: "Case type" },
+    { key: "client_id", label: "Client ID" },
+    { key: "client_name", label: "Client name" },
+    { key: "severity", label: "Severity" },
+    { key: "status", label: "Status" },
+    { key: "assignee", label: "Assignee" },
+    { key: "opened_at", label: "Opened" },
+    { key: "closed_at", label: "Closed" },
+    { key: "outcome", label: "Outcome / rationale" },
+    { key: "days_open", label: "Days open" },
+  ] },
+  { id: "rp_pep_customers", name: "PEP identified customer details", category: "regulatory", description: "Customers with confirmed or potential PEP status, their screening resolutions and applied controls.", frequency: "monthly", format: "PDF", restrictedTo: ["compliance", "mlro", "system_admin"], columns: [
+    { key: "client_id", label: "Client ID" },
+    { key: "name", label: "Client name" },
+    { key: "pep_status", label: "PEP status", description: "Confirmed / potential match / cleared false positive." },
+    { key: "position", label: "Prominent position / association" },
+    { key: "screening_ref", label: "Screening reference" },
+    { key: "resolution", label: "Resolution & rationale" },
+    { key: "risk_rating", label: "Risk rating" },
+    { key: "edd_status", label: "EDD status" },
+    { key: "approved_by", label: "Senior approval" },
+    { key: "controls", label: "Applied controls", description: "Enhanced monitoring, source-of-wealth checks, review cadence." },
+  ] },
+  { id: "rp_str_listing", name: "STR listing report", category: "regulatory", description: "Suspicious transaction reports filed in the period with FRC references and case linkage. Restricted to the MLRO function.", frequency: "monthly", format: "PDF", restrictedTo: ["mlro", "system_admin"], columns: [
+    { key: "str_reference", label: "STR reference" },
+    { key: "filed_at", label: "Filed" },
+    { key: "case_id", label: "Case ID" },
+    { key: "client_id", label: "Client ID" },
+    { key: "client_name", label: "Client name" },
+    { key: "trigger", label: "Triggering activity" },
+    { key: "amount_involved", label: "Amount involved" },
+    { key: "mlro", label: "Filing MLRO" },
+    { key: "frc_ack", label: "FRC acknowledgement" },
+    { key: "post_filing_action", label: "Post-filing action", description: "Account restriction, exit, or continued monitoring." },
+  ] },
+  { id: "rp_scenario_violations", name: "Scenario-wise violations report", category: "regulatory", description: "Alert volumes and dispositions per monitoring scenario (structuring, velocity, geo-mismatch, large redemption).", frequency: "monthly", format: "XLSX", restrictedTo: ["compliance", "mlro", "system_admin"], columns: [
+    { key: "scenario", label: "Monitoring scenario" },
+    { key: "rule_parameters", label: "Rule parameters", description: "Thresholds in force during the period, from Platform Settings." },
+    { key: "alerts_raised", label: "Alerts raised" },
+    { key: "alerts_cleared", label: "Cleared" },
+    { key: "alerts_escalated", label: "Escalated to case" },
+    { key: "strs_filed", label: "STRs filed" },
+    { key: "false_positive_rate", label: "False-positive rate %" },
+    { key: "top_clients", label: "Most-flagged clients" },
+    { key: "avg_days_to_close", label: "Avg days to disposition" },
+  ] },
+
+  // ---- Processes ----
+  { id: "rp_onboarding_tat", name: "Onboarding turnaround report", category: "processes", description: "Time from application to activation per pipeline stage — documents, screening, risk rating, approval.", frequency: "weekly", format: "XLSX", restrictedTo: ["compliance", "operations", "bd_officer", "system_admin", "ceo"], columns: [
+    { key: "client_id", label: "Client ID" },
+    { key: "channel", label: "Channel" },
+    { key: "applied_at", label: "Applied" },
+    { key: "docs_complete_at", label: "Documents complete" },
+    { key: "screened_at", label: "Screened" },
+    { key: "rated_at", label: "Risk rated" },
+    { key: "approved_at", label: "Activation approved" },
+    { key: "total_tat_days", label: "Total TAT (days)" },
+    { key: "sla_breach", label: "SLA breach flag" },
+  ] },
+  { id: "rp_approval_tat", name: "Approval turnaround report", category: "processes", description: "Maker-checker queue performance — time from proposal to decision by approval kind and role.", frequency: "weekly", format: "XLSX", restrictedTo: ["operations", "head_of_finance", "compliance", "system_admin", "ceo"], columns: [
+    { key: "approval_id", label: "Approval ID" },
+    { key: "kind", label: "Kind" },
+    { key: "proposed_by", label: "Proposed by" },
+    { key: "proposed_at", label: "Proposed" },
+    { key: "decided_by", label: "Decided by" },
+    { key: "decided_at", label: "Decided" },
+    { key: "tat_hours", label: "TAT (hours)" },
+    { key: "outcome", label: "Outcome" },
+  ] },
+
+  // ---- Audit MIS ----
+  { id: "rp_audit_mis", name: "Audit trail MIS", category: "audit_mis", description: "Audit-event volumes by category, actor and entity, with hash-chain integrity attestation for the period.", frequency: "monthly", format: "PDF", restrictedTo: ["compliance", "mlro", "system_admin", "ceo"], columns: [
+    { key: "period", label: "Period" },
+    { key: "category", label: "Event category" },
+    { key: "event_count", label: "Event count" },
+    { key: "actor", label: "Actor" },
+    { key: "entity_type", label: "Entity type" },
+    { key: "chain_status", label: "Chain integrity", description: "Result of the hash-chain re-walk at generation time." },
+    { key: "first_event", label: "First event" },
+    { key: "last_event", label: "Last event" },
+  ] },
+  { id: "rp_access_review", name: "User access review", category: "audit_mis", description: "Role-by-page access matrix, user list with last sign-in, and changes since the last recertification.", frequency: "quarterly", format: "XLSX", restrictedTo: ["system_admin", "compliance"], columns: [
+    { key: "user_id", label: "User ID" },
+    { key: "name", label: "Name" },
+    { key: "role", label: "Role" },
+    { key: "status", label: "Status" },
+    { key: "last_login", label: "Last sign-in" },
+    { key: "pages_granted", label: "Pages granted" },
+    { key: "changes_in_period", label: "Access changes in period" },
+    { key: "recertified_by", label: "Recertified by" },
+  ] },
+
+  // ---- Miscellaneous ----
+  { id: "rp_adhoc_extract", name: "Ad-hoc data extract", category: "miscellaneous", description: "On-demand extract builder output — choose the columns you need across clients, transactions and cases.", frequency: "on_demand", format: "CSV", restrictedTo: ["compliance", "operations", "head_of_finance", "system_admin"], columns: [
+    { key: "client_id", label: "Client ID" },
+    { key: "client_name", label: "Client name" },
+    { key: "lifecycle", label: "Lifecycle status" },
+    { key: "risk_rating", label: "Risk rating" },
+    { key: "aum", label: "AUM" },
+    { key: "tx_count", label: "Transaction count" },
+    { key: "tx_value", label: "Transaction value" },
+    { key: "open_cases", label: "Open cases" },
+    { key: "open_complaints", label: "Open complaints" },
+    { key: "wallet_status", label: "Wallet status" },
+  ] },
+];
+
+// ---- Delegation of Authority — approval routing (Open Question 8) ----
 
 /** Who may act as checker for each approval kind, banded by amount. A rule
  * with maxAmount null is the unbounded band. The Approvals page enforces
@@ -192,6 +489,8 @@ export const APPROVAL_POLICIES: ApprovalPolicyRule[] = [
   { id: "pol_str", kind: "str_filing", label: "STR filing", maxAmount: null, approverRoles: ["mlro"] },
   { id: "pol_case_close", kind: "case_closure", label: "Compliance case closure", maxAmount: null, approverRoles: ["compliance", "mlro"] },
 ];
+
+// ---- Tokenization whitelist — Phase 2 jurisdiction matrix ----
 
 export type JurisdictionStatus = "open" | "planned" | "under_review" | "excluded";
 
@@ -226,6 +525,8 @@ export const JURISDICTIONS: Jurisdiction[] = [
   { id: "jur_eu_uk", segment: "EU / UK", priority: "low", rationale: "AIFMD and MiFID II compliance complex and costly.", timing: "Long-term only", status: "excluded", kycTier: "enhanced" },
   { id: "jur_us", segment: "United States", priority: "excluded", rationale: "SEC jurisdiction; Reg S / Reg D structuring required — separate structure needed.", timing: "Not planned", status: "excluded", kycTier: "enhanced" },
 ];
+
+// ---- Audit trail ----
 
 export type AuditCategory = "config" | "security" | "approval" | "data" | "report" | "compliance";
 
@@ -298,4 +599,17 @@ export function logAudit(event: Omit<AuditEvent, "id" | "at" | "hash" | "prevHas
   const entry: AuditEvent = { ...base, prevHash, hash: chainHash(prevHash, base) };
   AUDIT_EVENTS.unshift(entry);
   return entry;
+}
+
+/** Re-walks the chain oldest→newest; any edited or removed event breaks it. */
+export function verifyAuditChainSync(): { intact: boolean; length: number; brokenAtId?: string } {
+  let prev = "genesis";
+  for (let i = AUDIT_EVENTS.length - 1; i >= 0; i--) {
+    const e = AUDIT_EVENTS[i];
+    if (e.prevHash !== prev || e.hash !== chainHash(prev, e)) {
+      return { intact: false, length: AUDIT_EVENTS.length, brokenAtId: e.id };
+    }
+    prev = e.hash;
+  }
+  return { intact: true, length: AUDIT_EVENTS.length };
 }
