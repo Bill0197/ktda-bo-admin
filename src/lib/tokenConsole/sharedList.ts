@@ -86,3 +86,8 @@ export function useSharedSource<T>(key: string, fetcher: () => Promise<T[]>) {
   const list = useSharedList(key, fetcher);
   return { data: list.data ?? null, loading: list.isPending, error: list.error ?? null, reload: list.reload };
 }
+
+/** Forget every cached list — on sign-out, so the next account starts clean. */
+export function clearSharedLists() {
+  cache.clear();
+}

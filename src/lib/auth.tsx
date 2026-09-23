@@ -3,6 +3,7 @@ import { ADMIN_USERS, ROLE_LABELS, type AdminRole } from "../mock";
 import { tokApi, TokApiError, UNAUTHENTICATED_EVENT } from "./tokApi";
 import type { MeResponse } from "./tokenConsole/types.gen";
 import type { SelfServiceSignupRequest, SignupResponse } from "./tokenConsole/spec-deviations";
+import { clearSharedLists } from "./tokenConsole/sharedList";
 
 /** Sign-in against the tokenization (accounting) service — the same staff
  * accounts tokenization-web used. The session is the service's HttpOnly
@@ -118,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Already signed out server-side is still "signed out".
     } finally {
+      clearSharedLists();
       setUser(null);
     }
   }, []);

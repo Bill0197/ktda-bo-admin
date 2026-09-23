@@ -24,9 +24,8 @@ import * as investment from "./api.investment";
 import * as ledger from "./api.ledger";
 import * as tokconduct from "./api.tokconduct";
 import * as demo from "../mock/api";
-import { JOURNAL_EVENT_LABELS } from "../mock";
-
-const USE_CORE = Boolean(import.meta.env.VITE_CORE_API_BASE);
+import { ADMIN_USERS, JOURNAL_EVENT_LABELS, SYSTEM_USERS } from "../mock";
+import { CORE_CONNECTED as USE_CORE } from "./dataSource";
 
 const pick = <F>(core: F, demoImpl: F): F => (USE_CORE ? core : demoImpl);
 
@@ -69,7 +68,15 @@ const toJournal = (e: Omit<DemoJournal, "eventLabel" | "amount" | "balanced">): 
   approvalId: e.approvalId ?? null,
 });
 
+/* Everyone signed in acts as System Admin (see lib/auth.tsx), so that is who
+   the demo records as the actor when a caller doesn't name one. */
+const DEMO_ACTOR = ADMIN_USERS.system_admin.name;
+const DEMO_ACTOR_ID = SYSTEM_USERS.find((u) => u.role === "system_admin")?.id ?? "system_admin";
+
 const demoAdapted = {
+  /** CORE takes the author from the session; the mock needs it passed. */
+  logInteraction: (input: Parameters<typeof crm.logInteraction>[0] & { byId?: string; actor?: string }) =>
+    demo.logInteraction({ byId: DEMO_ACTOR_ID, actor: DEMO_ACTOR, ...input } as Parameters<typeof demo.logInteraction>[0]),
   getClientComplianceDetail: async (id: string) => {
     const d = await demo.getClientComplianceDetail(id);
     return { ...d, wallet: d.wallet ?? undefined };
@@ -171,7 +178,7 @@ export const resolveEnquiry = pickLoose(crm.resolveEnquiry, demo.resolveEnquiry)
 export const convertEnquiryToLead = pickLoose(crm.convertEnquiryToLead, demo.convertEnquiryToLead);
 export const getInteractions = pick(crm.getInteractions, demo.getInteractions);
 export const getRecentInteractions = pick(crm.getRecentInteractions, demo.getRecentInteractions);
-export const logInteraction = pickLoose(crm.logInteraction, demo.logInteraction);
+export const logInteraction = pick(crm.logInteraction, demoAdapted.logInteraction);
 export const getCrmTasks = pick(crm.getCrmTasks, demo.getCrmTasks);
 export const createCrmTask = pickLoose(crm.createCrmTask, demo.createCrmTask);
 export const setCrmTaskStatus = pickLoose(crm.setCrmTaskStatus, demo.setCrmTaskStatus);
