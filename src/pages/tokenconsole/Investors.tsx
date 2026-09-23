@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
-import { PageHeader, SearchInput } from "../../ui";
+import { Button, PageHeader, SearchInput } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { dateOf, label } from "../../lib/tokenConsole/format";
 import type { Investor } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { InvestorChannelActions } from "../../components/tokenconsole/InvestorChannelActions";
 
 export default function TokenConsoleInvestors() {
   const investors = useAsyncData(tokenConsole.investors);
   const [q, setQ] = useState("");
+  const [channel, setChannel] = useState<Investor | null>(null);
   const term = q.trim().toLowerCase();
 
   const rows = useMemo(
@@ -35,8 +37,14 @@ export default function TokenConsoleInvestors() {
           { key: "category", header: "Category", render: (r) => label(r.investorCategory), hideOnMobile: true },
           { key: "status", header: "Status", render: (r) => <StatusBadge status={r.lifecycleStatus} /> },
           { key: "onboarded", header: "Onboarded", render: (r) => <span className="tabular text-xs text-text-soft">{dateOf(r.onboardedAt)}</span>, hideOnMobile: true },
+          { key: "app", header: "", className: "text-right", render: (r) => r.investorId ? (
+            <Button size="sm" variant="ghost" aria-label={`App channel for ${r.displayName ?? r.externalRef ?? "investor"}`} onClick={() => setChannel(r)}>
+              App channel
+            </Button>
+          ) : null },
         ]}
       />
+      {channel && <InvestorChannelActions key={channel.investorId} investor={channel} onClose={() => setChannel(null)} />}
     </div>
   );
 }

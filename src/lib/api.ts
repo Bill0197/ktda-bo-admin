@@ -35,7 +35,7 @@ export {
   getInstitutionalMandates, getMandateRestrictions, getSegregatedPortfolios, getFeeSchedules,
   getInstitutionalReports, updateRestriction, getMandateBreaches, updateBreach, notifyBreachClient,
   getCounterparties, reviewCounterparty, screenCounterparty, getInstitutionalClientCompliance,
-  reviewClientCompliance, getInvestmentProducts, getInvestmentOrders, getPortfolioTrades, proposeTrade,
+  reviewClientCompliance, getInvestmentProducts, getPortfolioTrades, proposeTrade,
   recordTradeStatus, getHoldingsBook, getValuationRuns, runValuation, reviewValuationRun,
   releaseValuationRun, getRedemptionRequests, decideRedemption, getCorporateActions, decideCorporateAction,
   getIcApprovalQueue, getIcApproval, proposeIcApproval, withdrawIcApproval, castIcVote,
@@ -50,3 +50,6 @@ export {
   assignMarketAbuseAlert, setMarketAbuseStatus, reportMarketAbuseToCma, getConflictDeclarations,
   reviewConflict, getEmployeeTrades, decideEmployeeTrade,
 } from "./api.demo";
+
+/* Live from the tokenization service (see api.live.ts). */
+export { getInvestmentOrders } from "./api.live";

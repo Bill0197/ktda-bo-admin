@@ -206,7 +206,6 @@ export const screenCounterparty = pick(institutional.screenCounterparty, notInDe
 export const getInstitutionalClientCompliance = pick(institutional.getInstitutionalClientCompliance, demo.getInstitutionalClientCompliance);
 export const reviewClientCompliance = pick(institutional.reviewClientCompliance, notInDemo("reviewClientCompliance"));
 export const getInvestmentProducts = pick(investment.getInvestmentProducts, demo.getInvestmentProducts);
-export const getInvestmentOrders = pick(investment.getInvestmentOrders, demo.getInvestmentOrders);
 export const getPortfolioTrades = pick(investment.getPortfolioTrades, demo.getPortfolioTrades);
 export const proposeTrade = pick(investment.proposeTrade, notInDemo("proposeTrade"));
 export const recordTradeStatus = pick(investment.recordTradeStatus, notInDemo("recordTradeStatus"));
