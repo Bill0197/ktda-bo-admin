@@ -14,6 +14,7 @@
 import { qs, tokApi } from "./tokApi";
 import type * as T from "./tokenConsole/types.gen";
 import type { AssetBackingRowActual, CreateAccrualPolicyBody, CreateDistributionPolicyBody } from "./tokenConsole/spec-deviations";
+import type { ChangePayload, ChangeStatus, ChangeType, ConfigChange } from "./tokenConsole/configChanges";
 
 const A = "/accounting";
 const get = <R>(path: string) => tokApi.get<R>(`${A}${path}`);
@@ -98,6 +99,19 @@ export const tokenConsole = {
   createProduct: (body: T.CreateProductRequest) => post<T.Product>("/products", body),
   activateProduct: (productId: string) => post<T.Product>(`/products/${seg(productId)}/activate`),
   deactivateProduct: (productId: string) => post<T.Product>(`/products/${seg(productId)}/deactivate`),
+
+  // Maker-checker (see tokenConsole/configChanges.ts). The console stages every
+  // controlled write here; the direct calls above stay for reference only.
+  configChanges: (status?: ChangeStatus) => get<ConfigChange[]>(`/config/changes${qs({ status })}`),
+  configChange: (requestId: string) => get<ConfigChange>(`/config/changes/${seg(requestId)}`),
+  /** 202 with the staged request; nothing is applied until someone else approves it. */
+  stageChange: <K extends ChangeType>(type: K, payload: ChangePayload[K], summary?: string) =>
+    post<ConfigChange>("/config/changes", { type, payload, summary }),
+  /** 409 if you made it, it is no longer pending, or the engine refuses the replay (it is then FAILED). */
+  approveChange: (requestId: string, note?: string) => post<ConfigChange>(`/config/changes/${seg(requestId)}/approve`, { note }),
+  rejectChange: (requestId: string, note: string) => post<ConfigChange>(`/config/changes/${seg(requestId)}/reject`, { note }),
+  /** Only the maker can withdraw their own pending request. */
+  cancelChange: (requestId: string) => post<ConfigChange>(`/config/changes/${seg(requestId)}/cancel`),
   linkTokenClass: (productId: string, body: T.LinkTokenClassRequest) => post<T.Product>(`/products/${seg(productId)}/token-class`, body),
   assignSubFund: (productId: string, body: T.AssignSubFundRequest) => post<T.Product>(`/products/${seg(productId)}/sub-fund`, body),
   productCouponTariffs: () => get<T.ProductCouponTariff[]>("/product-coupon-tariffs"),

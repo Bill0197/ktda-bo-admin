@@ -1,9 +1,12 @@
-import { useState } from "react";
-import { Button, PageHeader, useToast } from "../../ui";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Button, NotePanel, PageHeader, useToast } from "../../ui";
 import { Plus } from "lucide-react";
 import { tokenConsole } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAsyncData } from "../../lib/useAsyncData";
+import { usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
+import { CHANGE_TYPE_LABEL } from "../../lib/tokenConsole/configChanges";
 import { label, shortId } from "../../lib/tokenConsole/format";
 import type { Product } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
@@ -17,6 +20,12 @@ export default function TokenConsoleProducts() {
   const products = useAsyncData(tokenConsole.products);
   const [creating, setCreating] = useState(false);
   const [configuring, setConfiguring] = useState<string | null>(null);
+  const pending = usePendingChanges();
+  const { reload: reloadPending } = pending;
+  // The shared list lives for the tab; someone may have decided since.
+  useEffect(() => { void reloadPending(); }, [reloadPending]);
+  // Rates wait too, but they belong to the Tariffs page.
+  const waiting = (pending.data ?? []).filter((c) => c.changeType.startsWith("PRODUCT_"));
 
   return (
     <div>
@@ -26,6 +35,17 @@ export default function TokenConsoleProducts() {
         subtitle="Share classes: what an investor actually holds units of, and what NAV is struck against."
         actions={canWrite ? <Button size="sm" onClick={() => setCreating(true)}><Plus size={14} /> New product</Button> : undefined}
       />
+      {waiting.length > 0 && (
+        <NotePanel tone="info" className="mb-4" title={`${waiting.length} product ${waiting.length === 1 ? "change is" : "changes are"} awaiting approval`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              {waiting.slice(0, 3).map((c) => c.summary || CHANGE_TYPE_LABEL[c.changeType]).join(" · ")}
+              {waiting.length > 3 ? ` · and ${waiting.length - 3} more` : ""}. None of these apply until someone else approves them.
+            </span>
+            <Link to="/token-console/changes" className="text-[13px] font-medium text-primary-600 hover:text-primary-700">Review</Link>
+          </div>
+        </NotePanel>
+      )}
       <ConsoleTable<Product>
         what="products"
         source={products}
@@ -62,10 +82,9 @@ export default function TokenConsoleProducts() {
       {creating && (
         <NewProductModal
           onClose={() => setCreating(false)}
-          onCreated={(p) => {
-            toast.push(`Created ${p.productId ?? "product"}`);
+          onStaged={(c) => {
+            toast.push(`${c.targetId ?? "The product"} is awaiting approval. It is created once someone else approves it.`);
             setCreating(false);
-            void products.reload();
           }}
         />
       )}

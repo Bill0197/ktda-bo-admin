@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
-import { Badge, Button, Checkbox, Field, GlassPanel, Input, NotePanel, PageHeader, Select, useToast } from "../../ui";
+import { Badge, Button, Field, GlassPanel, Input, NotePanel, PageHeader, Select, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { calendarDate, label, percent } from "../../lib/tokenConsole/format";
 import { invalidateList } from "../../lib/tokenConsole/sharedList";
 import { useAction } from "../../lib/tokenConsole/useAction";
+import { PENDING_CHANGES_KEY, usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
 import type { CreateTariffValueRequest, ResolvedTariff, TariffDomain, TariffType, TariffValue } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable } from "../../components/tokenconsole/ConsoleTable";
 import { ActionModal, isNumber, todayIso } from "../../components/tokenconsole/ActionModal";
@@ -24,6 +26,10 @@ export default function TokenConsoleTariffs() {
   const values = useAsyncData(tokenConsole.tariffValues);
   const toast = useToast();
   const [creating, setCreating] = useState<"type" | "value" | null>(null);
+  const pending = usePendingChanges();
+  const { reload: reloadPending } = pending;
+  useEffect(() => { void reloadPending(); }, [reloadPending]);
+  const waitingRates = (pending.data ?? []).filter((c) => c.changeType === "TARIFF_VALUE_CREATE");
 
   return (
     <div>
@@ -40,6 +46,18 @@ export default function TokenConsoleTariffs() {
       />
 
       <ResolveTool />
+
+      {waitingRates.length > 0 && (
+        <NotePanel tone="info" className="mb-4" title={`${waitingRates.length} ${waitingRates.length === 1 ? "rate is" : "rates are"} awaiting approval`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              {waitingRates.slice(0, 2).map((c) => c.summary ?? "New rate").join(" · ")}
+              {waitingRates.length > 2 ? ` · and ${waitingRates.length - 2} more` : ""}. They are not in the table until someone else approves them.
+            </span>
+            <Link to="/token-console/changes" className="text-[13px] font-medium text-primary-600 hover:text-primary-700">Review</Link>
+          </div>
+        </NotePanel>
+      )}
 
       <ConsoleTable<TariffValue>
         what="tariff values"
@@ -102,7 +120,7 @@ export default function TokenConsoleTariffs() {
         <TariffTypeModal onClose={() => setCreating(null)} onDone={() => { setCreating(null); toast.push("Tariff type created."); void types.reload(); invalidateList("tok:tariffType"); }} />
       )}
       {creating === "value" && (
-        <TariffValueModal onClose={() => setCreating(null)} onDone={() => { setCreating(null); toast.push("Rate added."); void values.reload(); invalidateList("tok:tariffValue"); }} />
+        <TariffValueModal onClose={() => setCreating(null)} onDone={() => { setCreating(null); toast.push("Rate sent for approval. It is added once someone else approves it."); invalidateList(PENDING_CHANGES_KEY); }} />
       )}
     </div>
   );
@@ -168,7 +186,7 @@ function TariffTypeModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 /** Rates are never edited: a change is a new, effective-dated row, so a past
  *  period still resolves to what was in force then. */
 function TariffValueModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const create = useAction(tokenConsole.createTariffValue);
+  const create = useAction((body: CreateTariffValueRequest) => tokenConsole.stageChange("TARIFF_VALUE_CREATE", body));
   const [type, setType] = useState("");
   const [domain, setDomain] = useState("");
   const [currency, setCurrency] = useState("KES");
@@ -176,7 +194,6 @@ function TariffValueModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [dayCount, setDayCount] = useState<DayCount>("ACTUAL_365");
   const [from, setFrom] = useState(todayIso());
   const [to, setTo] = useState("");
-  const [approved, setApproved] = useState(false);
   const problem = !type ? "Pick the tariff type." : !domain ? "Pick the domain."
     : !/^[A-Za-z]{3}$/.test(currency) ? "Currency is a three-letter code."
     : !isNumber(rate) || Number(rate) < 0 ? "Enter the rate as a fraction, e.g. 0.015 for 1.5%."
@@ -185,13 +202,14 @@ function TariffValueModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const submit = async () => {
     const r = await create.run({
       tariffTypeId: type, tariffDomainId: domain, currency: currency.toUpperCase(), rate: Number(rate), dayCount,
-      effectiveFrom: from, effectiveTo: to || undefined, approved,
+      // Approval in the change queue is the approval: the engine applies it with approved=true.
+      effectiveFrom: from, effectiveTo: to || undefined,
     });
     if (r) onDone();
   };
   return (
-    <ActionModal title="New rate" description="What a tariff type charges in a domain, from a date. An unapproved rate never resolves."
-      submitLabel="Add rate" problem={problem} showProblem={!!(type || domain || rate)} pending={create.pending} error={create.error}
+    <ActionModal title="New rate" description="What a tariff type charges in a domain, from a date. It goes to Change approvals, and resolves from its effective date once someone other than you approves it."
+      submitLabel="Send for approval" pendingLabel="Sending…" problem={problem} showProblem={!!(type || domain || rate)} pending={create.pending} error={create.error}
       onSubmit={() => void submit()} onClose={onClose} size="lg">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tariff type" required group><TariffTypePicker value={type} onChange={setType} /></Field>
@@ -206,7 +224,6 @@ function TariffValueModal({ onClose, onDone }: { onClose: () => void; onDone: ()
         <div />
         <Field label="Effective from" required><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
         <Field label="Effective to"><Input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} /></Field>
-        <div className="sm:col-span-2"><Checkbox checked={approved} onChange={setApproved}>Approved — it resolves from its effective date</Checkbox></div>
       </div>
     </ActionModal>
   );

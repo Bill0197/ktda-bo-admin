@@ -3,9 +3,11 @@ import { Button, Field, Input, Modal, NotePanel, Select } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { ASSET_CLASSES } from "../../lib/tokenConsole/entityRegistry";
 import { invalidateList } from "../../lib/tokenConsole/sharedList";
+import { PENDING_CHANGES_KEY, usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
+import type { ConfigChange } from "../../lib/tokenConsole/configChanges";
 import { label } from "../../lib/tokenConsole/format";
 import { useAction } from "../../lib/tokenConsole/useAction";
-import type { CreateProductRequest, Product } from "../../lib/tokenConsole/types.gen";
+import type { CreateProductRequest } from "../../lib/tokenConsole/types.gen";
 import { EntityRefField, MultiEntityRefField } from "../../components/tokenconsole/EntityCreate";
 
 const STRUCTURES = ["POOLED_UNITIZED", "DISCRETIONARY_MANDATE"] as const;
@@ -49,16 +51,23 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** Mounted only while open, so every opening starts from a blank form. Every
- * reference can be picked, or created on the spot with New — recursively. */
-export function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: (p: Product) => void }) {
-  const create = useAction(tokenConsole.createProduct);
+ * reference can be picked, or created on the spot with New — recursively.
+ * The product itself is not created here: it is staged for maker-checker, and
+ * exists once a different checker approves it (see Change approvals). */
+export function NewProductModal({ onClose, onStaged }: { onClose: () => void; onStaged: (c: ConfigChange) => void }) {
+  const create = useAction((body: CreateProductRequest) => tokenConsole.stageChange("PRODUCT_CREATE", body));
+  const pending = usePendingChanges();
   const [f, setF] = useState<Draft>(BLANK);
   const [dirty, setDirty] = useState(false);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => {
     setDirty(true);
     setF((s) => ({ ...s, [k]: v }));
   };
-  const problem = problemWith(f);
+  // A second request for the same id could only fail on approval; say so now.
+  const waiting = f.productId.trim() && (pending.data ?? []).some(
+    (c) => c.changeType === "PRODUCT_CREATE" && c.targetId?.toLowerCase() === f.productId.trim().toLowerCase(),
+  );
+  const problem = problemWith(f) ?? (waiting ? `A request to create ${f.productId.trim()} is already awaiting approval.` : undefined);
 
   const ref = (fieldLabel: string, k: keyof Draft, entityKey: string, opts: { required?: boolean; hint?: string } = {}) => (
     <Field label={fieldLabel} required={opts.required} hint={opts.hint} group>
@@ -92,11 +101,10 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
       activeTo: opt(f.activeTo),
       tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
     };
-    const created = await create.run(body);
-    if (created) {
-      // The parent/base product pickers read the shared product list.
-      invalidateList("tok:product");
-      onCreated(created);
+    const staged = await create.run(body);
+    if (staged) {
+      invalidateList(PENDING_CHANGES_KEY);
+      onStaged(staged);
     }
   };
 
@@ -111,13 +119,14 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
           {dirty && problem ? <p className="mr-auto self-center text-[12.5px] text-text-soft">{problem}</p> : null}
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={!!problem || create.pending} onClick={() => void submit()}>
-            {create.pending ? "Creating…" : "Create product"}
+            {create.pending ? "Sending…" : "Send for approval"}
           </Button>
         </>
       }
     >
       <p className="mb-4 text-sm text-text-soft">
         Pick an existing record for each reference, or create one with New. Only fields marked * are required.
+        The product is created once someone other than you approves it in Change approvals; the references you create with New are saved straight away.
       </p>
       <div className="flex flex-col gap-5">
         <Section title="Identity">

@@ -55,6 +55,7 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Funds", to: "/token-console/funds", section: "Tokenization Console", icon: Landmark },
   { label: "Tariffs", to: "/token-console/tariffs", section: "Tokenization Console", icon: Percent },
   { label: "Configuration", to: "/token-console/configuration", section: "Tokenization Console", icon: SlidersHorizontal },
+  { label: "Change approvals", to: "/token-console/changes", section: "Tokenization Console", icon: ClipboardCheck },
   { label: "Tokenization users", to: "/token-console/users", section: "Tokenization Console", icon: KeyRound },
   { label: "Market abuse", to: "/market-conduct/market-abuse", section: "Market Conduct", icon: ScanEye },
   { label: "Conflicts of interest", to: "/market-conduct/conflicts", section: "Market Conduct", icon: Handshake },

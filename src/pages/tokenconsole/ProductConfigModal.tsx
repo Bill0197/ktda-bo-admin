@@ -3,6 +3,10 @@ import { Button, DataTable, Field, Input, Modal, NotePanel, SectionTitle, Select
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { useAction } from "../../lib/tokenConsole/useAction";
+import { invalidateList } from "../../lib/tokenConsole/sharedList";
+import { PENDING_CHANGES_KEY, usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
+import { pendingFor } from "../../lib/tokenConsole/configChanges";
+import type { CreateProductLimitRequest } from "../../lib/tokenConsole/types.gen";
 import { Code, SourceError } from "../../components/tokenconsole/ConsoleTable";
 import { ProductBindings } from "./ProductBindings";
 
@@ -37,7 +41,10 @@ export function ProductConfigModal({ productId, canWrite, onClose, onChanged }: 
   const toast = useToast();
   const limits = useAsyncData(() => tokenConsole.productLimits(productId));
   const events = useAsyncData(() => tokenConsole.lifecycleEvents(productId));
-  const saveLimit = useAction(tokenConsole.createProductLimit);
+  // Limits are maker-checker controlled: staged here, applied on approval.
+  const saveLimit = useAction((body: CreateProductLimitRequest) => tokenConsole.stageChange("PRODUCT_LIMIT_CREATE", body));
+  const pendingChanges = usePendingChanges();
+  const waitingLimits = pendingFor(pendingChanges.data, productId, ["PRODUCT_LIMIT_CREATE"]);
   const saveEvent = useAction(tokenConsole.createLifecycleEvent);
 
   const [limitType, setLimitType] = useState<string>(LIMIT_TYPES[0]);
@@ -61,10 +68,10 @@ export function ProductConfigModal({ productId, canWrite, onClose, onChanged }: 
       productId, limitType, minValue: min, maxValue: max, currency: currency.trim().toUpperCase() || undefined,
     });
     if (saved === undefined) return;
-    toast.push(`Saved ${limitType} for ${productId}`);
+    toast.push(`${limitType} for ${productId} sent for approval.`);
     setMinValue("");
     setMaxValue("");
-    void limits.reload();
+    invalidateList(PENDING_CHANGES_KEY);
   };
 
   const addEvent = async () => {
@@ -99,10 +106,15 @@ export function ProductConfigModal({ productId, canWrite, onClose, onChanged }: 
           <div className="mt-2 flex flex-wrap items-center justify-end gap-3">
             {touched && problem && <span className="text-xs text-danger">{problem}</span>}
             <Button size="sm" disabled={!!problem || saveLimit.pending} onClick={() => void addLimit()}>
-              {saveLimit.pending ? "Saving…" : "Save limit"}
+              {saveLimit.pending ? "Sending…" : "Send for approval"}
             </Button>
           </div>
           {saveLimit.error && <NotePanel tone="danger" className="mt-2">{saveLimit.error}</NotePanel>}
+          {waitingLimits.length > 0 && (
+            <NotePanel tone="info" className="mt-2" title="Awaiting approval">
+              {waitingLimits.map((c) => c.summary ?? "Limit change").join(" · ")}
+            </NotePanel>
+          )}
         </>
       )}
       <div className="mt-3 mb-6">

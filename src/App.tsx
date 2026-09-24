@@ -61,6 +61,7 @@ const TokenConsoleReconciliation = lazy(() => import("./pages/tokenconsole/Recon
 const TokenConsoleRuns = lazy(() => import("./pages/tokenconsole/Runs"));
 const TokenConsolePolicies = lazy(() => import("./pages/tokenconsole/Policies"));
 const TokenConsoleCompliance = lazy(() => import("./pages/tokenconsole/Compliance"));
+const TokenConsoleChanges = lazy(() => import("./pages/tokenconsole/Changes"));
 const TokenConsoleFunds = lazy(() => import("./pages/tokenconsole/Funds"));
 const TokenConsoleTariffs = lazy(() => import("./pages/tokenconsole/Tariffs"));
 const TokenConsoleConfiguration = lazy(() => import("./pages/tokenconsole/Configuration"));
@@ -149,6 +150,7 @@ function AppRoutes() {
       <Route path="/token-console/runs" element={<ProtectedRoute><TokenConsoleRuns /></ProtectedRoute>} />
       <Route path="/token-console/policies" element={<ProtectedRoute><TokenConsolePolicies /></ProtectedRoute>} />
       <Route path="/token-console/compliance" element={<ProtectedRoute><TokenConsoleCompliance /></ProtectedRoute>} />
+      <Route path="/token-console/changes" element={<ProtectedRoute><TokenConsoleChanges /></ProtectedRoute>} />
       <Route path="/token-console/funds" element={<ProtectedRoute><TokenConsoleFunds /></ProtectedRoute>} />
       <Route path="/token-console/tariffs" element={<ProtectedRoute><TokenConsoleTariffs /></ProtectedRoute>} />
       <Route path="/token-console/configuration" element={<ProtectedRoute><TokenConsoleConfiguration /></ProtectedRoute>} />
