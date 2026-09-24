@@ -1,0 +1,118 @@
+name: Deploy to EC2
+
+# Builds BO Admin once, then ships it to both UAT EC2 boxes in parallel. Each
+# box runs nginx serving dist/ and reverse-proxying the engine (8086) and
+# omnichannel's staff endpoints (8087) on the same origin — see
+# deploy/README.md.
+#
+# Manual only (Actions -> Deploy to EC2 -> Run workflow): pushing to main does
+# not deploy, so a merge can't replace what's on the boxes by surprise.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions),
+# the same keys tokenization-web's deploy uses:
+#   UAT_EC2_SSH_KEY          — private key for box1 (3.226.168.177)
+#   ACCOUNTING_EC2_SSH_KEY   — private key for box2 (34.229.76.101)
+
+on:
+  workflow_dispatch:
+    inputs:
+      replace_tokenization_web:
+        description: "Disable tokenization-web's site on the boxes (needed once — both serve port 80)"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      # No environment needed: the app calls /tok and /omni on its own origin,
+      # which is exactly what the nginx site proxies.
+      - name: Build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-bo-admin-uat
+      cancel-in-progress: false
+    strategy:
+      # Independent boxes: a failure on one must not cancel the other.
+      fail-fast: false
+      matrix:
+        include:
+          - box: box1
+            host: 3.226.168.177
+            key_secret: UAT_EC2_SSH_KEY
+            hostkey: "3.226.168.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJjEUPefQEaMlyQhlql3mNpYL2xSC7vdPflh3OcM3tRv"
+          - box: box2
+            host: 34.229.76.101
+            key_secret: ACCOUNTING_EC2_SSH_KEY
+            hostkey: "34.229.76.101 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMhUdtWLwLYV3llkIatkjir0A5UEs2q1AJKvDl9fTsmo"
+    env:
+      DEPLOY_USER: ec2-user
+      DEPLOY_HOST: ${{ matrix.host }}
+      DEPLOY_PATH: /var/www/bo-admin
+      REPLACE: ${{ inputs.replace_tokenization_web && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Configure SSH (${{ matrix.box }})
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "${{ secrets[matrix.key_secret] }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if ! [ -s ~/.ssh/deploy_key ]; then
+            echo "::error::Secret ${{ matrix.key_secret }} is empty — set it for ${{ matrix.box }} (${{ matrix.host }})"
+            exit 1
+          fi
+          # Pin the host key so we authenticate the server, not trust-on-first-use.
+          echo "${{ matrix.hostkey }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Provision host (nginx + config, idempotent)
+        run: |
+          SCP="scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes"
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${DEPLOY_USER}@${DEPLOY_HOST}"
+          $SCP deploy/nginx/bo-admin.conf ${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/bo-admin.conf
+          $SCP deploy/provision.sh        ${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/provision.sh
+          $SSH "chmod +x /tmp/provision.sh && REPLACE_TOKENIZATION_WEB=${REPLACE} /tmp/provision.sh"
+
+      - name: Sync build to webroot
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            --rsync-path="sudo rsync" \
+            dist/ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
+
+      - name: Relabel and reload nginx
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "sudo restorecon -R ${DEPLOY_PATH} && sudo nginx -t && sudo systemctl reload nginx"
+
+      - name: Smoke check
+        run: |
+          # From the box itself, so it checks nginx whatever the security group
+          # exposes. 200 for the page, 401 for a signed-out engine call.
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${DEPLOY_USER}@${DEPLOY_HOST}"
+          page=$($SSH "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1/")
+          api=$($SSH "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1/tok/auth/me")
+          echo "${{ matrix.box }}: GET / -> $page, GET /tok/auth/me -> $api"
+          test "$page" = "200" && test "$api" = "401"
