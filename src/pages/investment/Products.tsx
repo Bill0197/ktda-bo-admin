@@ -1,6 +1,6 @@
 import { PRODUCT_STATUS_LABELS, type InvestmentProduct, type ProductStatus } from "../../mock";
 import { getInvestmentProducts } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { Boxes, Landmark, Rocket, Percent } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -31,31 +31,48 @@ export default function Products() {
     : 0;
 
   const columns: Column<InvestmentProduct>[] = [
-    { key: "name", header: "Product", render: (r) => (
+    { key: "name", header: "Product", className: "min-w-[220px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint tabular">{r.code} · {r.assetClass}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          {r.name}
+          {/* The note is a paragraph; it lives behind the icon, not in a column. */}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint"><span className="tabular">{r.code}</span> · {r.assetClass}</div>
       </div>
     ) },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{PRODUCT_STATUS_LABELS[r.status]}</Badge> },
-    { key: "aum", header: "AUM", render: (r) => r.aum > 0
+    // Status and CMA approval answer the same question — may this be sold? — so
+    // they share a cell: the state, then the approval reference behind it.
+    { key: "status", header: "Status · CMA approval", className: "whitespace-nowrap", render: (r) => {
+      // "CMA/CIS/2026/031 — filed, awaiting approval": the reference, then its state.
+      const [ref, state] = r.cmaApproval.split(" — ");
+      return (
+        <div>
+          <Badge tone={STATUS_TONE[r.status]}>{PRODUCT_STATUS_LABELS[r.status]}</Badge>
+          <div className="mt-1 text-xs">
+            <span className="tabular text-text-faint">{ref}</span>
+            {state && <div className={r.cmaApproval.includes("awaiting") ? "text-warning" : "text-text-faint"}>{state.charAt(0).toUpperCase() + state.slice(1)}</div>}
+          </div>
+        </div>
+      );
+    } },
+    { key: "aum", header: "AUM", className: "text-right whitespace-nowrap", render: (r) => r.aum > 0
       ? <Money amount={r.aum} currency={r.currency} compact />
       : <span className="text-text-faint text-xs">not funded</span> },
-    { key: "min", header: "Minimum", render: (r) => <Money amount={r.minInvestment} currency={r.currency} />, hideOnMobile: true },
-    { key: "fee", header: "Management fee", render: (r) => <span className="tabular text-text">{r.managementFeeBps} bps</span> },
-    { key: "benchmark", header: "Benchmark", render: (r) => <span className="text-xs text-text-soft">{r.benchmark}</span>, hideOnMobile: true },
-    { key: "channels", header: "Approved channels", render: (r) => (
-      <div className="flex flex-wrap gap-1.5">
-        {r.channels.map((c) => <Badge key={c} tone="neutral" className="whitespace-nowrap">{c}</Badge>)}
+    { key: "fee", header: "Fee · minimum", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="tabular text-text">{r.managementFeeBps} bps</div>
+        <div className="text-xs text-text-faint">min <Money amount={r.minInvestment} currency={r.currency} compact /></div>
       </div>
-    ), hideOnMobile: true },
-    { key: "cma", header: "CMA approval", render: (r) => (
-      <span className={r.cmaApproval.includes("awaiting") ? "text-xs text-warning" : "text-xs text-text-soft tabular"}>{r.cmaApproval}</span>
     ) },
-    { key: "launched", header: "Launched", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.launchedAt)}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "benchmark", header: "Benchmark", className: "min-w-[130px]", render: (r) => <span className="text-xs text-text-soft leading-snug">{r.benchmark}</span>, hideOnMobile: true },
+    { key: "channels", header: "Approved channels", className: "min-w-[130px]", render: (r) => (
+      <span className="text-xs text-text-soft leading-relaxed">{r.channels.join(" · ")}</span>
+    ), hideOnMobile: true },
+    { key: "launched", header: "Launched", className: "whitespace-nowrap", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.launchedAt)}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;
