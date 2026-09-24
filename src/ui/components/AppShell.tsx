@@ -160,7 +160,9 @@ export function AppShell({
   useEffect(() => {
     const box = navScrollRef.current;
     const el = box?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!box || !el) return;
+    // Opening another parent collapses the current page's section; chasing its
+    // hidden link would yank the sidebar away from the menu just clicked.
+    if (!box || !el || el.closest("[data-collapsed]")) return;
     const item = el.getBoundingClientRect();
     const view = box.getBoundingClientRect();
     if (item.top < view.top || item.bottom > view.bottom) {
@@ -331,6 +333,7 @@ export function AppShell({
             </button>
             <div
               id={panelId}
+              data-collapsed={open ? undefined : ""}
               className={clsx(
                 "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
                 open ? "grid-rows-[1fr]" : "grid-rows-[0fr] invisible",
