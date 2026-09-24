@@ -12,7 +12,7 @@ import tailwindcss from "@tailwindcss/vite";
    TOK_TARGET / OMNI_TARGET pick the backends (default: UAT). `secure: false`
    because the UAT load balancers present self-signed certificates — acceptable
    only on a developer machine; the deployed proxies cannot do this. */
-const TOK_TARGET = process.env.TOK_TARGET ?? "https://tokenization-web-lb-1075088900.us-east-1.elb.amazonaws.com";
+const TOK_TARGET = process.env.TOK_TARGET ?? "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
 const OMNI_TARGET = process.env.OMNI_TARGET ?? "https://tokenization-omnichannel-lb-1369560458.us-east-1.elb.amazonaws.com";
 
 /* One pooled, kept-alive connection set per backend. Without it every proxied

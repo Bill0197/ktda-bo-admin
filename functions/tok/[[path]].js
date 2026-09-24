@@ -1,4 +1,6 @@
-// /tok/* on Cloudflare Pages -> the tokenization (accounting) service's /api/*.
+// /tok/* on Cloudflare Pages -> the tokenization (accounting) engine's /api/*,
+// through the engine's own load balancer (port 8086) rather than
+// tokenization-web's, which goes away with tokenization-web.
 // The deployed twin of the /tok dev proxy in vite.config.ts.
 //
 // Same origin as the app on purpose: the service sends no CORS headers and its
@@ -10,7 +12,7 @@
 // Worker cannot override. Until the load balancer has a trusted certificate
 // (or TOK_TARGET points at a host that has one) this answers 503 with a message
 // the app shows as it stands; no redeploy is needed once that is fixed.
-const UPSTREAM = "https://tokenization-web-lb-1075088900.us-east-1.elb.amazonaws.com";
+const UPSTREAM = "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
 
 const FORWARDED = ["accept", "content-type", "cookie"];
 
