@@ -44,7 +44,7 @@ export function DataTable<T extends { id: string | number }>({
     setHidden((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
-      else if (visible.length > 1) next.add(key); // never hide the last column
+      else if (visible.filter((c) => c.header).length > 1) next.add(key); // never hide the last data column
       return next;
     });
   };
@@ -58,7 +58,7 @@ export function DataTable<T extends { id: string | number }>({
         className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-text-soft hover:text-text bg-surface border border-border shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
       >
         <Columns3 size={14} />
-        Columns ({visible.length}/{columns.length})
+        Columns ({visible.filter((c) => c.header).length}/{columns.filter((c) => c.header).length})
       </button>
       {pickerOpen && (
         <>
@@ -69,7 +69,8 @@ export function DataTable<T extends { id: string | number }>({
             onClick={() => setPickerOpen(false)}
           />
           <div className="absolute right-0 top-9 z-20 w-56 rounded-lg border border-border bg-surface shadow-md p-2 max-h-72 overflow-y-auto">
-            {columns.map((c) => (
+            {/* Blank-header columns (row actions) aren't data; keep them out of the picker. */}
+            {columns.filter((c) => c.header).map((c) => (
               <label key={c.key} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] text-text hover:bg-surface-sunken cursor-pointer">
                 <input
                   type="checkbox"

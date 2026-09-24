@@ -1,6 +1,6 @@
 import { REPORT_DELIVERY_LABELS, type InstitutionalReport, type ReportDelivery } from "../../mock";
 import { getInstitutionalReports } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, InfoTip, formatDate, type Column } from "../../ui";
 import { Send, Landmark, FileClock, CircleCheck } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -30,28 +30,35 @@ export default function Reporting() {
   const onTime = rows.filter((r) => r.delivery === "on_time");
 
   const columns: Column<InstitutionalReport>[] = [
-    { key: "name", header: "Report", render: (r) => (
+    { key: "name", header: "Report", className: "min-w-[220px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint">{r.clientName}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium leading-snug">
+          {r.name}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.clientName}</div>
       </div>
     ) },
-    { key: "obligation", header: "Obligation", className: "whitespace-nowrap", render: (r) => <Badge tone={OBLIGATION_TONE[r.obligation]}>{OBLIGATION_LABEL[r.obligation]}</Badge> },
-    { key: "frequency", header: "Frequency", render: (r) => (
+    // What obliges the report, then how often and in what form it goes out.
+    { key: "obligation", header: "Obligation · cadence", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={OBLIGATION_TONE[r.obligation]}>{OBLIGATION_LABEL[r.obligation]}</Badge>
+        <div className="mt-1 text-xs text-text-faint">{r.frequency} · {r.format}</div>
+      </div>
+    ) },
+    { key: "due", header: "Due · last delivered", className: "whitespace-nowrap", render: (r) => (
       <div className="text-xs">
-        <div className="text-text-soft">{r.frequency}</div>
-        <div className="text-text-faint">{r.format}</div>
+        <div className="tabular text-text-soft">{formatDate(r.dueDate)}</div>
+        {r.lastSentAt
+          ? <div className="tabular text-text-faint">last {formatDate(r.lastSentAt)}</div>
+          : <div className="text-text-faint">never sent</div>}
       </div>
     ) },
-    { key: "due", header: "Due", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.dueDate)}</span> },
-    { key: "lastSent", header: "Last delivered", render: (r) => r.lastSentAt
-      ? <span className="tabular text-xs text-text-soft">{formatDate(r.lastSentAt)}</span>
-      : <span className="text-text-faint text-xs">never sent</span> },
     { key: "delivery", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={DELIVERY_TONE[r.delivery]}>{REPORT_DELIVERY_LABELS[r.delivery]}</Badge> },
-    { key: "owner", header: "Owner", render: (r) => <span className="text-xs text-text-soft">{r.owner}</span>, hideOnMobile: true },
+    { key: "owner", header: "Owner", className: "whitespace-nowrap", render: (r) => <span className="text-xs text-text-soft">{r.owner}</span>, hideOnMobile: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

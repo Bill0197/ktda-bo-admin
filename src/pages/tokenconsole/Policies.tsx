@@ -24,21 +24,17 @@ const cronLooksValid = (c: string) => c.trim().split(/\s+/).length === 6;
  * inert, so the two are shown as one state rather than two yes/no columns. */
 function PolicyState({ approved, active }: { approved?: boolean; active?: boolean }) {
   if (!approved) return <Badge tone="warning" className="whitespace-nowrap">Unapproved</Badge>;
-  if (active === false) return <Badge tone="neutral">Inactive</Badge>;
-  return <Badge tone="success">In force</Badge>;
+  if (active === false) return <Badge tone="neutral" className="whitespace-nowrap">Inactive</Badge>;
+  return <Badge tone="success" className="whitespace-nowrap">In force</Badge>;
 }
 
-const scope = (s?: string, ref?: string) => (
-  <div>
+/** Where and from when a policy applies — one question, so one cell. */
+const scope = (s?: string, ref?: string, from?: string, to?: string) => (
+  <div className="whitespace-nowrap">
     <div className="text-text">{label(s)}</div>
-    <div className="text-xs text-text-faint">{ref ?? (s === "GLOBAL" ? "all products" : "—")}</div>
+    <div className="text-xs text-text-faint tabular">{ref ?? (s === "GLOBAL" ? "all products" : "—")}</div>
+    <div className="tabular text-xs text-text-soft">{calendarDate(from)}{to ? ` – ${calendarDate(to)}` : " onward"}</div>
   </div>
-);
-
-const effective = (from?: string, to?: string) => (
-  <span className="tabular text-xs text-text-soft">
-    {calendarDate(from)}{to ? ` – ${calendarDate(to)}` : " onward"}
-  </span>
 );
 
 export default function TokenConsolePolicies() {
@@ -94,23 +90,29 @@ export default function TokenConsolePolicies() {
         title="Accrual policies"
         emptyLabel="No accrual policies"
         columns={[
-          { key: "scope", header: "Applies to", render: (r) => scope(r.scope, r.scopeRef) },
-          { key: "rate", header: "Rate", render: (r) => (
+          { key: "scope", header: "Applies to · effective", className: "whitespace-nowrap", render: (r) => scope(r.scope, r.scopeRef, r.effectiveFrom, r.effectiveTo) },
+          { key: "rate", header: "Rate", className: "whitespace-nowrap", render: (r) => (
             <div className="text-xs">
               <div className="text-text">{r.rateSource === "FIXED" ? percent(r.fixedRate) : "From tariff"}</div>
-              <div className="text-text-faint">{label(r.method)} · {label(r.dayCount)}</div>
+              <div className="text-text-faint">{label(r.method)}</div>
+              <div className="text-text-faint">{label(r.dayCount)}</div>
             </div>
           ) },
-          { key: "effective", header: "Effective", render: (r) => effective(r.effectiveFrom, r.effectiveTo), hideOnMobile: true },
           { key: "schedule", header: "Schedule", render: (r) => (
             <div className="text-xs">
               <div className="text-text-soft">{r.scheduleEnabled ? <Code>{r.cron}</Code> : "Not scheduled"}</div>
-              {r.lastRunAt && <div className="text-text-faint">last {dateTime(r.lastRunAt)} · accrued to {calendarDate(r.lastAccruedTo)}</div>}
+              {/* Two short lines rather than one long one that wraps mid-date. */}
+              {r.lastRunAt && (
+                <div className="text-text-faint whitespace-nowrap">
+                  <div>last {dateTime(r.lastRunAt)}</div>
+                  <div>accrued to {calendarDate(r.lastAccruedTo)}</div>
+                </div>
+              )}
             </div>
           ), hideOnMobile: true },
           { key: "state", header: "State", render: (r) => <PolicyState approved={r.approved} active={r.active} /> },
           { key: "actions", header: "", className: "text-right", render: (r) => (
-            <div className="flex flex-wrap justify-end gap-1">
+            <div className="flex flex-wrap justify-end gap-1 xl:flex-nowrap">
               <Button size="sm" variant="ghost" disabled={toggle.pending}
                 onClick={() => void flip("accrualActive", r.policyId, !r.active, r.active ? "Accrual policy deactivated." : "Accrual policy activated.")}>
                 {r.active ? "Deactivate" : "Activate"}
@@ -133,14 +135,13 @@ export default function TokenConsolePolicies() {
         title="Distribution policies"
         emptyLabel="No distribution policies"
         columns={[
-          { key: "scope", header: "Applies to", render: (r) => scope(r.scope, r.scopeRef) },
-          { key: "mode", header: "Mode", render: (r) => (
+          { key: "scope", header: "Applies to · effective", className: "whitespace-nowrap", render: (r) => scope(r.scope, r.scopeRef, r.effectiveFrom, r.effectiveTo) },
+          { key: "mode", header: "Mode", className: "whitespace-nowrap", render: (r) => (
             <div className="text-xs">
               <div className="text-text">{label(r.mode)}</div>
               <div className="text-text-faint">withholding {percent(r.whtRate)}</div>
             </div>
           ) },
-          { key: "effective", header: "Effective", render: (r) => effective(r.effectiveFrom, r.effectiveTo), hideOnMobile: true },
           { key: "state", header: "State", render: (r) => <PolicyState approved={r.approved} active={r.active} /> },
           { key: "actions", header: "", className: "text-right", render: (r) => (
             <Button size="sm" variant="ghost" disabled={toggle.pending}
@@ -158,25 +159,25 @@ export default function TokenConsolePolicies() {
         title="Schedules"
         emptyLabel="No schedules"
         columns={[
-          { key: "job", header: "Job", render: (r) => (
+          { key: "job", header: "Job", className: "min-w-[180px]", render: (r) => (
             <div>
               <div className="text-text">{label(r.jobType)}</div>
-              <div className="text-xs text-text-faint">{r.description ?? ""}</div>
+              {r.description && <div className="text-xs text-text-faint line-clamp-2" title={r.description}>{r.description}</div>}
             </div>
           ) },
-          { key: "cron", header: "When", render: (r) => (
+          { key: "cron", header: "When", className: "whitespace-nowrap", render: (r) => (
             <div className="text-xs">
               <Code>{r.cron}</Code>
               <div className="text-text-faint">{r.zone ?? ""}</div>
             </div>
           ) },
-          { key: "runs", header: "Last / next", render: (r) => (
+          { key: "runs", header: "Last / next", className: "whitespace-nowrap", render: (r) => (
             <div className="text-xs tabular text-text-soft">
               <div>{dateTime(r.lastRunAt)} {r.lastStatus && <StatusBadge status={r.lastStatus} />}</div>
               <div className="text-text-faint">next {dateTime(r.nextRunAt)}</div>
             </div>
           ), hideOnMobile: true },
-          { key: "enabled", header: "Enabled", render: (r) => <Badge tone={r.enabled ? "success" : "neutral"}>{r.enabled ? "On" : "Off"}</Badge> },
+          { key: "enabled", header: "Enabled", render: (r) => <Badge tone={r.enabled ? "success" : "neutral"} className="whitespace-nowrap">{r.enabled ? "On" : "Off"}</Badge> },
           { key: "actions", header: "", className: "text-right", render: (r) => (
             <Button size="sm" variant="ghost" disabled={toggle.pending}
               onClick={() => void flip("schedule", r.scheduleId, !r.enabled, r.enabled ? "Schedule turned off." : "Schedule turned on.")}>

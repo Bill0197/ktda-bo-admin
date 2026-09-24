@@ -68,24 +68,46 @@ export default function Cases({ scope }: { scope?: CaseType } = {}) {
   });
 
   const columns: Column<ComplianceCase>[] = [
-    { key: "type", header: "Type", render: (r) => <Badge tone={TYPE_TONE[r.type]}>{CASE_TYPE_LABELS[r.type]}</Badge> },
     {
       key: "title",
       header: "Case",
+      className: "min-w-[260px]",
       render: (r) => (
         <div>
           <div className="text-text font-medium">{r.title}</div>
-          <div className="text-xs text-text-soft mt-0.5 max-w-md truncate">{r.summary}</div>
+          {/* Clamped rather than truncated: it wraps to the column instead of setting
+              the table's width, and the full text is on hover. */}
+          <div className="text-xs text-text-soft mt-0.5 line-clamp-2" title={r.summary}>{r.summary}</div>
         </div>
       ),
     },
-    { key: "id", header: "Case ID", render: (r) => <span className="tabular text-text-faint text-xs">{r.id}</span>, hideOnMobile: true, defaultHidden: true },
-    { key: "clientName", header: "Client", render: (r) => r.clientName, hideOnMobile: true },
-    { key: "severity", header: "Severity", render: (r) => <Badge tone={r.severity === "high" ? "danger" : r.severity === "medium" ? "warning" : "info"}>{r.severity}</Badge>, hideOnMobile: true },
-    { key: "status", header: "Status", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{CASE_STATUS_LABELS[r.status]}</Badge> },
-    { key: "assignee", header: "Assignee", render: (r) => r.assignee ?? <span className="text-text-faint">—</span>, hideOnMobile: true },
-    { key: "openedAt", header: "Opened", render: (r) => formatDateTime(r.openedAt), hideOnMobile: true },
-    { key: "dueAt", header: "Due", render: (r) => r.dueAt ?? <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
+    // What kind of matter and how serious it is are read together at triage.
+    { key: "type", header: "Type · severity", className: "whitespace-nowrap", render: (r) => (
+      <div className="flex flex-col items-start gap-1">
+        <Badge tone={TYPE_TONE[r.type]} className="whitespace-nowrap">{CASE_TYPE_LABELS[r.type]}</Badge>
+        <Badge tone={r.severity === "high" ? "danger" : r.severity === "medium" ? "warning" : "info"} className="whitespace-nowrap">{r.severity}</Badge>
+      </div>
+    ) },
+    { key: "id", header: "Case ID", className: "whitespace-nowrap", render: (r) => <span className="tabular text-text-faint text-xs">{r.id}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "clientName", header: "Client", className: "min-w-[110px]", render: (r) => r.clientName, hideOnMobile: true },
+    // Where the case stands and who holds it: the owner sits under the state.
+    { key: "status", header: "Status · assignee", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{CASE_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1 text-xs text-text-soft">{r.assignee ?? <span className="text-text-faint">Unassigned</span>}</div>
+      </div>
+    ) },
+    { key: "openedAt", header: "Opened", className: "whitespace-nowrap", render: (r) => {
+      // "06 Aug 2026, 16:30" stacked as date over time keeps the column narrow.
+      const [date, time] = formatDateTime(r.openedAt).split(", ");
+      return (
+        <div className="tabular text-xs text-text-soft">
+          <div>{date}</div>
+          {time && <div className="text-text-faint">{time}</div>}
+        </div>
+      );
+    }, hideOnMobile: true },
+    { key: "dueAt", header: "Due", className: "whitespace-nowrap", render: (r) => r.dueAt ? <span className="tabular text-xs text-text-soft">{r.dueAt}</span> : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   return (

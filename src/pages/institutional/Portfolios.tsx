@@ -20,13 +20,13 @@ export default function Portfolios() {
   const withBreaches = rows.filter((p) => p.openBreaches > 0);
 
   const columns: Column<SegregatedPortfolio>[] = [
-    { key: "name", header: "Portfolio", render: (r) => (
+    { key: "name", header: "Portfolio", className: "min-w-[250px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint">{r.clientName} · {r.mandateRef}</div>
+        <div className="text-xs text-text-faint">{r.clientName} · <span className="tabular whitespace-nowrap">{r.mandateRef}</span></div>
       </div>
     ) },
-    { key: "value", header: "Market value", render: (r) => (
+    { key: "value", header: "Market value", className: "text-right whitespace-nowrap", render: (r) => (
       <div>
         <Money amount={r.marketValue} currency={r.currency} compact />
         <div className="text-[11px] text-text-faint">
@@ -34,7 +34,7 @@ export default function Portfolios() {
         </div>
       </div>
     ) },
-    { key: "performance", header: "YTD vs. benchmark", render: (r) => {
+    { key: "performance", header: "YTD vs. benchmark", className: "text-right whitespace-nowrap", render: (r) => {
       const relative = r.ytdReturnPct - r.benchmarkReturnPct;
       return (
         <div className="tabular text-sm">
@@ -45,13 +45,19 @@ export default function Portfolios() {
         </div>
       );
     } },
-    { key: "duration", header: "Duration", render: (r) => <span className="tabular text-text-soft">{r.durationYears.toFixed(2)} yrs</span> },
-    { key: "holdings", header: "Positions", render: (r) => <span className="tabular text-text-soft">{r.holdingsCount}</span>, hideOnMobile: true },
+    // Shape of the book: rate sensitivity, then how many lines carry it.
+    { key: "duration", header: "Duration · positions", className: "text-right", render: (r) => (
+      <div className="tabular whitespace-nowrap">
+        <div className="text-text-soft">{r.durationYears.toFixed(2)} yrs</div>
+        <div className="text-[11px] text-text-faint">{r.holdingsCount} positions</div>
+      </div>
+    ) },
+    { key: "holdings", header: "Positions", className: "text-right", render: (r) => <span className="tabular text-text-soft">{r.holdingsCount}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "breaches", header: "Open breaches", className: "whitespace-nowrap", render: (r) => r.openBreaches > 0
       ? <Badge tone="danger">{r.openBreaches} open</Badge>
       : <Badge tone="success">Clear</Badge> },
-    { key: "custodian", header: "Custodian", render: (r) => <span className="text-xs text-text-soft">{r.custodian}</span>, hideOnMobile: true },
-    { key: "valued", header: "Last valued", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.lastValuedAt)}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "custodian", header: "Custodian", className: "min-w-[110px]", render: (r) => <span className="text-xs text-text-soft leading-snug">{r.custodian}</span>, hideOnMobile: true },
+    { key: "valued", header: "Last valued", className: "whitespace-nowrap", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.lastValuedAt)}</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

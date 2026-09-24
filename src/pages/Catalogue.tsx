@@ -6,7 +6,7 @@ import {
 } from "../lib/api";
 import {
   PageHeader, Card, Badge, DataTable, Tabs, Skeleton, Button, Modal, Field, Input, Select,
-  Money, useToast, formatDate, type Column, type TabDef,
+  Money, InfoTip, useToast, formatDate, type Column, type TabDef,
 } from "../ui";
 import { useAuth, ADMIN_USERS } from "../lib/auth";
 import { useAsyncData } from "../lib/useAsyncData";
@@ -54,34 +54,46 @@ type ProductRow = Awaited<ReturnType<typeof getProducts>>[number];
 
 function ProductsTab({ rows }: { rows: ProductRow[] }) {
   const columns: Column<ProductRow>[] = [
-    { key: "id", header: "Product", render: (r) => (
+    // Code, currency and the sibling link are the product's identity, so they read under its name.
+    { key: "id", header: "Product", className: "min-w-[220px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint tabular">{r.id}</div>
+        <div className="text-text font-medium whitespace-nowrap">{r.name}</div>
+        <div className="mt-0.5 text-xs text-text-faint">
+          <span className="tabular">{r.id}</span> · {r.currency} · {r.parentProductId
+            ? <>variant of <span className="tabular">{r.parentProductId}</span></>
+            : "parent"}
+        </div>
       </div>
     ) },
-    { key: "class", header: "Distribution", render: (r) => (
+    { key: "class", header: "Distribution", className: "whitespace-nowrap", render: (r) => (
       <Badge tone={r.distributionClass === "growth" ? "info" : "neutral"}>
         {r.distributionClass === "growth" ? "Growth — capitalises" : "Income — pays cash"}
       </Badge>
     ) },
-    { key: "parent", header: "Variant of", render: (r) => r.parentProductId
+    { key: "parent", header: "Variant of", className: "whitespace-nowrap", render: (r) => r.parentProductId
       ? <span className="tabular text-text-soft">{r.parentProductId}</span>
-      : <span className="text-text-faint">(parent)</span>, hideOnMobile: true },
-    { key: "currency", header: "Currency", render: (r) => <span className="tabular">{r.currency}</span> },
-    { key: "units", header: "Units outstanding", render: (r) => <span className="tabular">{r.unitsOutstanding.toLocaleString()}</span>, hideOnMobile: true },
-    { key: "fee", header: "Mgmt fee", render: (r) => r.managementFeePct !== null
-      ? <span className="tabular">{r.managementFeePct.toFixed(2)}%</span>
-      : <span className="text-text-faint">unresolved</span>, hideOnMobile: true },
-    { key: "coupon", header: "Coupon", render: (r) => r.couponRatePct !== null
+      : <span className="text-text-faint">(parent)</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "currency", header: "Currency", className: "whitespace-nowrap", render: (r) => <span className="tabular">{r.currency}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "units", header: "Units outstanding", className: "text-right whitespace-nowrap", render: (r) => <span className="tabular">{r.unitsOutstanding.toLocaleString()}</span>, hideOnMobile: true },
+    { key: "fee", header: "Fee · coupon", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        {r.managementFeePct !== null
+          ? <div className="tabular text-text">{r.managementFeePct.toFixed(2)}%</div>
+          : <div className="text-text-faint">unresolved</div>}
+        <div className="text-xs text-text-faint">
+          coupon {r.couponRatePct !== null ? <span className="tabular">{r.couponRatePct.toFixed(2)}%</span> : "unresolved"}
+        </div>
+      </div>
+    ), hideOnMobile: true },
+    { key: "coupon", header: "Coupon", className: "text-right whitespace-nowrap", render: (r) => r.couponRatePct !== null
       ? <span className="tabular">{r.couponRatePct.toFixed(2)}%</span>
-      : <span className="text-text-faint">unresolved</span>, hideOnMobile: true },
-    { key: "daycount", header: "Day count", render: (r) => r.dayCount
+      : <span className="text-text-faint">unresolved</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "daycount", header: "Day count", className: "whitespace-nowrap", render: (r) => r.dayCount
       ? <span className="text-text-soft">{DAY_COUNT_LABELS[r.dayCount]}</span>
       : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
     { key: "package", header: "Service package", render: (r) => <span className="text-text-soft">{r.packageName}</span>, hideOnMobile: true, defaultHidden: true },
-    { key: "contracts", header: "Contracts", render: (r) => <span className="tabular">{r.contractCount}</span> },
-    { key: "capacity", header: "Capacity", render: (r) => (
+    { key: "contracts", header: "Contracts", className: "text-right whitespace-nowrap", render: (r) => <span className="tabular">{r.contractCount}</span> },
+    { key: "capacity", header: "Capacity", className: "whitespace-nowrap", render: (r) => (
       <Badge tone={r.capacity.withinCapacity ? "success" : "warning"}>
         {r.capacity.withinCapacity ? "Within ladder" : "Over ladder"}
       </Badge>
@@ -209,28 +221,44 @@ function TariffsTab({ rows, onChanged }: { rows: TariffRow[]; onChanged: () => v
   };
 
   const columns: Column<TariffRow>[] = [
-    { key: "role", header: "Rate", render: (r) => (
+    { key: "role", header: "Rate", className: "min-w-[190px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.typeRole}</div>
-        <div className="text-xs text-text-faint tabular">{r.id}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium whitespace-nowrap">
+          {r.typeRole}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.id}</div>
       </div>
     ) },
-    { key: "domain", header: "Domain", render: (r) => (
+    { key: "domain", header: "Domain", className: "min-w-[200px]", render: (r) => (
       <div>
         <div className="text-text-soft">{r.domainName}</div>
-        <div className="text-xs text-text-faint">{r.domainScope.replace("_", " ")}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.domainScope.replace("_", " ")}</div>
       </div>
     ), hideOnMobile: true },
-    { key: "currency", header: "Ccy", render: (r) => <span className="tabular">{r.currency}</span> },
-    { key: "value", header: "Value", render: (r) => <span className="tabular text-text font-medium">{r.value}%</span> },
-    { key: "daycount", header: "Day count", render: (r) => r.dayCount
+    // The rate is only meaningful with its currency and accrual basis, so they sit under it.
+    { key: "value", header: "Value", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="tabular text-text font-medium">{r.value}%</div>
+        <div className="mt-0.5 text-xs text-text-faint">
+          <span className="tabular">{r.currency}</span> · {r.dayCount ? DAY_COUNT_LABELS[r.dayCount] : "n/a"}
+        </div>
+      </div>
+    ) },
+    { key: "currency", header: "Ccy", className: "whitespace-nowrap", render: (r) => <span className="tabular">{r.currency}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "daycount", header: "Day count", className: "whitespace-nowrap", render: (r) => r.dayCount
       ? <span className="text-text-soft">{DAY_COUNT_LABELS[r.dayCount]}</span>
-      : <span className="text-text-faint">n/a</span>, hideOnMobile: true },
-    { key: "from", header: "Effective from", render: (r) => <span className="tabular">{formatDate(r.effectiveFrom)}</span> },
-    { key: "to", header: "Until", render: (r) => r.effectiveTo
+      : <span className="text-text-faint">n/a</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "from", header: "Effective · until", className: "whitespace-nowrap", render: (r) => (
+      <div className="tabular text-xs">
+        <div className="text-text-soft">{formatDate(r.effectiveFrom)}</div>
+        <div className="mt-0.5 text-text-faint">→ {r.effectiveTo ? formatDate(r.effectiveTo) : "open"}</div>
+      </div>
+    ) },
+    { key: "to", header: "Until", className: "whitespace-nowrap", render: (r) => r.effectiveTo
       ? <span className="tabular">{formatDate(r.effectiveTo)}</span>
-      : <span className="text-text-faint">open</span>, hideOnMobile: true },
-    { key: "state", header: "State", render: (r) => <Badge tone={TARIFF_STATE_TONE[r.state]}>{TARIFF_STATE_LABEL[r.state]}</Badge> },
+      : <span className="text-text-faint">open</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "state", header: "State", className: "whitespace-nowrap", render: (r) => <Badge tone={TARIFF_STATE_TONE[r.state]}>{TARIFF_STATE_LABEL[r.state]}</Badge> },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-sm block">{r.note}</span>
       : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
@@ -299,18 +327,23 @@ type TemplateRow = Awaited<ReturnType<typeof getAccountTemplates>>[number];
 
 function TemplatesTab({ rows }: { rows: TemplateRow[] }) {
   const columns: Column<TemplateRow & { id: string }>[] = [
-    { key: "role", header: "Account role", render: (r) => <span className="tabular text-text font-medium">{r.role}</span> },
-    { key: "code", header: "Code", render: (r) => <span className="tabular">{r.code}</span> },
-    { key: "name", header: "Account", render: (r) => <span className="text-text-soft">{r.accountName}</span> },
-    { key: "scope", header: "Scope", render: (r) => (
+    { key: "role", header: "Account role", className: "whitespace-nowrap", render: (r) => <span className="tabular text-text font-medium">{r.role}</span> },
+    { key: "name", header: "Account · code", className: "min-w-[200px]", render: (r) => (
+      <div>
+        <div className="text-text-soft">{r.accountName}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.code}</div>
+      </div>
+    ) },
+    { key: "code", header: "Code", className: "whitespace-nowrap", render: (r) => <span className="tabular">{r.code}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "scope", header: "Scope", className: "whitespace-nowrap", render: (r) => (
       <Badge tone={r.scope === "per_contract" ? "info" : "neutral"}>
         {r.scope === "per_contract" ? "Once per contract" : "Shared per currency"}
       </Badge>
     ) },
-    { key: "available", header: "Counts to available balance", render: (r) => r.isAvailableBalance
+    { key: "available", header: "Counts to available balance", className: "whitespace-nowrap", render: (r) => r.isAvailableBalance
       ? <Badge tone="success">Yes</Badge>
       : <span className="text-text-faint">No</span>, hideOnMobile: true },
-    { key: "instances", header: "Instantiated", render: (r) => <span className="tabular">{r.instantiated}</span>, hideOnMobile: true },
+    { key: "instances", header: "Instantiated", className: "text-right whitespace-nowrap", render: (r) => <span className="tabular">{r.instantiated}</span>, hideOnMobile: true },
   ];
 
   return (
@@ -321,7 +354,7 @@ function TemplatesTab({ rows }: { rows: TemplateRow[] }) {
         per institution is a queryable column, not something inferred from seeding code.
       </Card>
       <Card className="p-1">
-        <DataTable columns={columns} rows={rows.map((r) => ({ ...r, id: `${r.schemeId}-${r.role}` }))} />
+        <DataTable columns={columns} rows={rows.map((r) => ({ ...r, id: `${r.schemeId}-${r.role}` }))} columnPicker />
       </Card>
     </div>
   );

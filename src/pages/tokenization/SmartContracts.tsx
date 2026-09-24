@@ -28,41 +28,48 @@ export default function SmartContracts() {
   const active = rows.filter((c) => c.status === "active").length;
 
   const columns: Column<SmartContract>[] = [
-    { key: "name", header: "Contract", render: (r) => (
+    { key: "name", header: "Contract", className: "min-w-[220px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-soft mt-0.5 max-w-sm leading-snug">{r.purpose}</div>
+        <div className="text-xs text-text-soft mt-0.5 max-w-sm leading-snug line-clamp-2" title={r.purpose}>{r.purpose}</div>
       </div>
     ) },
-    { key: "standard", header: "Standard", render: (r) => <span className="text-xs text-text-soft">{r.standard}</span>, hideOnMobile: true },
-    { key: "address", header: "Address", render: (r) => (
-      <div className="text-xs">
-        <div className="tabular text-text-soft">{r.address}</div>
-        <div className="text-text-faint">{r.chain} · v{r.version}</div>
+    // What the code is and where it lives: the standard, then the deployment.
+    { key: "address", header: "Standard · address", className: "min-w-[190px]", render: (r) => (
+      <div className="text-xs leading-snug">
+        <div className="text-text-soft">{r.standard}</div>
+        <div className="mt-0.5 tabular text-text-soft truncate max-w-[180px]" title={r.address}>{r.address}</div>
+        <div className="text-text-faint whitespace-nowrap">{r.chain} · v{r.version}</div>
       </div>
     ) },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{SMART_CONTRACT_STATUS_LABELS[r.status]}</Badge> },
+    { key: "status", header: "Status · pending change", className: "min-w-[200px]", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{SMART_CONTRACT_STATUS_LABELS[r.status]}</Badge>
+        {r.pendingChange && <div className="mt-1 text-xs text-text-faint leading-snug line-clamp-2" title={r.pendingChange}>{r.pendingChange}</div>}
+      </div>
+    ) },
     { key: "control", header: "Upgrade control", render: (r) => {
       if (!r.upgradeable) return <Badge tone="success" className="whitespace-nowrap">Immutable</Badge>;
       return r.multisigThreshold
-        ? <div><Badge tone="info" className="whitespace-nowrap">Multisig {r.multisigThreshold}</Badge><div className="text-[11px] text-text-faint mt-1">{r.owner}</div></div>
-        : <div><Badge tone="danger" className="whitespace-nowrap">Single key</Badge><div className="text-[11px] text-text-faint mt-1">{r.owner}</div></div>;
+        ? <div><Badge tone="info" className="whitespace-nowrap">Multisig {r.multisigThreshold}</Badge><div className="text-[11px] text-text-faint mt-1 leading-snug">{r.owner}</div></div>
+        : <div><Badge tone="danger" className="whitespace-nowrap">Single key</Badge><div className="text-[11px] text-text-faint mt-1 leading-snug">{r.owner}</div></div>;
     } },
-    { key: "audit", header: "Audit", render: (r) => {
+    { key: "audit", header: "Audit", className: "whitespace-nowrap", render: (r) => {
       if (r.auditStatus === "not_audited") return <Badge tone="danger" className="whitespace-nowrap">Not audited</Badge>;
       return (
         <div>
           <Badge tone={r.auditStatus === "clean" ? "success" : "warning"} className="whitespace-nowrap">
             {r.auditStatus === "clean" ? "Clean" : `${r.openFindings} open`}
           </Badge>
-          <div className="text-[11px] text-text-faint mt-1">{r.auditFirm} · {r.auditedAt ? formatDate(r.auditedAt) : "—"}</div>
+          <div className="text-[11px] text-text-faint mt-1 tabular">{r.auditFirm} · {r.auditedAt ? formatDate(r.auditedAt) : "—"}</div>
         </div>
       );
     } },
-    { key: "deployed", header: "Deployed", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.deployedAt)}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "standard", header: "Standard", render: (r) => <span className="text-xs text-text-soft">{r.standard}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "deployed", header: "Deployed", className: "whitespace-nowrap", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.deployedAt)}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "pending", header: "Pending change / note", render: (r) => r.pendingChange
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.pendingChange}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

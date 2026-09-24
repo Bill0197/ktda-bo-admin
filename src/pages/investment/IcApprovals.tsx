@@ -1,11 +1,14 @@
 import { IC_KIND_LABELS, type IcApprovalItem } from "../../mock";
 import { getIcApprovalQueue } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, formatDateTime, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, formatDateTime, type Column } from "../../ui";
 import { Vote, Users, CircleCheck, CircleX } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
 const STATUS_TONE = { pending: "warning", approved: "success", rejected: "danger", withdrawn: "neutral" } as const;
 const STATUS_LABEL = { pending: "Pending", approved: "Approved", rejected: "Rejected", withdrawn: "Withdrawn" } as const;
+
+/** Every member's vote by name, dissent included — the record a tally alone would lose. */
+const voteRoll = (r: IcApprovalItem) => r.votes.map((v) => `${v.member} — ${v.vote}`).join("; ");
 
 /** The Investment Committee approval queue.
  *
@@ -24,50 +27,64 @@ export default function IcApprovals() {
   const rejected = rows.filter((r) => r.status === "rejected").length;
 
   const columns: Column<IcApprovalItem>[] = [
-    { key: "ref", header: "Reference", render: (r) => (
+    { key: "title", header: "Decision", className: "min-w-[260px]", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <Badge tone="info" className="mt-1 whitespace-nowrap">{IC_KIND_LABELS[r.kind]}</Badge>
+        <div className="text-text font-medium leading-snug">
+          {r.title}
+          {/* The case for the decision is a paragraph; it sits behind the icon. */}
+          <span className="ml-1.5 inline-flex align-middle"><InfoTip text={r.detail} /></span>
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint"><span className="tabular">{r.ref}</span> · {IC_KIND_LABELS[r.kind]}</div>
       </div>
     ) },
-    { key: "title", header: "Decision", render: (r) => (
-      <div className="max-w-xl">
-        <div className="text-text font-medium">{r.title}</div>
-        <div className="text-xs text-text-soft mt-1 leading-relaxed">{r.detail}</div>
-        <div className="text-[11px] text-text-faint mt-1">{r.portfolio}</div>
+    { key: "detail", header: "Detail", render: (r) => <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.detail}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "amount", header: "Amount · portfolio", className: "min-w-[170px]", render: (r) => (
+      <div>
+        <div className="whitespace-nowrap">
+          {r.amount === null
+            ? <span className="text-text-faint text-xs">no cash amount</span>
+            : <Money amount={r.amount} currency={r.currency} compact className="text-text" />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.portfolio}</div>
       </div>
     ) },
-    { key: "amount", header: "Amount", render: (r) => r.amount === null
-      ? <span className="text-text-faint text-xs">no cash amount</span>
-      : <Money amount={r.amount} currency={r.currency} compact /> },
     { key: "votes", header: "Votes vs. quorum", className: "whitespace-nowrap", render: (r) => {
       const met = r.votes.length >= r.quorum;
+      const tally = (["for", "against", "abstain"] as const)
+        .map((v) => [v, r.votes.filter((x) => x.vote === v).length] as const)
+        .filter(([, n]) => n > 0)
+        .map(([v, n]) => `${n} ${v}`)
+        .join(" · ");
       return (
         <div>
-          <span className={met ? "tabular text-success font-medium" : "tabular text-warning font-medium"}>
-            {r.votes.length} of {r.quorum}
-          </span>
-          {r.votes.length > 0 && (
-            <div className="text-[11px] text-text-faint mt-1 leading-snug">
-              {r.votes.map((v) => `${v.member} — ${v.vote}`).join("; ")}
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            <span className={met ? "tabular text-success font-medium" : "tabular text-warning font-medium"}>
+              {r.votes.length} of {r.quorum}
+            </span>
+            {r.votes.length > 0 && <InfoTip text={voteRoll(r)} />}
+          </div>
+          {r.votes.length > 0 && <div className="mt-0.5 text-xs text-text-faint">{tally}</div>}
           {r.votes.length === 0 && r.status === "pending" && (
-            <div className="text-[11px] text-text-faint mt-1">no votes cast</div>
+            <div className="mt-0.5 text-xs text-text-faint">no votes cast</div>
           )}
         </div>
       );
     } },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge> },
-    { key: "proposed", header: "Proposed", render: (r) => (
+    { key: "roll", header: "Votes cast", render: (r) => r.votes.length > 0
+      ? <span className="text-xs text-text-soft max-w-xs block leading-relaxed">{voteRoll(r)}</span>
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "status", header: "Status · due", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{STATUS_LABEL[r.status]}</Badge>
+        {r.dueBy && <div className="mt-1 text-xs text-text-soft">due <span className="tabular">{formatDate(r.dueBy)}</span></div>}
+      </div>
+    ) },
+    { key: "proposed", header: "Proposed", className: "whitespace-nowrap", render: (r) => (
       <div className="text-xs">
         <div className="text-text-soft">{r.proposedBy}</div>
         <div className="text-text-faint tabular">{formatDateTime(r.proposedAt)}</div>
       </div>
     ), hideOnMobile: true },
-    { key: "due", header: "Decision due", render: (r) => r.dueBy
-      ? <span className="tabular text-xs text-text-soft">{formatDate(r.dueBy)}</span>
-      : <span className="text-text-faint text-xs">—</span>, hideOnMobile: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

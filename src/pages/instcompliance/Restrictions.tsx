@@ -29,19 +29,24 @@ export default function Restrictions() {
   const postTradeExposed = postTrade.filter((r) => r.state !== "within");
 
   const columns: Column<MandateRestriction>[] = [
-    { key: "client", header: "Client", render: (r) => (
+    { key: "client", header: "Client", className: "min-w-[170px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.clientName}</div>
-        <div className="text-[11px] text-text-faint tabular">{r.mandateRef}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.mandateRef}</div>
       </div>
     ) },
-    { key: "type", header: "Type", className: "whitespace-nowrap", render: (r) => <Badge tone="info">{RESTRICTION_TYPE_LABELS[r.type]}</Badge> },
-    { key: "rule", header: "Rule", render: (r) => <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.rule}</span> },
+    // The type heads the rule it classifies; a badge column of its own pushed the table off-screen.
+    { key: "rule", header: "Type · rule", className: "min-w-[220px]", render: (r) => (
+      <div>
+        <div className="text-xs font-medium text-info">{RESTRICTION_TYPE_LABELS[r.type]}</div>
+        <div className="mt-0.5 text-xs text-text-soft leading-relaxed line-clamp-2" title={r.rule}>{r.rule}</div>
+      </div>
+    ) },
     { key: "headroom", header: "Headroom", render: (r) => (
       <div className="min-w-[9rem]">
         <div className="flex items-baseline justify-between gap-2 mb-1">
-          <span className={r.state === "breach" ? "tabular text-danger font-medium" : "tabular text-text"}>{r.currentValue}</span>
-          <span className="text-[11px] text-text-faint tabular">of {r.limitValue}</span>
+          <span className={r.state === "breach" ? "tabular whitespace-nowrap text-danger font-medium" : "tabular whitespace-nowrap text-text"}>{r.currentValue}</span>
+          <span className="text-[11px] text-text-faint tabular text-right">of {r.limitValue}</span>
         </div>
         <ProgressBar
           value={Math.min(100, Math.max(0, 100 - r.headroomPct))}
@@ -52,11 +57,16 @@ export default function Restrictions() {
         </div>
       </div>
     ) },
-    { key: "state", header: "State", className: "whitespace-nowrap", render: (r) => <Badge tone={STATE_TONE[r.state]}>{STATE_LABEL[r.state]}</Badge> },
-    { key: "enforcement", header: "Enforcement", className: "whitespace-nowrap", render: (r) => r.preTradeChecked
-      ? <Badge tone="success">Pre-trade</Badge>
-      : <Badge tone="warning">Post-trade only</Badge> },
-    { key: "checked", header: "Last checked", render: (r) => <span className="tabular text-xs text-text-soft">{formatDateTime(r.lastChecked)}</span>, hideOnMobile: true },
+    // Where the position stands and whether the rule could have stopped it are read together.
+    { key: "state", header: "State · enforcement", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATE_TONE[r.state]}>{STATE_LABEL[r.state]}</Badge>
+        <div className="mt-1">
+          {r.preTradeChecked ? <Badge tone="success">Pre-trade</Badge> : <Badge tone="warning">Post-trade only</Badge>}
+        </div>
+      </div>
+    ) },
+    { key: "checked", header: "Last checked", className: "min-w-[110px]", render: (r) => <span className="tabular text-xs text-text-soft">{formatDateTime(r.lastChecked)}</span>, hideOnMobile: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

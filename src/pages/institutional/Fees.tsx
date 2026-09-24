@@ -1,6 +1,6 @@
 import { FEE_STRUCTURE_LABELS, type FeeSchedule } from "../../mock";
 import { getFeeSchedules } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, formatMoney, type Column } from "../../ui";
 import { Percent, Receipt, Trophy, CalendarClock } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -21,41 +21,58 @@ export default function Fees() {
   const neverInvoiced = rows.filter((f) => f.lastInvoicedAt === null);
 
   const columns: Column<FeeSchedule>[] = [
-    { key: "client", header: "Client", render: (r) => (
+    { key: "client", header: "Client", className: "min-w-[170px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.clientName}</div>
-        <div className="text-[11px] text-text-faint tabular">{r.mandateRef}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          {r.clientName}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-[11px] text-text-faint tabular">{r.mandateRef}</div>
       </div>
     ) },
-    { key: "structure", header: "Structure", className: "whitespace-nowrap", render: (r) => <Badge tone="info">{FEE_STRUCTURE_LABELS[r.structure]}</Badge> },
-    { key: "rate", header: "Basis", render: (r) => <span className="text-xs text-text-soft max-w-sm block leading-relaxed">{r.rateDescription}</span> },
-    { key: "effective", header: "Effective rate", render: (r) => (
+    // The structure names the schedule; the basis spells it out.
+    { key: "structure", header: "Structure · basis", className: "min-w-[190px]", render: (r) => (
+      <div>
+        <Badge tone="info" className="whitespace-nowrap">{FEE_STRUCTURE_LABELS[r.structure]}</Badge>
+        <div className="mt-1 text-xs text-text-soft leading-snug">{r.rateDescription}</div>
+      </div>
+    ) },
+    { key: "effective", header: "Effective rate", className: "text-right whitespace-nowrap", render: (r) => (
       <div>
         <span className="tabular text-text font-medium">{r.effectiveBps} bps</span>
         <div className="text-[11px] text-text-faint">on current AUM</div>
       </div>
     ) },
-    { key: "performance", header: "Performance fee", render: (r) => r.performanceFeePct === null
+    { key: "performance", header: "Performance fee", className: "whitespace-nowrap", render: (r) => r.performanceFeePct === null
       ? <span className="text-text-faint text-xs">none</span>
       : (
         <div>
           <span className="tabular text-text">{r.performanceFeePct}%</span>
-          <div className="text-[11px] text-text-faint">over {r.hurdle}{r.highWaterMark ? " · high-water mark" : ""}</div>
+          <div className="max-w-[150px] whitespace-normal text-[11px] text-text-faint leading-snug">over {r.hurdle}{r.highWaterMark ? " · high-water mark" : ""}</div>
         </div>
       ) },
-    { key: "accrued", header: "Accrued", render: (r) => <Money amount={r.accruedAmount} currency={r.currency} /> },
-    { key: "billing", header: "Billing", render: (r) => (
+    // Compact to keep the register narrow; the exact accrual is one hover away.
+    { key: "accrued", header: "Accrued", className: "text-right whitespace-nowrap", render: (r) => (
+      <span title={formatMoney(r.accruedAmount, r.currency)}>
+        <Money amount={r.accruedAmount} currency={r.currency} compact />
+      </span>
+    ) },
+    // The whole invoicing cycle in one place: cadence, next invoice, last invoice.
+    { key: "billing", header: "Billing", className: "whitespace-nowrap", render: (r) => (
       <div className="text-xs">
         <div className="text-text-soft capitalize">{r.billingFrequency}</div>
         <div className="text-text-faint tabular">next {formatDate(r.nextInvoiceDue)}</div>
+        {r.lastInvoicedAt
+          ? <div className="text-text-faint tabular">last {formatDate(r.lastInvoicedAt)}</div>
+          : <div className="mt-1"><Badge tone="warning">Never invoiced</Badge></div>}
       </div>
     ), hideOnMobile: true },
-    { key: "lastInvoiced", header: "Last invoiced", render: (r) => r.lastInvoicedAt
+    { key: "lastInvoiced", header: "Last invoiced", className: "whitespace-nowrap", render: (r) => r.lastInvoicedAt
       ? <span className="tabular text-xs text-text-soft">{formatDate(r.lastInvoicedAt)}</span>
-      : <Badge tone="warning">Never</Badge>, hideOnMobile: true },
+      : <Badge tone="warning">Never</Badge>, hideOnMobile: true, defaultHidden: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

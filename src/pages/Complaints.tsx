@@ -54,20 +54,33 @@ export default function Complaints() {
     {
       key: "subject",
       header: "Complaint",
+      className: "min-w-[260px]",
       render: (r) => (
         <div>
           <div className="text-text font-medium">{r.subject}</div>
-          <div className="text-xs text-text-soft mt-0.5 max-w-md truncate">{r.description}</div>
+          {/* Clamped rather than truncated: a one-line truncate forced the column to its full nowrap width. */}
+          <div className="text-xs text-text-soft mt-0.5 line-clamp-2 leading-snug" title={r.description}>{r.description}</div>
         </div>
       ),
     },
-    { key: "id", header: "ID", render: (r) => <span className="tabular text-text-faint text-xs">{r.id}</span>, hideOnMobile: true, defaultHidden: true },
-    { key: "clientName", header: "Client", render: (r) => r.clientName, hideOnMobile: true },
-    { key: "channel", header: "Channel", render: (r) => <span className="capitalize">{r.channel}</span>, hideOnMobile: true, defaultHidden: true },
-    { key: "category", header: "Category", render: (r) => <Badge tone={CATEGORY_TONE[r.category]}>{COMPLAINT_CATEGORY_LABELS[r.category]}</Badge>, hideOnMobile: true },
-    { key: "status", header: "Status", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{COMPLAINT_STATUS_LABELS[r.status]}</Badge> },
-    { key: "assignee", header: "Assignee", render: (r) => r.assignee ?? <span className="text-text-faint">—</span>, hideOnMobile: true },
-    { key: "submittedAt", header: "Submitted", render: (r) => formatDateTime(r.submittedAt), hideOnMobile: true },
+    { key: "id", header: "ID", className: "whitespace-nowrap", render: (r) => <span className="tabular text-text-faint text-xs">{r.id}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "clientName", header: "Client · submitted", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="text-text">{r.clientName}</div>
+        <div className="mt-0.5 tabular text-xs text-text-faint">{formatDateTime(r.submittedAt)} · <span className="capitalize">{r.channel}</span></div>
+      </div>
+    ), hideOnMobile: true },
+    { key: "channel", header: "Channel", className: "whitespace-nowrap", render: (r) => <span className="capitalize">{r.channel}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "category", header: "Category", className: "whitespace-nowrap", render: (r) => <Badge tone={CATEGORY_TONE[r.category]}>{COMPLAINT_CATEGORY_LABELS[r.category]}</Badge>, hideOnMobile: true },
+    // Where it is in the SOP §7 pipeline, then who is holding it there.
+    { key: "status", header: "Status · assignee", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]}>{COMPLAINT_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1 text-xs text-text-faint">{r.assignee ?? "unassigned"}</div>
+      </div>
+    ) },
+    { key: "assignee", header: "Assignee", className: "whitespace-nowrap", render: (r) => r.assignee ?? <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "submittedAt", header: "Submitted", className: "whitespace-nowrap", render: (r) => <span className="tabular text-xs text-text-soft">{formatDateTime(r.submittedAt)}</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   return (

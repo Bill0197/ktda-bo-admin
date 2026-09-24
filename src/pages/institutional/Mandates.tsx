@@ -1,6 +1,6 @@
 import { RESTRICTION_TYPE_LABELS, type InstitutionalMandate, type MandateRestriction } from "../../mock";
 import { getInstitutionalMandates, getMandateRestrictions } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { Gavel, ShieldCheck, TriangleAlert, ScanLine } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -28,49 +28,67 @@ export default function InstitutionalMandates() {
   const unsigned = mandateRows.filter((m) => m.status === "draft");
 
   const mandateColumns: Column<InstitutionalMandate>[] = [
-    { key: "ref", header: "Agreement", render: (r) => (
+    { key: "ref", header: "Agreement", className: "min-w-[200px]", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-xs text-text-faint">{r.clientName}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          <span className="tabular whitespace-nowrap">{r.ref}</span>
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.clientName}</div>
       </div>
     ) },
-    { key: "strategy", header: "Strategy", render: (r) => (
+    { key: "strategy", header: "Strategy", className: "min-w-[220px]", render: (r) => (
       <div>
-        <div className="text-sm text-text-soft">{r.strategy}</div>
-        <div className="text-[11px] text-text-faint">vs. {r.benchmark}</div>
+        <div className="text-sm text-text-soft leading-snug">{r.strategy}</div>
+        <div className="mt-0.5 text-[11px] text-text-faint">vs. {r.benchmark}</div>
       </div>
     ) },
-    { key: "aum", header: "AUM", render: (r) => r.aum > 0
+    { key: "aum", header: "AUM", className: "text-right whitespace-nowrap", render: (r) => r.aum > 0
       ? <Money amount={r.aum} currency={r.currency} compact />
       : <span className="text-text-faint text-xs">not funded</span> },
     { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge> },
-    { key: "inception", header: "Inception", render: (r) => <span className="tabular text-xs text-text-soft">{r.inceptionDate === "—" ? "—" : formatDate(r.inceptionDate)}</span>, hideOnMobile: true },
-    { key: "review", header: "Review due", render: (r) => <span className="tabular text-xs text-text-soft">{r.reviewDue === "—" ? "—" : formatDate(r.reviewDue)}</span>, hideOnMobile: true },
+    // One agreement lifecycle: when it started, then when it is next reviewed.
+    { key: "inception", header: "Inception → review", className: "whitespace-nowrap", render: (r) => (
+      <div className="tabular text-xs">
+        <div className="text-text-soft">{r.inceptionDate === "—" ? "—" : formatDate(r.inceptionDate)}</div>
+        <div className="text-text-faint">review {r.reviewDue === "—" ? "—" : formatDate(r.reviewDue)}</div>
+      </div>
+    ), hideOnMobile: true },
     { key: "signed", header: "Executed by", render: (r) => <span className="text-xs text-text-soft">{r.signedBy}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   const restrictionColumns: Column<MandateRestriction>[] = [
-    { key: "client", header: "Client", render: (r) => (
+    { key: "client", header: "Client", className: "min-w-[200px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.clientName}</div>
-        <div className="text-[11px] text-text-faint tabular">{r.mandateRef}</div>
+        <div className="mt-0.5 text-[11px] text-text-faint tabular">{r.mandateRef}</div>
       </div>
     ) },
-    { key: "type", header: "Type", className: "whitespace-nowrap", render: (r) => <Badge tone="info">{RESTRICTION_TYPE_LABELS[r.type]}</Badge> },
-    { key: "rule", header: "Rule", render: (r) => <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.rule}</span> },
-    { key: "values", header: "Current vs. limit", render: (r) => (
+    // The rule is the substance; its category is a label for it, not a column of its own.
+    { key: "rule", header: "Rule · type", className: "min-w-[240px]", render: (r) => (
+      <div>
+        <div className="text-sm text-text leading-snug">{r.rule}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{RESTRICTION_TYPE_LABELS[r.type]}</div>
+      </div>
+    ) },
+    { key: "values", header: "Current vs. limit", className: "text-right whitespace-nowrap", render: (r) => (
       <div className="tabular text-sm">
         <div className={r.state === "breach" ? "text-danger font-medium" : "text-text"}>{r.currentValue}</div>
         <div className="text-[11px] text-text-faint">limit {r.limitValue}</div>
       </div>
     ) },
-    { key: "state", header: "State", className: "whitespace-nowrap", render: (r) => <Badge tone={STATE_TONE[r.state]}>{STATE_LABEL[r.state]}</Badge> },
-    { key: "enforcement", header: "Enforcement", className: "whitespace-nowrap", render: (r) => r.preTradeChecked
-      ? <Badge tone="success">Pre-trade</Badge>
-      : <Badge tone="warning">Post-trade only</Badge> },
+    // Where it stands and whether a trade could move it there unchecked.
+    { key: "state", header: "State · enforcement", className: "whitespace-nowrap", render: (r) => (
+      <div className="flex flex-col items-start gap-1">
+        <Badge tone={STATE_TONE[r.state]}>{STATE_LABEL[r.state]}</Badge>
+        {r.preTradeChecked
+          ? <Badge tone="success">Pre-trade</Badge>
+          : <Badge tone="warning">Post-trade only</Badge>}
+      </div>
+    ) },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

@@ -39,26 +39,37 @@ export default function MarketAbuse() {
   })).filter((r) => r.value > 0);
 
   const columns: Column<MarketAbuseAlert>[] = [
-    { key: "ref", header: "Reference", render: (r) => (
+    { key: "ref", header: "Reference", className: "whitespace-nowrap", render: (r) => (
       <div>
         <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-[11px] text-text-faint tabular">{formatDateTime(r.detectedAt)}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{formatDateTime(r.detectedAt)}</div>
       </div>
     ) },
-    { key: "typology", header: "Typology", className: "whitespace-nowrap", render: (r) => <Badge tone="info">{ABUSE_TYPOLOGY_LABELS[r.typology]}</Badge> },
-    { key: "subject", header: "Subject", render: (r) => (
+    { key: "subject", header: "Subject", className: "min-w-[160px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.subject}</div>
-        <div className="text-xs text-text-faint">{SUBJECT_LABEL[r.subjectType]} · {r.instrument}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{SUBJECT_LABEL[r.subjectType]} · <span className="tabular">{r.instrument}</span></div>
       </div>
     ) },
-    { key: "detail", header: "What was seen", render: (r) => <span className="text-xs text-text-soft max-w-lg block leading-relaxed">{r.detail}</span>, hideOnMobile: true },
-    { key: "severity", header: "Severity", className: "whitespace-nowrap", render: (r) => <Badge tone={SEVERITY_TONE[r.severity]}>{r.severity}</Badge> },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{CONDUCT_STATUS_LABELS[r.status]}</Badge> },
-    { key: "assignee", header: "Assignee", render: (r) => r.assignee
-      ? <span className="text-xs text-text-soft">{r.assignee}</span>
-      : <Badge tone="warning">Unassigned</Badge>, hideOnMobile: true },
-    { key: "cma", header: "Notified", render: (r) => r.reportedToCma
+    // Typology and severity together say what kind of alert this is and how much it matters.
+    { key: "typology", header: "Typology · severity", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone="info">{ABUSE_TYPOLOGY_LABELS[r.typology]}</Badge>
+        <div className="mt-1"><Badge tone={SEVERITY_TONE[r.severity]}>{r.severity}</Badge></div>
+      </div>
+    ) },
+    { key: "detail", header: "What was seen", className: "min-w-[190px]", render: (r) => (
+      <span className="text-xs text-text-soft leading-relaxed line-clamp-2" title={r.detail}>{r.detail}</span>
+    ), hideOnMobile: true },
+    { key: "status", header: "Status · assignee", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]}>{CONDUCT_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1 text-xs">
+          {r.assignee ? <span className="text-text-soft">{r.assignee}</span> : <span className="text-warning font-medium">Unassigned</span>}
+        </div>
+      </div>
+    ) },
+    { key: "cma", header: "Notified", className: "whitespace-nowrap", render: (r) => r.reportedToCma
       ? <span className="text-xs text-text-soft tabular">CMA · {formatDate(r.reportedToCma)}</span>
       : <span className="text-text-faint text-xs">—</span>, hideOnMobile: true, defaultHidden: true },
   ];

@@ -95,26 +95,36 @@ export default function Reports() {
     {
       key: "name",
       header: "Report",
+      className: "min-w-[260px]",
       render: (r) => (
         <div>
           <div className="text-text font-medium">{r.name}</div>
-          <div className="text-xs text-text-soft mt-0.5 max-w-md">{r.description}</div>
+          <div className="text-xs text-text-soft mt-0.5 line-clamp-2 leading-snug" title={r.description}>{r.description}</div>
         </div>
       ),
     },
-    { key: "category", header: "Category", render: (r) => <Badge tone={CATEGORY_TONE[r.category]}>{REPORT_CATEGORY_LABELS[r.category]}</Badge> },
-    { key: "columns", header: "Columns", render: (r) => <span className="text-sm tabular text-text-soft">{r.columns.length}</span>, hideOnMobile: true },
-    { key: "frequency", header: "Cadence", render: (r) => FREQUENCY_LABEL[r.frequency], hideOnMobile: true },
-    { key: "format", header: "Format", render: (r) => <span className="tabular text-text-soft">{r.format}</span>, hideOnMobile: true },
+    { key: "category", header: "Category", className: "whitespace-nowrap", render: (r) => <Badge tone={CATEGORY_TONE[r.category]}>{REPORT_CATEGORY_LABELS[r.category]}</Badge> },
+    // How often it runs, then what comes out: format and width.
+    { key: "frequency", header: "Cadence · format", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="text-text">{FREQUENCY_LABEL[r.frequency]}</div>
+        <div className="mt-0.5 text-xs text-text-faint"><span className="tabular">{r.format}</span> · <span className="tabular">{r.columns.length}</span> columns</div>
+      </div>
+    ), hideOnMobile: true },
+    { key: "columns", header: "Columns", className: "text-right whitespace-nowrap", render: (r) => <span className="text-sm tabular text-text-soft">{r.columns.length}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "format", header: "Format", className: "whitespace-nowrap", render: (r) => <span className="tabular text-text-soft">{r.format}</span>, hideOnMobile: true, defaultHidden: true },
     {
       key: "lastRun",
       header: "Last generated",
+      className: "whitespace-nowrap",
       render: (r) =>
         r.lastRun ? (
           <div className="text-xs">
-            <div className="text-text">{formatDateTime(r.lastRun.at)}</div>
-            <div className="text-text-faint mt-0.5">
-              by {r.lastRun.by} · {r.lastRun.sizeKb} KB{r.lastRun.columnCount ? ` · ${r.lastRun.columnCount} cols` : ""}
+            <div className="tabular text-text">{formatDateTime(r.lastRun.at)}</div>
+            {/* System actors carry long names ("System (Distribution Engine)"): the actor truncates, the size never does. */}
+            <div className="flex max-w-[210px] gap-1 text-text-faint mt-0.5">
+              <span className="truncate" title={`by ${r.lastRun.by}`}>by {r.lastRun.by}</span>
+              <span className="shrink-0">· {r.lastRun.sizeKb} KB{r.lastRun.columnCount ? ` · ${r.lastRun.columnCount} cols` : ""}</span>
             </div>
           </div>
         ) : (
@@ -125,6 +135,7 @@ export default function Reports() {
     {
       key: "actions",
       header: "",
+      className: "whitespace-nowrap",
       render: (r) => (
         <div className="flex items-center gap-2 justify-end">
           <Button
@@ -184,7 +195,7 @@ export default function Reports() {
             <Tabs tabs={tabs} active={category} onChange={(k) => setCategory(k as typeof category)} />
             <SearchInput value={query} onChange={setQuery} placeholder="Search reports and columns…" className="w-64 sm:ml-auto" />
           </FilterBar>
-          <DataTable columns={columns} rows={rows} onRowClick={openDetail} emptyLabel="No reports match" />
+          <DataTable columns={columns} rows={rows} onRowClick={openDetail} columnPicker emptyLabel="No reports match" />
         </>
       )}
 

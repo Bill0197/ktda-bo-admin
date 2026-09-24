@@ -1,6 +1,6 @@
 import { PRECLEARANCE_LABELS, type EmployeeTrade, type PreClearanceStatus } from "../../mock";
 import { getEmployeeTrades } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDateTime, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDateTime, type Column } from "../../ui";
 import { UserRoundCheck, ShieldX, CalendarX2, Timer } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -38,30 +38,51 @@ export default function EmployeeTrading() {
   const dealtWithoutClearance = rows.filter((r) => r.executedAt && r.preClearance !== "approved");
 
   const columns: Column<EmployeeTrade>[] = [
-    { key: "ref", header: "Reference", render: (r) => (
+    { key: "ref", header: "Reference", className: "whitespace-nowrap", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-[11px] text-text-faint tabular">{formatDateTime(r.requestedAt)}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium tabular">
+          {r.ref}
+          {r.note && <span className="whitespace-normal"><InfoTip text={r.note} /></span>}
+        </div>
       </div>
     ) },
-    { key: "employee", header: "Employee", render: (r) => (
+    { key: "employee", header: "Employee", className: "min-w-[140px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.employee}</div>
-        <div className="text-xs text-text-faint">{r.roleLabel}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.roleLabel}</div>
       </div>
     ) },
-    { key: "instrument", header: "Instrument", render: (r) => (
+    // The order in one cell: what, which way, how much, and what it was worth.
+    { key: "instrument", header: "Instrument · value", className: "min-w-[140px]", render: (r) => (
       <div>
         <div className="text-text-soft text-sm">{r.instrument}</div>
-        <div className="text-xs text-text-faint">{r.side === "buy" ? "Buy" : "Sell"} · {r.quantity.toLocaleString()}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">
+          <span className="whitespace-nowrap">{r.side === "buy" ? "Buy" : "Sell"} · {r.quantity.toLocaleString()}</span>{" "}
+          <span className="whitespace-nowrap">· <Money amount={r.valueKes} currency="KES" compact /></span>
+        </div>
       </div>
     ) },
-    { key: "value", header: "Value", render: (r) => <Money amount={r.valueKes} currency="KES" /> },
-    { key: "clearance", header: "Pre-clearance", className: "whitespace-nowrap", render: (r) => <Badge tone={CLEARANCE_TONE[r.preClearance]}>{PRECLEARANCE_LABELS[r.preClearance]}</Badge> },
-    { key: "executed", header: "Executed", render: (r) => r.executedAt
-      ? <span className="tabular text-xs text-text-soft">{formatDateTime(r.executedAt)}</span>
-      : <span className="text-text-faint text-xs">not dealt</span> },
-    { key: "rules", header: "Rule outcomes", render: (r) => {
+    { key: "value", header: "Value", className: "text-right whitespace-nowrap", render: (r) => <span className="tabular"><Money amount={r.valueKes} currency="KES" /></span>, defaultHidden: true },
+    { key: "clearance", header: "Pre-clearance · by", render: (r) => (
+      <div className="whitespace-nowrap">
+        <Badge tone={CLEARANCE_TONE[r.preClearance]}>{PRECLEARANCE_LABELS[r.preClearance]}</Badge>
+        <div className="mt-1 text-xs">
+          {r.decidedBy ? <span className="text-text-soft">{r.decidedBy}</span> : <span className="text-text-faint">no decision</span>}
+        </div>
+      </div>
+    ) },
+    // Request and execution are one flow; the gap between them is what a reviewer reads.
+    { key: "executed", header: "Requested → executed", className: "whitespace-nowrap", render: (r) => (
+      <div className="text-xs tabular">
+        <div className="text-text-faint">{formatDateTime(r.requestedAt)}</div>
+        <div className="mt-0.5">
+          {r.executedAt
+            ? <span className="text-text-soft">→ {formatDateTime(r.executedAt)}</span>
+            : <span className="text-text-faint">→ not dealt</span>}
+        </div>
+      </div>
+    ) },
+    { key: "rules", header: "Rule outcomes", className: "min-w-[120px]", render: (r) => {
       const failed = breaches(r);
       if (!failed.length) return <Badge tone="success" className="whitespace-nowrap">All rules clear</Badge>;
       return (
@@ -70,12 +91,12 @@ export default function EmployeeTrading() {
         </div>
       );
     } },
-    { key: "decidedBy", header: "Decided by", render: (r) => r.decidedBy
+    { key: "decidedBy", header: "Decided by", className: "whitespace-nowrap", render: (r) => r.decidedBy
       ? <span className="text-xs text-text-soft">{r.decidedBy}</span>
-      : <span className="text-text-faint text-xs">—</span>, hideOnMobile: true },
-    { key: "note", header: "Note", render: (r) => r.note
-      ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint text-xs">—</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "note", header: "Note", className: "min-w-[240px]", render: (r) => r.note
+      ? <span className="text-xs text-text-soft leading-relaxed line-clamp-2" title={r.note}>{r.note}</span>
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

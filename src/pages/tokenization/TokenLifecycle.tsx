@@ -42,42 +42,56 @@ export default function TokenLifecycle() {
   const flagged = rows.filter((e) => e.flag);
 
   const columns: Column<LifecycleEvent>[] = [
-    { key: "type", header: "Event", className: "whitespace-nowrap", render: (r) => (
+    // Most events carry no flag, so a dedicated column is mostly dashes; the
+    // flag rides under the event it qualifies instead.
+    { key: "type", header: "Event · flag", className: "whitespace-nowrap", render: (r) => (
       <div>
         <Badge tone={TYPE_TONE[r.type]}>{LIFECYCLE_EVENT_LABELS[r.type]}</Badge>
         <div className="text-[11px] text-text-faint mt-1 tabular">{r.ref}</div>
+        {r.flag && <Badge tone={r.flag === "unauthorised" ? "danger" : "warning"} className="mt-1">{FLAG_LABEL[r.flag]}</Badge>}
       </div>
     ) },
-    { key: "holder", header: "Holder", render: (r) => (
-      <div>
+    { key: "holder", header: "Holder", className: "min-w-[170px]", render: (r) => (
+      <div className="leading-snug">
         <div className="text-text font-medium">{r.holder}</div>
-        {r.counterparty && <div className="text-xs text-text-faint">→ {r.counterparty}</div>}
+        {r.counterparty && <div className="mt-0.5 text-xs text-text-faint">→ {r.counterparty}</div>}
       </div>
     ) },
-    { key: "units", header: "Units", render: (r) => r.units > 0
-      ? <span className="tabular text-text">{r.units.toLocaleString()}</span>
-      : <span className="text-text-faint text-xs">n/a</span> },
-    { key: "token", header: "Token", render: (r) => <span className="text-xs text-text-soft">{r.tokenSymbol}</span>, hideOnMobile: true },
-    { key: "authority", header: "Authority", render: (r) => {
-      if (!isPrivileged(r)) return <span className="text-text-faint text-xs">not required</span>;
-      return r.authorisedBy
-        ? <span className="text-xs text-text-soft">{r.authorisedBy}</span>
-        : <Badge tone="danger">Missing</Badge>;
-    } },
-    { key: "reason", header: "Reason", render: (r) => r.reason
-      ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.reason}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
-    { key: "initiatedBy", header: "Initiated by", render: (r) => (
-      <div className="text-xs">
+    { key: "units", header: "Units · token", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        {r.units > 0
+          ? <div className="tabular text-text">{r.units.toLocaleString()}</div>
+          : <div className="text-text-faint text-xs">n/a</div>}
+        <div className="mt-0.5 text-xs text-text-faint">{r.tokenSymbol}</div>
+      </div>
+    ) },
+    // The authority and the reason are the two halves of the same record, so
+    // they are read together; the full reason stays one hover away.
+    { key: "authority", header: "Authority · reason", className: "min-w-[220px]", render: (r) => (
+      <div className="text-xs leading-snug">
+        {!isPrivileged(r)
+          ? <span className="text-text-faint">not required</span>
+          : r.authorisedBy
+            ? <span className="text-text-soft">{r.authorisedBy}</span>
+            : <Badge tone="danger">Missing</Badge>}
+        {r.reason && <div className="mt-1 text-text-faint line-clamp-2" title={r.reason}>{r.reason}</div>}
+      </div>
+    ) },
+    { key: "initiatedBy", header: "Initiated by", className: "min-w-[150px]", render: (r) => (
+      <div className="text-xs leading-snug">
         <div className="text-text-soft">{r.initiatedBy}</div>
-        <div className="text-text-faint tabular">{formatDateTime(r.at)}</div>
+        <div className="mt-0.5 text-text-faint tabular whitespace-nowrap">{formatDateTime(r.at)}</div>
       </div>
     ), hideOnMobile: true },
     { key: "flag", header: "Flag", className: "whitespace-nowrap", render: (r) => r.flag
       ? <Badge tone={r.flag === "unauthorised" ? "danger" : "warning"}>{FLAG_LABEL[r.flag]}</Badge>
-      : <span className="text-text-faint">—</span> },
+      : <span className="text-text-faint">—</span>, defaultHidden: true },
+    { key: "token", header: "Token", render: (r) => <span className="text-xs text-text-soft">{r.tokenSymbol}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "reason", header: "Reason", render: (r) => r.reason
+      ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.reason}</span>
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
     { key: "tx", header: "Transaction", render: (r) => r.txHash
-      ? <span className="tabular text-xs text-text-soft">{r.txHash}</span>
+      ? <span className="tabular text-xs text-text-soft block truncate max-w-[140px]" title={r.txHash}>{r.txHash}</span>
       : <span className="text-text-faint text-xs">off chain</span>, hideOnMobile: true, defaultHidden: true },
   ];
 

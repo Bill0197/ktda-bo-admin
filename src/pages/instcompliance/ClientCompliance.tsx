@@ -24,40 +24,45 @@ export default function ClientCompliance() {
   const enhanced = rows.filter((r) => r.kycTier === "enhanced");
 
   const columns: Column<InstitutionalClientCompliance>[] = [
-    { key: "client", header: "Client", render: (r) => (
+    { key: "client", header: "Client", className: "min-w-[160px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.clientName}</div>
-        <div className="text-xs text-text-faint">{INSTITUTIONAL_TYPE_LABELS[r.clientType]}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{INSTITUTIONAL_TYPE_LABELS[r.clientType]}</div>
       </div>
     ) },
-    { key: "tier", header: "KYC tier", className: "whitespace-nowrap", render: (r) => (
-      <Badge tone={r.kycTier === "enhanced" ? "warning" : "neutral"}>{r.kycTier === "enhanced" ? "Enhanced" : "Standard"}</Badge>
+    { key: "tier", header: "KYC tier · risk", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={r.kycTier === "enhanced" ? "warning" : "neutral"}>{r.kycTier === "enhanced" ? "Enhanced" : "Standard"}</Badge>
+        <div className="mt-1"><Badge tone={RISK_TONE[r.riskRating]}>{r.riskRating} risk</Badge></div>
+      </div>
     ) },
-    { key: "risk", header: "Risk", className: "whitespace-nowrap", render: (r) => <Badge tone={RISK_TONE[r.riskRating]}>{r.riskRating}</Badge> },
-    { key: "ubo", header: "Beneficial ownership", render: (r) => {
-      if (r.uboCount === 0) return <span className="text-xs text-text-faint">no UBO — public body or trust</span>;
+    { key: "ubo", header: "Beneficial ownership", className: "min-w-[110px]", render: (r) => {
+      if (r.uboCount === 0) return <span className="text-xs text-text-faint leading-snug">no UBO — public body or trust</span>;
       return r.uboVerified
         ? <span className="text-xs text-text-soft">{r.uboCount} verified</span>
-        : <Badge tone="danger">{r.uboCount} unverified</Badge>;
+        : <Badge tone="danger" className="whitespace-nowrap">{r.uboCount} unverified</Badge>;
     } },
-    { key: "authority", header: "Authority to appoint", className: "whitespace-nowrap", render: (r) => r.authorityOnFile
-      ? <Badge tone="success">On file</Badge>
-      : <Badge tone="danger">Missing</Badge> },
-    { key: "sanctions", header: "Sanctions", className: "whitespace-nowrap", render: (r) => (
-      <Badge tone={r.sanctionsClear ? "success" : "danger"}>{r.sanctionsClear ? "Clear" : "Match"}</Badge>
+    // Both are pass/fail gates on funding the mandate, so they read as one check.
+    { key: "authority", header: "Authority · sanctions", className: "min-w-[130px]", render: (r) => (
+      <div className="whitespace-nowrap">
+        {r.authorityOnFile ? <Badge tone="success">Authority on file</Badge> : <Badge tone="danger">Authority missing</Badge>}
+        <div className="mt-1"><Badge tone={r.sanctionsClear ? "success" : "danger"}>{r.sanctionsClear ? "Sanctions clear" : "Sanctions match"}</Badge></div>
+      </div>
     ) },
-    { key: "review", header: "Review cycle", render: (r) => (
+    { key: "review", header: "Review cycle", className: "whitespace-nowrap", render: (r) => (
       <div className="text-xs">
         <div className="text-text-soft tabular">{r.lastReviewedAt ? formatDate(r.lastReviewedAt) : "never reviewed"}</div>
-        <div className="text-text-faint tabular">{r.nextReviewDue === "—" ? "no further review" : `next ${formatDate(r.nextReviewDue)}`}</div>
+        <div className="mt-0.5 text-text-faint tabular">{r.nextReviewDue === "—" ? "no further review" : `next ${formatDate(r.nextReviewDue)}`}</div>
       </div>
     ), hideOnMobile: true },
-    { key: "outstanding", header: "Outstanding items", render: (r) => r.outstandingItems.length === 0
+    // A file can carry four items; the count leads and the list clamps, with the full list on hover.
+    { key: "outstanding", header: "Outstanding items", className: "min-w-[180px]", render: (r) => r.outstandingItems.length === 0
       ? <span className="text-xs text-text-faint">none</span>
       : (
-        <ul className="text-xs text-text-soft max-w-md space-y-1 leading-relaxed">
-          {r.outstandingItems.map((item) => <li key={item}>• {item}</li>)}
-        </ul>
+        <div className="text-xs leading-relaxed" title={r.outstandingItems.map((item) => `• ${item}`).join("\n")}>
+          {r.outstandingItems.length > 1 && <div className="font-medium text-warning">{r.outstandingItems.length} items</div>}
+          <div className="text-text-soft line-clamp-2">{r.outstandingItems.join(" · ")}</div>
+        </div>
       ) },
   ];
 

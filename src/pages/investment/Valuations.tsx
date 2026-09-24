@@ -1,6 +1,6 @@
 import { VALUATION_STATUS_LABELS, type ValuationRun, type ValuationStatus } from "../../mock";
 import { getValuationRuns } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { Calculator, ShieldCheck, TriangleAlert, FileQuestion } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -29,36 +29,52 @@ export default function Valuations() {
   const published = rows.filter((r) => r.status === "published").length;
 
   const columns: Column<ValuationRun>[] = [
-    { key: "portfolio", header: "Portfolio", render: (r) => (
+    { key: "portfolio", header: "Portfolio", className: "min-w-[200px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.portfolio}</div>
-        <div className="text-[11px] text-text-faint tabular">valued {formatDate(r.valuationDate)}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          {r.portfolio}
+          {/* The note explains a held run; it lives behind the icon, not in a column. */}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">valued {formatDate(r.valuationDate)}</div>
       </div>
     ) },
-    { key: "netAssets", header: "Net assets", render: (r) => <Money amount={r.netAssets} currency={r.currency} compact /> },
-    { key: "units", header: "Units in issue", render: (r) => <span className="tabular text-text-soft">{r.unitsInIssue.toLocaleString()}</span>, hideOnMobile: true },
-    { key: "nav", header: "NAV per unit", render: (r) => <span className="tabular text-text font-medium">{r.navPerUnit.toFixed(4)}</span> },
-    { key: "move", header: "Move vs. published", className: "whitespace-nowrap", render: (r) => {
+    // NAV is net assets over units, so the per-unit figure leads and its numerator sits beneath it.
+    { key: "nav", header: "NAV · net assets", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="tabular text-text font-medium">{r.navPerUnit.toFixed(4)}</div>
+        <div className="text-xs text-text-faint"><Money amount={r.netAssets} currency={r.currency} compact /></div>
+      </div>
+    ) },
+    { key: "units", header: "Units in issue", className: "text-right whitespace-nowrap", render: (r) => <span className="tabular text-text-soft">{r.unitsInIssue.toLocaleString()}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "move", header: "Move · tolerance", className: "text-right whitespace-nowrap", render: (r) => {
       const out = Math.abs(r.movePct) > r.tolerancePct;
       return (
         <div>
           <span className={out ? "tabular text-danger font-medium" : "tabular text-text-soft"}>
             {r.movePct > 0 ? "+" : ""}{r.movePct.toFixed(3)}%
           </span>
-          <div className="text-[11px] text-text-faint">tolerance ±{r.tolerancePct.toFixed(2)}%</div>
+          <div className="text-xs text-text-faint">tolerance ±{r.tolerancePct.toFixed(2)}%</div>
         </div>
       );
     } },
     { key: "prices", header: "Prices sourced", className: "whitespace-nowrap", render: (r) => r.pricesSourced === r.pricesTotal
       ? <span className="text-xs text-text-soft tabular">{r.pricesSourced} of {r.pricesTotal}</span>
-      : <Badge tone="danger">{r.pricesSourced} of {r.pricesTotal}</Badge> },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{VALUATION_STATUS_LABELS[r.status]}</Badge> },
-    { key: "reviewer", header: "Reviewed by", render: (r) => r.reviewer
-      ? <span className="text-xs text-text-soft">{r.reviewer}</span>
-      : <span className="text-text-faint text-xs">not yet reviewed</span>, hideOnMobile: true },
+      : <Badge tone="danger" className="whitespace-nowrap">{r.pricesSourced} of {r.pricesTotal}</Badge> },
+    // Who reviewed the run is part of its status — the review is the gate the badge reports on.
+    { key: "status", header: "Status · reviewer", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{VALUATION_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1 text-xs">
+          {r.reviewer
+            ? <span className="text-text-soft">{r.reviewer}</span>
+            : <span className="text-text-faint">not yet reviewed</span>}
+        </div>
+      </div>
+    ) },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

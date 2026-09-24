@@ -1,6 +1,6 @@
 import { BREACH_STATUS_LABELS, type MandateBreach, type BreachStatus } from "../../mock";
 import { getMandateBreaches } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, DistributionBars, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, DistributionBars, InfoTip, formatDate, type Column } from "../../ui";
 import { ShieldX, Activity, BellRing, CircleCheck } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -34,36 +34,48 @@ export default function Breaches() {
   ].filter((r) => r.value > 0);
 
   const columns: Column<MandateBreach>[] = [
-    { key: "ref", header: "Reference", render: (r) => (
-      <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-[11px] text-text-faint tabular">detected {formatDate(r.detectedAt)}</div>
+    { key: "ref", header: "Reference · detected", render: (r) => (
+      <div className="whitespace-nowrap">
+        <div className="flex items-center gap-1.5 text-text font-medium tabular">
+          {r.ref}
+          {r.note && <span className="whitespace-normal"><InfoTip text={r.note} /></span>}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{formatDate(r.detectedAt)}</div>
       </div>
     ) },
-    { key: "client", header: "Client", render: (r) => (
+    { key: "client", header: "Client", className: "min-w-[150px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.clientName}</div>
-        <div className="text-[11px] text-text-faint tabular">{r.mandateRef}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.mandateRef}</div>
       </div>
     ) },
-    { key: "rule", header: "Rule broken", render: (r) => (
-      <div className="max-w-md">
-        <div className="text-xs text-text-soft leading-relaxed">{r.rule}</div>
-        <div className="text-[11px] text-text-faint mt-1 tabular">{r.magnitude}</div>
+    { key: "rule", header: "Rule broken", className: "min-w-[220px]", render: (r) => (
+      <div>
+        <div className="text-xs text-text-soft leading-relaxed line-clamp-2" title={r.rule}>{r.rule}</div>
+        <div className="text-xs text-text-faint mt-0.5 tabular line-clamp-1" title={r.magnitude}>{r.magnitude}</div>
       </div>
     ) },
-    { key: "type", header: "Cause", className: "whitespace-nowrap", render: (r) => (
-      <Badge tone={r.type === "active" ? "danger" : "warning"}>{r.type === "active" ? "Active" : "Passive"}</Badge>
+    { key: "status", header: "Status · cause", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]}>{BREACH_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1"><Badge tone={r.type === "active" ? "danger" : "warning"}>{r.type === "active" ? "Active" : "Passive"}</Badge></div>
+      </div>
     ) },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{BREACH_STATUS_LABELS[r.status]}</Badge> },
-    { key: "cure", header: "Cure due", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.cureDueBy)}</span> },
-    { key: "notified", header: "Client notified", className: "whitespace-nowrap", render: (r) => r.clientNotifiedAt
-      ? <span className="tabular text-xs text-text-soft">{formatDate(r.clientNotifiedAt)}</span>
-      : <Badge tone={r.status === "cured" ? "neutral" : "warning"}>Not notified</Badge> },
-    { key: "owner", header: "Owner", render: (r) => <span className="text-xs text-text-soft">{r.owner}</span>, hideOnMobile: true },
-    { key: "note", header: "Note", render: (r) => r.note
-      ? <span className="text-xs text-text-soft max-w-lg block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+    // The two clocks sit together so a cured-but-never-notified breach reads as unfinished.
+    { key: "cure", header: "Cure · notified", className: "whitespace-nowrap", render: (r) => (
+      <div className="text-xs">
+        <div className="tabular text-text-soft">cure by {formatDate(r.cureDueBy)}</div>
+        <div className="mt-1">
+          {r.clientNotifiedAt
+            ? <span className="tabular text-text-faint">notified {formatDate(r.clientNotifiedAt)}</span>
+            : <Badge tone={r.status === "cured" ? "neutral" : "warning"}>Not notified</Badge>}
+        </div>
+      </div>
+    ) },
+    { key: "owner", header: "Owner", className: "min-w-[90px]", render: (r) => <span className="text-xs text-text-soft">{r.owner}</span>, hideOnMobile: true },
+    { key: "note", header: "Note", className: "min-w-[240px]", render: (r) => r.note
+      ? <span className="text-xs text-text-soft leading-relaxed line-clamp-2" title={r.note}>{r.note}</span>
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

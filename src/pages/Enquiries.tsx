@@ -71,30 +71,37 @@ export default function Enquiries() {
   const onTime = answered.filter((e) => e.sla.state === "met").length;
 
   const columns: Column<EnquiryRow>[] = [
-    { key: "name", header: "From", render: (r) => (
+    { key: "name", header: "From", className: "min-w-[190px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint">{r.contact}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.contact}</div>
       </div>
     ) },
-    { key: "subject", header: "Subject", render: (r) => (
+    { key: "subject", header: "Subject", className: "min-w-[240px]", render: (r) => (
       <div>
-        <div className="text-text">{r.subject}</div>
-        <div className="text-xs text-text-faint">{r.categoryLabel}</div>
+        <div className="text-text leading-snug">{r.subject}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.categoryLabel} · via {r.channelLabel}</div>
       </div>
     ) },
-    { key: "channel", header: "Channel", render: (r) => <span className="text-text-soft">{r.channelLabel}</span>, hideOnMobile: true },
-    { key: "queue", header: "Routed to", render: (r) => <span className="text-text-soft">{r.routing.queue}</span>, hideOnMobile: true },
-    { key: "owner", header: "Owner", render: (r) => r.ownerName
+    // Channel reads under the subject; the column stays available in the picker.
+    { key: "channel", header: "Channel", className: "whitespace-nowrap", render: (r) => <span className="text-text-soft">{r.channelLabel}</span>, hideOnMobile: true, defaultHidden: true },
+    // Where the routing rule sent it, then who picked it up there.
+    { key: "queue", header: "Routed to · owner", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="text-text-soft">{r.routing.queue}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.ownerName || "unassigned"}</div>
+      </div>
+    ), hideOnMobile: true },
+    { key: "owner", header: "Owner", className: "whitespace-nowrap", render: (r) => r.ownerName
       ? <span className="text-text-soft">{r.ownerName}</span>
-      : <span className="text-text-faint">unassigned</span>, hideOnMobile: true },
+      : <span className="text-text-faint">unassigned</span>, hideOnMobile: true, defaultHidden: true },
     { key: "sla", header: "Acknowledgement", render: (r) => <SlaBadge sla={r.sla} />, className: "whitespace-nowrap" },
     { key: "status", header: "Status", render: (r) => (
       <Badge tone={r.status === "resolved" || r.status === "converted" ? "success" : r.status === "new" ? "warning" : "info"}>
         {r.statusLabel}
       </Badge>
     ), className: "whitespace-nowrap" },
-    { key: "received", header: "Received", render: (r) => <span className="tabular text-xs">{formatDateTime(r.receivedAt)}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "received", header: "Received", className: "whitespace-nowrap", render: (r) => <span className="tabular text-xs text-text-soft">{formatDateTime(r.receivedAt)}</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

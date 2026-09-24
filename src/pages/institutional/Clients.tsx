@@ -1,6 +1,6 @@
 import { INSTITUTIONAL_TYPE_LABELS, INSTITUTIONAL_STATUS_LABELS, type InstitutionalClient, type InstitutionalClientStatus } from "../../mock";
 import { getInstitutionalClients } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { Building2, Landmark, DoorOpen, UserPlus } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -27,25 +27,34 @@ export default function InstitutionalClients() {
   const leaving = rows.filter((c) => c.status === "notice_period");
 
   const columns: Column<InstitutionalClient>[] = [
-    { key: "name", header: "Client", render: (r) => (
+    { key: "name", header: "Client", className: "min-w-[240px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint">{INSTITUTIONAL_TYPE_LABELS[r.type]}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          {r.name}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{INSTITUTIONAL_TYPE_LABELS[r.type]}</div>
       </div>
     ) },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{INSTITUTIONAL_STATUS_LABELS[r.status]}</Badge> },
-    { key: "aum", header: "Assets under management", render: (r) => r.aum > 0
+    // Status and the mandate reference answer one question — is this client
+    // live under a signed IMA — so the reference sits under the status.
+    { key: "status", header: "Status · mandate", className: "whitespace-nowrap", render: (r) => (
+      <div className="flex flex-col items-start gap-1">
+        <Badge tone={STATUS_TONE[r.status]}>{INSTITUTIONAL_STATUS_LABELS[r.status]}</Badge>
+        {r.mandateRef
+          ? <span className="tabular text-xs text-text-faint">{r.mandateRef}</span>
+          : <Badge tone="warning">No live IMA</Badge>}
+      </div>
+    ) },
+    { key: "aum", header: "AUM", className: "text-right whitespace-nowrap", render: (r) => r.aum > 0
       ? <Money amount={r.aum} currency={r.currency} compact />
       : <span className="text-text-faint text-xs">not funded</span> },
-    { key: "mandate", header: "Mandate", render: (r) => r.mandateRef
-      ? <span className="tabular text-xs text-text-soft">{r.mandateRef}</span>
-      : <Badge tone="warning">No live IMA</Badge> },
-    { key: "regulator", header: "Client's regulator", render: (r) => <span className="text-xs text-text-soft">{r.clientRegulator}</span>, hideOnMobile: true },
-    { key: "rm", header: "Relationship manager", render: (r) => <span className="text-xs text-text-soft">{r.relationshipManager}</span>, hideOnMobile: true },
-    { key: "onboarded", header: "Onboarded", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.onboardedAt)}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "regulator", header: "Client's regulator", className: "min-w-[120px]", render: (r) => <span className="text-xs text-text-soft leading-snug">{r.clientRegulator}</span>, hideOnMobile: true },
+    { key: "rm", header: "Relationship manager", className: "whitespace-nowrap", render: (r) => <span className="text-xs text-text-soft">{r.relationshipManager}</span>, hideOnMobile: true },
+    { key: "onboarded", header: "Onboarded", className: "whitespace-nowrap", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.onboardedAt)}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

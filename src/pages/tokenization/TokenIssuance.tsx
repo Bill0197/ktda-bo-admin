@@ -1,6 +1,6 @@
 import { ISSUANCE_STATUS_LABELS, type TokenIssuance, type IssuanceStatus } from "../../mock";
 import { getTokenIssuances } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, formatDateTime, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, InfoTip, formatDateTime, type Column } from "../../ui";
 import { Coins, ShieldAlert, Signature, GitCompareArrows } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -29,51 +29,65 @@ export default function TokenIssuance() {
   const mintedUnits = rows.filter((r) => r.status === "minted").reduce((s, r) => s + r.unitsRequested, 0);
 
   const columns: Column<TokenIssuance>[] = [
-    { key: "ref", header: "Batch", render: (r) => (
+    { key: "ref", header: "Batch", className: "min-w-[200px]", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-xs text-text-faint">{r.subFund} · {r.tokenSymbol}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          <span className="tabular whitespace-nowrap">{r.ref}</span>
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.subFund} · {r.tokenSymbol} · {r.chain}</div>
       </div>
     ) },
-    { key: "chain", header: "Chain", render: (r) => <span className="text-text-soft text-xs">{r.chain}</span>, hideOnMobile: true },
-    { key: "units", header: "Units on chain", render: (r) => <span className="tabular text-text">{r.unitsRequested.toLocaleString()}</span> },
-    { key: "variance", header: "Vs. unit register", className: "whitespace-nowrap", render: (r) => {
+    // The mint count is only meaningful against the register, so the
+    // reconciliation result sits directly under the number it qualifies.
+    { key: "units", header: "Units · vs. register", className: "text-right whitespace-nowrap", render: (r) => {
       const diff = r.unitsRequested - r.unitsOffChain;
-      if (diff === 0) return <span className="text-xs text-text-faint">reconciled</span>;
-      return <Badge tone="danger">{diff > 0 ? "+" : ""}{diff.toLocaleString()} units</Badge>;
+      return (
+        <div>
+          <div className="tabular text-text">{r.unitsRequested.toLocaleString()}</div>
+          <div className="mt-1">
+            {diff === 0
+              ? <span className="text-xs text-text-faint">reconciled</span>
+              : <Badge tone="danger" className="whitespace-nowrap">{diff > 0 ? "+" : ""}{diff.toLocaleString()} units</Badge>}
+          </div>
+        </div>
+      );
     } },
-    { key: "checks", header: "Pre-mint checks", render: (r) => (
-      <div className="flex flex-wrap gap-1.5">
+    { key: "checks", header: "Pre-mint checks", className: "whitespace-nowrap", render: (r) => (
+      <div className="flex flex-col items-start gap-1">
         <Badge tone={r.whitelistCleared ? "success" : "danger"} className="whitespace-nowrap">{r.whitelistCleared ? "Whitelist ok" : "Whitelist"}</Badge>
         <Badge tone={r.jurisdictionCleared ? "success" : "danger"} className="whitespace-nowrap">{r.jurisdictionCleared ? "Jurisdiction ok" : "Jurisdiction"}</Badge>
       </div>
     ) },
-    { key: "approvals", header: "Signatures", className: "whitespace-nowrap", render: (r) => {
+    // Status and signatures both answer "how far through approval is this".
+    { key: "status", header: "Status · signatures", className: "min-w-[190px]", render: (r) => {
       const met = r.approvals.length >= r.requiredApprovals;
+      const signers = r.approvals.map((a) => a.name).join(", ");
       return (
         <div>
-          <span className={met ? "text-success font-medium tabular" : "text-warning font-medium tabular"}>
-            {r.approvals.length} of {r.requiredApprovals}
-          </span>
-          {r.approvals.length > 0 && (
-            <div className="text-[11px] text-text-faint mt-0.5">{r.approvals.map((a) => a.name).join(", ")}</div>
-          )}
+          <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{ISSUANCE_STATUS_LABELS[r.status]}</Badge>
+          <div className="mt-1 text-xs leading-snug">
+            <span className={met ? "text-success font-medium tabular whitespace-nowrap" : "text-warning font-medium tabular whitespace-nowrap"}>
+              {r.approvals.length} of {r.requiredApprovals} signed
+            </span>
+            {signers && <div className="text-text-faint mt-0.5">{signers}</div>}
+          </div>
         </div>
       );
     } },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{ISSUANCE_STATUS_LABELS[r.status]}</Badge> },
-    { key: "requestedBy", header: "Requested by", render: (r) => (
-      <div className="text-xs">
+    { key: "requestedBy", header: "Requested by", className: "min-w-[150px]", render: (r) => (
+      <div className="text-xs leading-snug">
         <div className="text-text-soft">{r.requestedBy}</div>
-        <div className="text-text-faint tabular">{formatDateTime(r.requestedAt)}</div>
+        <div className="mt-0.5 text-text-faint tabular whitespace-nowrap">{formatDateTime(r.requestedAt)}</div>
       </div>
     ), hideOnMobile: true },
+    { key: "chain", header: "Chain", render: (r) => <span className="text-text-soft text-xs">{r.chain}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "tx", header: "Transaction", render: (r) => r.txHash
-      ? <span className="tabular text-xs text-text-soft">{r.txHash}</span>
+      ? <span className="tabular text-xs text-text-soft block truncate max-w-[140px]" title={r.txHash}>{r.txHash}</span>
       : <span className="text-text-faint text-xs">—</span>, hideOnMobile: true, defaultHidden: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

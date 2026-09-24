@@ -1,6 +1,6 @@
 import { CORPORATE_ACTION_LABELS, CORPORATE_ACTION_STATUS_LABELS, type CorporateAction, type CorporateActionStatus } from "../../mock";
 import { getCorporateActions } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { CalendarClock, Vote, TriangleAlert, Banknote } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -27,40 +27,55 @@ export default function CorporateActions() {
   const kesIncome = rows.filter((r) => r.currency === "KES" && r.status !== "disputed").reduce((s, r) => s + (r.grossAmount - r.withholdingTax), 0);
 
   const columns: Column<CorporateAction>[] = [
-    { key: "ref", header: "Reference", render: (r) => (
+    { key: "ref", header: "Event", className: "min-w-[170px]", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <Badge tone="info" className="mt-1 whitespace-nowrap">{CORPORATE_ACTION_LABELS[r.type]}</Badge>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          <span className="whitespace-nowrap">{CORPORATE_ACTION_LABELS[r.type]}</span>
+          {/* The note is a paragraph; it lives behind the icon, not in a column. */}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.ref}</div>
       </div>
     ) },
-    { key: "instrument", header: "Instrument", render: (r) => (
+    { key: "instrument", header: "Instrument", className: "min-w-[150px]", render: (r) => (
       <div>
         <div className="text-text-soft text-sm">{r.instrument}</div>
-        <div className="text-[11px] text-text-faint tabular">{r.isin}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.isin}</div>
       </div>
     ) },
-    { key: "dates", header: "Ex → pay", render: (r) => (
-      <span className="tabular text-xs text-text-soft">{formatDate(r.exDate)} → {formatDate(r.payDate)}</span>
+    { key: "dates", header: "Ex → pay", className: "whitespace-nowrap", render: (r) => (
+      <div className="tabular text-xs text-text-soft">
+        <div>{formatDate(r.exDate)}</div>
+        <div className="text-text-faint">→ {formatDate(r.payDate)}</div>
+      </div>
     ) },
-    { key: "amount", header: "Gross", render: (r) => r.grossAmount > 0
-      ? <Money amount={r.grossAmount} currency={r.currency} compact />
-      : <span className="text-text-faint text-xs">no cash flow</span> },
-    { key: "wht", header: "Withholding tax", render: (r) => r.grossAmount === 0
-      ? <span className="text-text-faint text-xs">n/a</span>
-      : <Money amount={r.withholdingTax} currency={r.currency} />, hideOnMobile: true },
-    { key: "election", header: "Election", className: "whitespace-nowrap", render: (r) => {
-      if (!r.electionRequired) return <span className="text-xs text-text-faint">not required</span>;
-      return (
+    // Withholding is read as a deduction from the gross, so it sits beneath it.
+    { key: "amount", header: "Gross · WHT", className: "text-right whitespace-nowrap", render: (r) => r.grossAmount > 0
+      ? (
         <div>
-          <Badge tone={r.status === "processed" ? "neutral" : "warning"}>Instruction needed</Badge>
-          {r.electionDue && <div className="text-[11px] text-text-faint mt-1 tabular">by {formatDate(r.electionDue)}</div>}
+          <div className="text-text"><Money amount={r.grossAmount} currency={r.currency} compact /></div>
+          <div className="text-xs text-text-faint">WHT <Money amount={r.withholdingTax} currency={r.currency} /></div>
         </div>
-      );
-    } },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{CORPORATE_ACTION_STATUS_LABELS[r.status]}</Badge> },
+      )
+      : <span className="text-text-faint text-xs">no cash flow</span> },
+    // The election is what the status is waiting on, so it reads as the status's second line.
+    { key: "status", header: "Status · election", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{CORPORATE_ACTION_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1 text-xs">
+          {r.electionRequired
+            ? (
+              <span className={r.status === "processed" ? "text-text-faint" : "font-medium text-warning"}>
+                Instruction needed{r.electionDue && <> by <span className="tabular">{formatDate(r.electionDue)}</span></>}
+              </span>
+            )
+            : <span className="text-text-faint">No election required</span>}
+        </div>
+      </div>
+    ) },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-lg block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

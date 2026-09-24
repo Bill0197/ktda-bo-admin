@@ -1,6 +1,6 @@
 import { ORDER_STATUS_LABELS, type InvestmentOrder, type OrderStatus } from "../../mock";
 import { getInvestmentOrders } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDateTime, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDateTime, formatDate, type Column } from "../../ui";
 import { ShoppingCart, ArrowDownToLine, ArrowUpFromLine, Clock } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -32,32 +32,47 @@ export default function Orders() {
   const notDealt = rows.filter((r) => r.status === "rejected" || r.status === "cancelled");
 
   const columns: Column<InvestmentOrder>[] = [
-    { key: "ref", header: "Order", render: (r) => (
+    { key: "ref", header: "Order", className: "min-w-[170px]", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-[11px] text-text-faint tabular">{formatDateTime(r.placedAt)}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          <span className="tabular whitespace-nowrap">{r.ref}</span>
+          {/* Notes are sentences; they live behind the icon so the book stays one line per fact. */}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint tabular whitespace-nowrap">{formatDateTime(r.placedAt)}</div>
       </div>
     ) },
-    { key: "client", header: "Client", render: (r) => (
+    { key: "client", header: "Client", className: "min-w-[180px]", render: (r) => (
       <div>
         <div className="text-text font-medium">{r.clientName}</div>
-        <div className="text-xs text-text-faint">{r.clientType === "institutional" ? "Institutional" : "Retail"} · {r.product}</div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.clientType === "institutional" ? "Institutional" : "Retail"} · {r.product}</div>
       </div>
     ) },
-    { key: "side", header: "Side", className: "whitespace-nowrap", render: (r) => <Badge tone={SIDE_TONE[r.side]}>{SIDE_LABEL[r.side]}</Badge> },
-    { key: "amount", header: "Amount", render: (r) => <Money amount={r.amount} currency={r.currency} compact /> },
-    { key: "units", header: "Units", render: (r) => r.units === null
-      ? <span className="text-text-faint text-xs">not yet priced</span>
-      : <span className="tabular text-text">{r.units.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> },
-    { key: "price", header: "Dealing price", render: (r) => r.dealingPrice === null
-      ? <span className="text-text-faint text-xs">—</span>
-      : <span className="tabular text-text-soft">{r.dealingPrice.toFixed(4)}</span>, hideOnMobile: true },
-    { key: "dealingDate", header: "Dealing date", render: (r) => <span className="tabular text-xs text-text-soft">{formatDate(r.dealingDate)}</span>, hideOnMobile: true },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{ORDER_STATUS_LABELS[r.status]}</Badge> },
+    { key: "side", header: "Side", className: "whitespace-nowrap", render: (r) => <Badge tone={SIDE_TONE[r.side]} className="whitespace-nowrap">{SIDE_LABEL[r.side]}</Badge> },
+    // The amount is what the client asked for; the units are what it bought at the strike.
+    { key: "amount", header: "Amount · units", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        <div className="text-text"><Money amount={r.amount} currency={r.currency} /></div>
+        <div className="text-xs">
+          {r.units === null
+            ? <span className="text-text-faint">not yet priced</span>
+            : <span className="tabular text-text-soft">{r.units.toLocaleString(undefined, { maximumFractionDigits: 2 })} units</span>}
+        </div>
+      </div>
+    ) },
+    { key: "price", header: "Price · dealing date", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        {r.dealingPrice === null
+          ? <div className="text-text-faint text-xs">—</div>
+          : <div className="tabular text-text-soft">{r.dealingPrice.toFixed(4)}</div>}
+        <div className="tabular text-xs text-text-faint">{formatDate(r.dealingDate)}</div>
+      </div>
+    ), hideOnMobile: true },
+    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{ORDER_STATUS_LABELS[r.status]}</Badge> },
     { key: "channel", header: "Channel", render: (r) => <span className="text-xs text-text-soft">{r.channel}</span>, hideOnMobile: true, defaultHidden: true },
     { key: "note", header: "Note", render: (r) => r.note
       ? <span className="text-xs text-text-soft max-w-md block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

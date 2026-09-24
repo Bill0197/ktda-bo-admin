@@ -1,6 +1,6 @@
 import { COUNTERPARTY_TYPE_LABELS, DD_STATUS_LABELS, type Counterparty, type DueDiligenceStatus } from "../../mock";
 import { getCounterparties } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { Building2, FileClock, ShieldAlert, Radar } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -32,35 +32,43 @@ export default function Counterparties() {
   const totalExposure = rows.reduce((s, c) => s + c.exposureKes, 0);
 
   const columns: Column<Counterparty>[] = [
-    { key: "name", header: "Counterparty", render: (r) => (
+    { key: "name", header: "Counterparty", className: "min-w-[220px]", render: (r) => (
       <div>
-        <div className="text-text font-medium">{r.name}</div>
-        <div className="text-xs text-text-faint">{COUNTERPARTY_TYPE_LABELS[r.type]} · {r.jurisdiction}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          {r.name}
+          {/* The note is a paragraph (often the rejection reason); it lives behind the icon. */}
+          {r.note && <InfoTip text={r.note} />}
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{COUNTERPARTY_TYPE_LABELS[r.type]} · {r.jurisdiction}</div>
       </div>
     ) },
-    { key: "regulator", header: "Regulator", render: (r) => <span className="text-xs text-text-soft">{r.regulator}</span>, hideOnMobile: true },
-    { key: "dd", header: "Due diligence", className: "whitespace-nowrap", render: (r) => <Badge tone={DD_TONE[r.ddStatus]}>{DD_STATUS_LABELS[r.ddStatus]}</Badge> },
-    { key: "risk", header: "Risk", className: "whitespace-nowrap", render: (r) => <Badge tone={RISK_TONE[r.riskRating]}>{r.riskRating}</Badge> },
-    { key: "review", header: "Review cycle", render: (r) => (
+    { key: "regulator", header: "Regulator", className: "whitespace-nowrap", render: (r) => <span className="text-xs text-text-soft">{r.regulator}</span>, hideOnMobile: true },
+    { key: "dd", header: "Due diligence · risk", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={DD_TONE[r.ddStatus]}>{DD_STATUS_LABELS[r.ddStatus]}</Badge>
+        <div className="mt-1"><Badge tone={RISK_TONE[r.riskRating]}>{r.riskRating} risk</Badge></div>
+      </div>
+    ) },
+    { key: "review", header: "Review cycle", className: "whitespace-nowrap", render: (r) => (
       <div className="text-xs">
         <div className="text-text-soft tabular">{r.lastReviewedAt ? formatDate(r.lastReviewedAt) : "never"}</div>
-        <div className={r.ddStatus === "expired" ? "text-danger tabular" : "text-text-faint tabular"}>
+        <div className={r.ddStatus === "expired" ? "mt-0.5 text-danger tabular" : "mt-0.5 text-text-faint tabular"}>
           {r.nextReviewDue === "—" ? "no further review" : `next ${formatDate(r.nextReviewDue)}`}
         </div>
       </div>
     ) },
-    { key: "exposure", header: "Exposure", render: (r) => r.exposureKes > 0
-      ? <Money amount={r.exposureKes} currency="KES" compact />
+    { key: "exposure", header: "Exposure", className: "text-right whitespace-nowrap", render: (r) => r.exposureKes > 0
+      ? <span className="tabular"><Money amount={r.exposureKes} currency="KES" compact /></span>
       : <span className="text-text-faint text-xs">none</span> },
     { key: "sanctions", header: "Sanctions", className: "whitespace-nowrap", render: (r) => (
       <div>
         <Badge tone={r.sanctionsClear ? "success" : "danger"}>{r.sanctionsClear ? "Clear" : "Match"}</Badge>
-        <div className="text-[11px] text-text-faint mt-1 tabular">{formatDate(r.sanctionsScreenedAt)}</div>
+        <div className="text-xs text-text-faint mt-1 tabular">{formatDate(r.sanctionsScreenedAt)}</div>
       </div>
     ) },
-    { key: "note", header: "Note", render: (r) => r.note
-      ? <span className="text-xs text-text-soft max-w-lg block leading-relaxed">{r.note}</span>
-      : <span className="text-text-faint">—</span>, hideOnMobile: true },
+    { key: "note", header: "Note", className: "min-w-[240px]", render: (r) => r.note
+      ? <span className="text-xs text-text-soft leading-relaxed line-clamp-2" title={r.note}>{r.note}</span>
+      : <span className="text-text-faint">—</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

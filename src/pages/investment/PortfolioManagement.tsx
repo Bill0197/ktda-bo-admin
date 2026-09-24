@@ -1,6 +1,6 @@
 import { TRADE_STATUS_LABELS, type PortfolioTrade, type TradeStatus } from "../../mock";
 import { getPortfolioTrades } from "../../lib/api";
-import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, formatDate, type Column } from "../../ui";
+import { PageHeader, Badge, DataTable, Skeleton, GlassPanel, GlassStat, StatRail, NotePanel, SectionTitle, Money, InfoTip, formatDate, type Column } from "../../ui";
 import { PieChart, Vote, TriangleAlert, Handshake } from "lucide-react";
 import { useAsyncData } from "../../lib/useAsyncData";
 
@@ -29,32 +29,49 @@ export default function PortfolioManagement() {
   const brokers = new Set(rows.map((r) => r.broker)).size;
 
   const columns: Column<PortfolioTrade>[] = [
-    { key: "ref", header: "Trade", render: (r) => (
+    { key: "ref", header: "Trade", className: "min-w-[150px]", render: (r) => (
       <div>
-        <div className="text-text font-medium tabular">{r.ref}</div>
-        <div className="text-[11px] text-text-faint">{r.portfolio}</div>
+        <div className="flex items-center gap-1.5 text-text font-medium">
+          <span className="tabular whitespace-nowrap">{r.ref}</span>
+          {/* The rationale is a paragraph; it sits behind the icon so the blotter stays scannable. */}
+          <InfoTip text={r.rationale} />
+        </div>
+        <div className="mt-0.5 text-xs text-text-faint">{r.portfolio}</div>
       </div>
     ) },
-    { key: "instrument", header: "Instrument", render: (r) => (
+    { key: "instrument", header: "Instrument", className: "min-w-[150px]", render: (r) => (
       <div>
         <div className="text-text-soft text-sm">{r.instrument}</div>
-        <div className="text-[11px] text-text-faint tabular">{r.isin}</div>
+        <div className="mt-0.5 text-xs text-text-faint tabular">{r.isin}</div>
       </div>
     ) },
-    { key: "side", header: "Side", className: "whitespace-nowrap", render: (r) => <Badge tone={r.side === "buy" ? "success" : "warning"}>{r.side === "buy" ? "Buy" : "Sell"}</Badge> },
-    { key: "nominal", header: "Nominal", render: (r) => <Money amount={r.nominal} currency={r.currency} compact /> },
-    { key: "price", header: "Price / yield", render: (r) => (
+    // Direction and size are read together — "buying 180m" — so they share a cell.
+    { key: "nominal", header: "Side · nominal", className: "text-right whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={r.side === "buy" ? "success" : "warning"} className="whitespace-nowrap">{r.side === "buy" ? "Buy" : "Sell"}</Badge>
+        <div className="mt-1 text-text"><Money amount={r.nominal} currency={r.currency} compact /></div>
+      </div>
+    ) },
+    { key: "price", header: "Price · yield", className: "text-right whitespace-nowrap", render: (r) => (
       <div className="tabular text-sm">
         <div className="text-text">{r.price.toFixed(2)}</div>
-        <div className="text-[11px] text-text-faint">{r.yieldPct.toFixed(2)}% yield</div>
+        <div className="text-xs text-text-faint">{r.yieldPct.toFixed(2)}% yield</div>
       </div>
     ) },
-    { key: "dates", header: "Trade → settle", render: (r) => (
-      <span className="tabular text-xs text-text-soft">{formatDate(r.tradeDate)} → {formatDate(r.settlementDate)}</span>
+    { key: "dates", header: "Trade → settle", className: "whitespace-nowrap", render: (r) => (
+      <div className="tabular text-xs text-text-soft">
+        <div>{formatDate(r.tradeDate)}</div>
+        <div className="text-text-faint">→ {formatDate(r.settlementDate)}</div>
+      </div>
     ), hideOnMobile: true },
-    { key: "broker", header: "Broker", render: (r) => <span className="text-xs text-text-soft">{r.broker}</span>, hideOnMobile: true },
-    { key: "status", header: "Status", className: "whitespace-nowrap", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{TRADE_STATUS_LABELS[r.status]}</Badge> },
-    { key: "rationale", header: "Rationale", render: (r) => <span className="text-xs text-text-soft max-w-lg block leading-relaxed">{r.rationale}</span>, hideOnMobile: true },
+    // The broker sits under the status: a failed settlement is a counterparty's failure.
+    { key: "status", header: "Status · broker", className: "whitespace-nowrap", render: (r) => (
+      <div>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{TRADE_STATUS_LABELS[r.status]}</Badge>
+        <div className="mt-1 text-xs text-text-soft">{r.broker}</div>
+      </div>
+    ) },
+    { key: "rationale", header: "Rationale", render: (r) => <span className="text-xs text-text-soft max-w-lg block leading-relaxed">{r.rationale}</span>, hideOnMobile: true, defaultHidden: true },
   ];
 
   if (loading) return <Skeleton className="h-96" />;

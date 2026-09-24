@@ -82,6 +82,7 @@ export function AlertsBoard({
     {
       key: "clientName",
       header: "Client",
+      className: "min-w-[120px]",
       render: (r) =>
         r.clientId ? (
           <Link to={`/clients/${r.clientId}`} className="text-text font-medium hover:text-primary-600" onClick={(e) => e.stopPropagation()}>
@@ -91,16 +92,36 @@ export function AlertsBoard({
           <span className="text-text font-medium">{r.clientName}</span>
         ),
     },
-    { key: "id", header: "Alert ID", render: (r) => <span className="tabular text-text-faint text-xs">{r.id}</span>, hideOnMobile: true, defaultHidden: true },
-    { key: "rule", header: "Rule triggered", render: (r) => r.rule },
-    { key: "detail", header: "Detail", render: (r) => <span className="text-xs text-text-soft block max-w-sm">{r.detail}</span>, hideOnMobile: true },
-    { key: "severity", header: "Severity", render: (r) => <Badge tone={SEVERITY_TONE[r.severity]}>{r.severity}</Badge> },
-    { key: "status", header: "Status", render: (r) => <Badge tone={STATUS_TONE[r.status]}>{r.status.replace("_", " ")}</Badge> },
+    { key: "id", header: "Alert ID", className: "whitespace-nowrap", render: (r) => <span className="tabular text-text-faint text-xs">{r.id}</span>, hideOnMobile: true, defaultHidden: true },
+    // The rule is the headline; its detail is a paragraph, clamped under it with
+    // the full text on hover (and still available as its own column).
+    { key: "rule", header: "Rule · detail", className: "min-w-[260px]", render: (r) => (
+      <div>
+        <div className="text-text">{r.rule}</div>
+        <div className="mt-0.5 text-xs text-text-soft line-clamp-2" title={r.detail}>{r.detail}</div>
+      </div>
+    ) },
+    { key: "detail", header: "Detail", render: (r) => <span className="text-xs text-text-soft block max-w-sm">{r.detail}</span>, hideOnMobile: true, defaultHidden: true },
+    { key: "severity", header: "Severity · status", className: "whitespace-nowrap", render: (r) => (
+      <div className="flex flex-col items-start gap-1">
+        <Badge tone={SEVERITY_TONE[r.severity]} className="whitespace-nowrap">{r.severity}</Badge>
+        <Badge tone={STATUS_TONE[r.status]} className="whitespace-nowrap">{r.status.replace("_", " ")}</Badge>
+      </div>
+    ) },
     { key: "assignee", header: "Assignee", render: (r) => r.assignee ?? <span className="text-text-faint">—</span>, hideOnMobile: true },
-    { key: "raisedAt", header: "Raised", render: (r) => formatDateTime(r.raisedAt), hideOnMobile: true },
+    { key: "raisedAt", header: "Raised", className: "whitespace-nowrap", render: (r) => {
+      const [date, time] = formatDateTime(r.raisedAt).split(", ");
+      return (
+        <div className="tabular text-xs text-text-soft">
+          <div>{date}</div>
+          {time && <div className="text-text-faint">{time}</div>}
+        </div>
+      );
+    }, hideOnMobile: true },
     {
       key: "actions",
       header: "",
+      className: "text-right whitespace-nowrap",
       render: (r) => {
         if (r.caseId && canOpenCase) {
           return (
