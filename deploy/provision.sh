@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Idempotent server provisioning for BO Admin on the UAT EC2 boxes
+# Idempotent server provisioning for BO Admin on the UAT EC2 box
 # (RHEL, SELinux Enforcing). Safe to re-run on every deploy: it only changes
 # what isn't already in place.
 #
 # Expects the site config at /tmp/bo-admin.conf (the deploy copies it there).
 #
-# BO Admin replaces tokenization-web on these boxes. Both claim port 80 as the
+# BO Admin replaces tokenization-web on this box. Both claim port 80 as the
 # default server, so they cannot run side by side. If tokenization-web's site
 # config is still installed, this stops — unless REPLACE_TOKENIZATION_WEB=1,
 # in which case it is disabled (renamed, not deleted, so it can be restored).

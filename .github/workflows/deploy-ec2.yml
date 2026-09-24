@@ -1,23 +1,22 @@
 name: Deploy to EC2
 
-# Builds BO Admin once, then ships it to both UAT EC2 boxes in parallel. Each
-# box runs nginx serving dist/ and reverse-proxying the engine (8086) and
+# Builds BO Admin, then ships it to the UAT EC2 box behind the tokenization-web
+# load balancer. The box runs nginx serving dist/ and reverse-proxying the engine (8086) and
 # omnichannel's staff endpoints (8087) on the same origin — see
 # deploy/README.md.
 #
 # Manual only (Actions -> Deploy to EC2 -> Run workflow): pushing to main does
-# not deploy, so a merge can't replace what's on the boxes by surprise.
+# not deploy, so a merge can't replace what's on the box by surprise.
 #
-# Required repository secrets (Settings -> Secrets and variables -> Actions),
-# the same keys tokenization-web's deploy uses:
+# Required repository secret (Settings -> Secrets and variables -> Actions),
+# the same key tokenization-web's deploy uses:
 #   UAT_EC2_SSH_KEY          — private key for box1 (3.226.168.177)
-#   ACCOUNTING_EC2_SSH_KEY   — private key for box2 (34.229.76.101)
 
 on:
   workflow_dispatch:
     inputs:
       replace_tokenization_web:
-        description: "Disable tokenization-web's site on the boxes (needed once — both serve port 80)"
+        description: "Disable tokenization-web's site on the box (needed once — both serve port 80)"
         type: boolean
         default: false
 
@@ -50,7 +49,7 @@ jobs:
       group: deploy-bo-admin-uat
       cancel-in-progress: false
     strategy:
-      # Independent boxes: a failure on one must not cancel the other.
+      # One box today (box2, 34.229.76.101, is retired); add a row here to deploy to another.
       fail-fast: false
       matrix:
         include:
@@ -58,10 +57,6 @@ jobs:
             host: 3.226.168.177
             key_secret: UAT_EC2_SSH_KEY
             hostkey: "3.226.168.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJjEUPefQEaMlyQhlql3mNpYL2xSC7vdPflh3OcM3tRv"
-          - box: box2
-            host: 34.229.76.101
-            key_secret: ACCOUNTING_EC2_SSH_KEY
-            hostkey: "34.229.76.101 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMhUdtWLwLYV3llkIatkjir0A5UEs2q1AJKvDl9fTsmo"
     env:
       DEPLOY_USER: ec2-user
       DEPLOY_HOST: ${{ matrix.host }}

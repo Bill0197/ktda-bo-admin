@@ -1,6 +1,7 @@
-# Deploying BO Admin to the UAT EC2 boxes
+# Deploying BO Admin to the UAT EC2 box
 
-BO Admin replaces tokenization-web on the two UAT boxes. It is served the same way: nginx
+BO Admin replaces tokenization-web on the UAT box (3.226.168.177, the only target behind the
+tokenization-web load balancer). It is served the same way: nginx
 serves the built app and forwards API calls to the services on the same box, so there is no
 CORS, and the engine's session cookie works as it does for tokenization-web today.
 
@@ -15,21 +16,20 @@ The build needs no environment variables.
 ## Deploy
 
 **Option A — GitHub Actions.** *Actions → Deploy to EC2 → Run workflow.* Tick
-**Disable tokenization-web's site** the first time (see below). It builds once and deploys to
-both boxes in parallel; a box that fails doesn't stop the other. Pushing to `main` does not
+**Disable tokenization-web's site** the first time (see below). It builds, deploys to the box and
+runs the smoke check. Pushing to `main` does not
 deploy — it only runs when started by hand.
 
-Needs the same two repository secrets tokenization-web's deploy uses:
+Needs the repository secret tokenization-web's deploy uses:
 
 ```
 gh secret set UAT_EC2_SSH_KEY < uniapp1.pem            # box1, 3.226.168.177
-gh secret set ACCOUNTING_EC2_SSH_KEY < <box2-key>.pem   # box2, 34.229.76.101
 ```
 
-**Option B — by hand**, from the `bo-admin` folder, one box at a time:
+**Option B — by hand**, from the `bo-admin` folder:
 
 ```
-deploy/deploy.sh 3.226.168.177 ~/keys/uniapp1.pem --replace-tokenization-web
+deploy/deploy.sh 3.226.168.177 ~/keys/uniapp1.pem
 ```
 
 Either way it ends with a smoke check on the box: `GET /` must be `200` and
