@@ -79,3 +79,12 @@ export function pendingFor(changes: ConfigChange[] | null | undefined, productId
     (c) => c.status === "PENDING" && c.targetId === productId && (!types || types.includes(c.changeType)),
   );
 }
+
+/** What a change is about, for display. Once applied, the engine replaces
+ *  `targetId` with the new record's id (a limit's or rate's UUID), so the
+ *  product — or, for a rate, its tariff domain — is read from the payload. */
+export function subjectOf(change: Pick<ConfigChange, "payload" | "targetId">): string | null {
+  const p = change.payload ?? {};
+  const pick = (k: string) => (typeof p[k] === "string" && p[k] ? (p[k] as string) : null);
+  return pick("productId") ?? pick("tariffDomainId") ?? change.targetId ?? null;
+}

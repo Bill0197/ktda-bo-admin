@@ -12,7 +12,7 @@ import { useAction } from "../../lib/tokenConsole/useAction";
 import { invalidateList } from "../../lib/tokenConsole/sharedList";
 import { PENDING_CHANGES_KEY } from "../../lib/tokenConsole/usePendingChanges";
 import {
-  CHANGE_TYPE_LABEL, CHECKER_ROLES, canCheck, isMaker, type ConfigChange,
+  CHANGE_TYPE_LABEL, CHECKER_ROLES, canCheck, isMaker, subjectOf, type ConfigChange,
 } from "../../lib/tokenConsole/configChanges";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
@@ -52,7 +52,7 @@ export default function TokenConsoleChanges() {
   const term = q.trim().toLowerCase();
   const rows = all
     .filter((c) => status === "all" || c.status === status)
-    .filter((c) => !term || [c.summary, c.targetId, c.maker, c.checker, CHANGE_TYPE_LABEL[c.changeType]]
+    .filter((c) => !term || [c.summary, subjectOf(c), c.maker, c.checker, CHANGE_TYPE_LABEL[c.changeType]]
       .some((v) => (v ?? "").toLowerCase().includes(term)))
     // Waiting ones oldest first — whoever has waited longest is decided next;
     // decided ones newest first, like any history.
@@ -104,7 +104,7 @@ export default function TokenConsoleChanges() {
               <div className="font-medium text-text">{c.summary || CHANGE_TYPE_LABEL[c.changeType] || label(c.changeType)}</div>
               <div className="mt-0.5 text-xs text-text-faint">
                 {CHANGE_TYPE_LABEL[c.changeType] ?? label(c.changeType)}
-                {c.targetId ? <> · <span className="tabular">{c.targetId}</span></> : null}
+                {subjectOf(c) ? <> · <span className="tabular">{subjectOf(c)}</span></> : null}
               </div>
             </div>
           ) },
@@ -224,7 +224,7 @@ function ChangePanel({ change, email, checker, onDecided, onRefused }: {
     <>
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
         <DetailItem term="Change">{CHANGE_TYPE_LABEL[change.changeType] ?? label(change.changeType)}</DetailItem>
-        <DetailItem term="Target"><Code>{change.targetId ?? "Created on approval"}</Code></DetailItem>
+        <DetailItem term="Applies to"><Code>{subjectOf(change) ?? "—"}</Code></DetailItem>
         <DetailItem term="Status"><StatusBadge status={change.status} /></DetailItem>
         <DetailItem term="Made by">{mine ? `You (${change.maker})` : (change.maker ?? "—")}</DetailItem>
         <DetailItem term="Made">{dateTime(change.madeAt)}</DetailItem>
