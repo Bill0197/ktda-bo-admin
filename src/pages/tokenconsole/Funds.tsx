@@ -1,9 +1,14 @@
-import { Badge, PageHeader } from "../../ui";
+import { useState } from "react";
+import { Badge, Button, DataTable, Field, Input, Modal, NotePanel, PageHeader, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
-import { money, percent } from "../../lib/tokenConsole/format";
-import type { BondLadderView, FundResponse, Institution, SubFundResponse } from "../../lib/tokenConsole/types.gen";
+import { calendarDate, label, money, percent } from "../../lib/tokenConsole/format";
+import { invalidateList } from "../../lib/tokenConsole/sharedList";
+import { useAction } from "../../lib/tokenConsole/useAction";
+import type { BondLadderView, FundResponse, Institution, InstitutionAccount, SubFundResponse } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { ActionModal, isNumber, isPositive, isWhole } from "../../components/tokenconsole/ActionModal";
+import { TariffDomainPicker } from "../../components/tokenconsole/Pickers";
 
 const num = "tabular text-right whitespace-nowrap";
 
@@ -12,19 +17,24 @@ export default function TokenConsoleFunds() {
   const subFunds = useAsyncData(tokenConsole.subFunds);
   const ladders = useAsyncData(tokenConsole.ladders);
   const institutions = useAsyncData(tokenConsole.institutions);
+  const institutionAccounts = useAsyncData(tokenConsole.institutionAccounts);
+  const [ladderFor, setLadderFor] = useState<{ id: string; name?: string } | null>(null);
+  const [domainFor, setDomainFor] = useState<Institution | null>(null);
+  const toast = useToast();
 
   return (
     <div>
       <PageHeader
         eyebrow="Tokenization Console"
         title="Funds"
-        subtitle="The structure products hang off: institutions, funds, sub-funds and their bond ladders."
+        subtitle="The structure products hang off: institutions, funds, sub-funds and their bond ladders. Select a sub-fund to work its ladder."
       />
 
       <ConsoleTable<BondLadderView>
         what="bond ladders"
         source={ladders}
         rowId={(r) => r.subFundId}
+        onRowClick={(r) => r.subFundId && setLadderFor({ id: r.subFundId, name: r.subFundName })}
         title="Bond ladders"
         description="Coupon cover and capacity per sub-fund. Headroom is what can still be sold before claims exceed what the ladder pays."
         emptyLabel="No ladders built"
@@ -50,6 +60,7 @@ export default function TokenConsoleFunds() {
         what="sub-funds"
         source={subFunds}
         rowId={(r) => r.subFundId}
+        onRowClick={(r) => r.subFundId && setLadderFor({ id: r.subFundId, name: r.name })}
         title="Sub-funds"
         emptyLabel="No sub-funds"
         columns={[
@@ -85,8 +96,186 @@ export default function TokenConsoleFunds() {
           { key: "name", header: "Name", render: (r) => <span className="text-text font-medium">{r.name ?? "—"}</span> },
           { key: "country", header: "Country", render: (r) => r.country ?? "—" },
           { key: "ccy", header: "Local ccy", render: (r) => r.localCurrency ?? "—" },
+          { key: "domain", header: "Default tariff domain", render: (r) => <Code>{r.defaultTariffDomainId ?? "—"}</Code>, hideOnMobile: true },
+          { key: "actions", header: "", className: "text-right", render: (r) => (
+            <Button size="sm" variant="ghost" onClick={() => setDomainFor(r)}>Set default domain</Button>
+          ) },
         ]}
       />
+
+      <ConsoleTable<InstitutionAccount>
+        what="institution accounts"
+        source={institutionAccounts}
+        rowId={(r) => r.institutionAccountId}
+        title="Institution accounts"
+        description="The institution's own ledger accounts, one per purpose and currency."
+        emptyLabel="No institution accounts"
+        columns={[
+          { key: "purpose", header: "Purpose", render: (r) => label(r.purpose) },
+          { key: "ccy", header: "Ccy", render: (r) => r.currency ?? "—" },
+          { key: "institution", header: "Institution", render: (r) =>
+            institutions.data?.find((i) => i.institutionId === r.institutionId)?.name ?? <Code>{r.institutionId}</Code> },
+          { key: "id", header: "Account", render: (r) => <Code>{r.institutionAccountId}</Code>, hideOnMobile: true },
+        ]}
+      />
+
+      <Modal open={!!ladderFor} onClose={() => setLadderFor(null)} title={`Bond ladder · ${ladderFor?.name ?? ""}`} size="lg">
+        {ladderFor && <LadderPanel key={ladderFor.id} subFundId={ladderFor.id} onChanged={() => void ladders.reload()} />}
+      </Modal>
+      {domainFor && (
+        <DefaultDomainModal
+          institution={domainFor}
+          onClose={() => setDomainFor(null)}
+          onDone={() => {
+            setDomainFor(null);
+            toast.push("Default tariff domain set.");
+            void institutions.reload();
+            invalidateList("tok:institution");
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/** A sub-fund's bond ladder: the rungs, and what they pay each month. */
+function LadderPanel({ subFundId, onChanged }: { subFundId: string; onChanged: () => void }) {
+  const toast = useToast();
+  const ladder = useAsyncData(() => tokenConsole.ladder(subFundId));
+  // Clearing answers with no body, so success is an explicit `true` — useAction
+  // resolves a failure to undefined, and the two must not look alike.
+  const act = useAction(async (kind: "sample" | "clear") => {
+    if (kind === "sample") await tokenConsole.sampleLadder(subFundId);
+    else await tokenConsole.clearLadder(subFundId);
+    return true;
+  });
+  const [confirm, setConfirm] = useState<"sample" | "clear" | null>(null);
+  const [adding, setAdding] = useState(false);
+  const l = ladder.data;
+  const rungs = (l?.rungs ?? []).map((r, i) => ({ ...r, id: `${r.ladderSlot ?? i}-${r.isin ?? i}` }));
+
+  const refresh = () => {
+    void ladder.reload();
+    onChanged();
+  };
+  const run = async () => {
+    if (!confirm) return;
+    const done = await act.run(confirm);
+    if (!done) return;
+    toast.push(confirm === "sample" ? "Sample ladder loaded." : "Ladder cleared.");
+    setConfirm(null);
+    refresh();
+  };
+
+  return (
+    <>
+      {ladder.error && <NotePanel tone="danger" className="mb-4">{ladder.error}</NotePanel>}
+      {l && (
+        <p className="mb-4 text-sm text-text-soft">
+          Blended coupon {percent(l.blendedCoupon)} · capacity {money(l.capacity, l.currency)} · claims {money(l.claims, l.currency)} ·{" "}
+          {l.everyMonthCovered ? "a coupon lands every month" : `coupons land in months ${(l.couponMonths ?? []).join(", ") || "—"}`}
+        </p>
+      )}
+      <DataTable
+        rows={rungs}
+        emptyLabel={ladder.loading ? "Loading…" : "No rungs — add one, or load the sample ladder"}
+        columns={[
+          { key: "slot", header: "Slot", className: "tabular", render: (r) => r.ladderSlot ?? "—" },
+          { key: "isin", header: "ISIN", render: (r) => <Code>{r.isin ?? "—"}</Code> },
+          { key: "tenor", header: "Tenor", className: "tabular", render: (r) => (r.tenorYears != null ? `${r.tenorYears}y` : "—") },
+          { key: "coupon", header: "Coupon", className: "tabular text-right", render: (r) => percent(r.couponRate) },
+          { key: "months", header: "Months", render: (r) => <Code>{r.couponMonths ?? "—"}</Code>, hideOnMobile: true },
+          { key: "face", header: "Face held", className: "tabular text-right", render: (r) => money(r.faceValueHeld, l?.currency) },
+          { key: "maturity", header: "Matures", render: (r) => <span className="tabular text-xs text-text-soft">{calendarDate(r.maturityDate)}</span>, hideOnMobile: true },
+        ]}
+      />
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+        <Button size="sm" onClick={() => setAdding(true)}>Add rung</Button>
+        <Button size="sm" variant="outline" onClick={() => { act.reset(); setConfirm("sample"); }}>Load sample ladder</Button>
+        <Button size="sm" variant="ghost" disabled={!rungs.length} onClick={() => { act.reset(); setConfirm("clear"); }}>Clear ladder</Button>
+      </div>
+      {confirm && (
+        <ActionModal
+          size="sm"
+          title={confirm === "sample" ? "Load the sample ladder?" : "Clear this ladder?"}
+          description={confirm === "sample" ? "Adds the demo six-rung ladder for this sub-fund's currency." : "Removes every rung. The sub-fund then has no coupon cover or capacity until rungs are added back."}
+          submitLabel={confirm === "sample" ? "Load sample" : "Clear ladder"}
+          tone={confirm === "sample" ? "primary" : "danger"}
+          pending={act.pending}
+          error={act.error}
+          onSubmit={() => void run()}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      {adding && (
+        <AddRungModal
+          subFundId={subFundId}
+          nextSlot={Math.max(0, ...rungs.map((r) => r.ladderSlot ?? 0)) + 1}
+          onClose={() => setAdding(false)}
+          onDone={() => { setAdding(false); toast.push("Rung added."); refresh(); }}
+        />
+      )}
+    </>
+  );
+}
+
+const COUPON_MONTHS = /^(0[1-9]|1[0-2])(,(0[1-9]|1[0-2]))*$/;
+
+function AddRungModal({ subFundId, nextSlot, onClose, onDone }: { subFundId: string; nextSlot: number; onClose: () => void; onDone: () => void }) {
+  const add = useAction(tokenConsole.addRung);
+  const [slot, setSlot] = useState(String(nextSlot));
+  const [isin, setIsin] = useState("");
+  const [tenor, setTenor] = useState("");
+  const [coupon, setCoupon] = useState("");
+  const [months, setMonths] = useState("");
+  const [face, setFace] = useState("");
+  const [acquired, setAcquired] = useState("");
+  const [matures, setMatures] = useState("");
+  const touched = !!(isin || tenor || coupon || months || face);
+  const problem = !isWhole(slot) ? "The slot is a whole number above 0."
+    : !isWhole(tenor) ? "Tenor is whole years above 0."
+    : !isNumber(coupon) || Number(coupon) <= 0 || Number(coupon) >= 1 ? "Coupon is a fraction: 0.1085 means 10.85%."
+    : !COUPON_MONTHS.test(months.replace(/\s/g, "")) ? "Coupon months are two-digit months, comma-separated: 01,07."
+    : !isPositive(face) ? "Enter the face value held."
+    : acquired && matures && matures < acquired ? "It matures before it was acquired." : undefined;
+  const submit = async () => {
+    const r = await add.run(subFundId, {
+      ladderSlot: Number(slot), isin: isin.trim() || undefined, tenorYears: Number(tenor), couponRate: Number(coupon),
+      couponMonths: months.replace(/\s/g, ""), faceValueHeld: Number(face), acquisitionDate: acquired || undefined, maturityDate: matures || undefined,
+    });
+    if (r) onDone();
+  };
+  return (
+    <ActionModal title="Add a rung" description="One bond on the ladder: what it pays, and in which months."
+      submitLabel="Add rung" problem={problem} showProblem={touched} pending={add.pending} error={add.error}
+      onSubmit={() => void submit()} onClose={onClose} size="lg">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Slot" required><Input type="number" inputMode="numeric" value={slot} onChange={(e) => setSlot(e.target.value)} /></Field>
+        <Field label="ISIN"><Input value={isin} onChange={(e) => setIsin(e.target.value)} placeholder="KE1000012345" /></Field>
+        <Field label="Tenor (years)" required><Input type="number" inputMode="numeric" value={tenor} onChange={(e) => setTenor(e.target.value)} /></Field>
+        <Field label="Coupon rate" required hint="A fraction: 0.1085 means 10.85%."><Input type="number" inputMode="decimal" step="any" value={coupon} onChange={(e) => setCoupon(e.target.value)} /></Field>
+        <Field label="Coupon months" required hint="Comma-separated: 01,07 pays in January and July."><Input value={months} onChange={(e) => setMonths(e.target.value)} placeholder="01,07" /></Field>
+        <Field label="Face value held" required><Input type="number" inputMode="decimal" value={face} onChange={(e) => setFace(e.target.value)} /></Field>
+        <Field label="Acquired"><Input type="date" value={acquired} onChange={(e) => setAcquired(e.target.value)} /></Field>
+        <Field label="Matures"><Input type="date" value={matures} min={acquired || undefined} onChange={(e) => setMatures(e.target.value)} /></Field>
+      </div>
+    </ActionModal>
+  );
+}
+
+function DefaultDomainModal({ institution, onClose, onDone }: { institution: Institution; onClose: () => void; onDone: () => void }) {
+  const save = useAction(tokenConsole.setDefaultTariffDomain);
+  const [domain, setDomain] = useState(institution.defaultTariffDomainId ?? "");
+  const submit = async () => {
+    const r = await save.run(institution.institutionId ?? "", { tariffDomainId: domain });
+    if (r) onDone();
+  };
+  return (
+    <ActionModal title={`Default tariff domain · ${institution.name ?? ""}`}
+      description="The domain a rate resolves to when nothing more specific — contract, product or package — carries one."
+      submitLabel="Save" problem={!domain ? "Pick a tariff domain." : undefined} showProblem={false}
+      pending={save.pending} error={save.error} onSubmit={() => void submit()} onClose={onClose}>
+      <Field label="Tariff domain" required group><TariffDomainPicker value={domain} onChange={setDomain} /></Field>
+    </ActionModal>
   );
 }

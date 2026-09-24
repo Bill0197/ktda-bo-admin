@@ -14,6 +14,7 @@ import {
 } from "../../lib/tokenConsole/kyc";
 import type { ComplianceReviewItem, Investor } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { DetailItem } from "../../components/tokenconsole/DetailItem";
 
 /* The KYC desk (ported from tokenization-web).
    Onboarding opens a review whenever it cannot clear an applicant itself.
@@ -156,14 +157,14 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
     <>
       {detail.error && <NotePanel tone="danger" className="mb-4">{detail.error}</NotePanel>}
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <Item term="Applicant">{v?.displayName ?? row.name ?? "—"}</Item>
-        <Item term="Reference"><Code>{v?.externalRef ?? "—"}</Code></Item>
-        <Item term="Category">{label(v?.category)}</Item>
-        <Item term="Lifecycle"><StatusBadge status={v?.lifecycleStatus} /></Item>
-        <Item term="KYC status"><StatusBadge status={kyc?.code} /></Item>
-        <Item term="Risk tier">{risk?.name ?? "—"}</Item>
-        <Item term="Jurisdiction">{jurisdiction?.name ?? "—"}</Item>
-        <Item term="Accounts">{detail.loading && !v ? "…" : (v?.accounts?.length ?? 0)}</Item>
+        <DetailItem term="Applicant">{v?.displayName ?? row.name ?? "—"}</DetailItem>
+        <DetailItem term="Reference"><Code>{v?.externalRef ?? "—"}</Code></DetailItem>
+        <DetailItem term="Category">{label(v?.category)}</DetailItem>
+        <DetailItem term="Lifecycle"><StatusBadge status={v?.lifecycleStatus} /></DetailItem>
+        <DetailItem term="KYC status"><StatusBadge status={kyc?.code} /></DetailItem>
+        <DetailItem term="Risk tier">{risk?.name ?? "—"}</DetailItem>
+        <DetailItem term="Jurisdiction">{jurisdiction?.name ?? "—"}</DetailItem>
+        <DetailItem term="Accounts">{detail.loading && !v ? "…" : (v?.accounts?.length ?? 0)}</DetailItem>
       </dl>
 
       <div className="mt-6">
@@ -241,14 +242,6 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
   );
 }
 
-function Item({ term, children }: { term: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-faint">{term}</dt>
-      <dd className="mt-1 text-sm text-text">{children}</dd>
-    </div>
-  );
-}
 
 /** Both decisions are irreversible from here — a cleared applicant can start
  *  moving money immediately — so each states its consequence and takes a note

@@ -4,6 +4,7 @@ import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import { Code, SourceError } from "../../components/tokenconsole/ConsoleTable";
+import { ProductBindings } from "./ProductBindings";
 
 const LIMIT_TYPES = ["MIN_INITIAL_SUBSCRIPTION", "MIN_TOP_UP", "MAX_PER_INVESTOR"] as const;
 const TRIGGER_POINTS = ["ON_OPEN", "ON_CLOSE", "ON_SUBSCRIPTION", "ON_REDEMPTION", "ON_ACCRUAL", "ON_DISTRIBUTION", "ON_MATURITY"] as const;
@@ -26,10 +27,12 @@ function limitProblem(min: number | undefined | "invalid", max: number | undefin
 /** Per-product limits and lifecycle events. Rendered only while open, and
  * keyed by product by its parent, so nothing typed for one product is ever
  * submitted against another. */
-export function ProductConfigModal({ productId, canWrite, onClose }: {
+export function ProductConfigModal({ productId, canWrite, onClose, onChanged }: {
   productId: string;
   canWrite: boolean;
   onClose: () => void;
+  /** A status or binding changed — the product list is stale. */
+  onChanged: () => void;
 }) {
   const toast = useToast();
   const limits = useAsyncData(() => tokenConsole.productLimits(productId));
@@ -78,6 +81,8 @@ export function ProductConfigModal({ productId, canWrite, onClose }: {
 
   return (
     <Modal open onClose={onClose} title={`Configure ${productId}`} size="lg">
+      <SectionTitle title="Status & bindings" description="Whether it sells, and what it is recorded, priced and accrued against." />
+      <ProductBindings productId={productId} canWrite={canWrite} onChanged={onChanged} />
       <SectionTitle title="Limits" description="Bounds a subscription, top-up or holding must respect." />
       {canWrite && (
         <>

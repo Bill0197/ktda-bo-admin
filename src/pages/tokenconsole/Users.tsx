@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, GlassPanel, Modal, NotePanel, PageHeader, useToast } from "../../ui";
+import { Button, Field, GlassPanel, Input, Modal, NotePanel, PageHeader, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAsyncData } from "../../lib/useAsyncData";
@@ -7,6 +7,7 @@ import { dateTime } from "../../lib/tokenConsole/format";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import type { ActiveSessionResponse, AdminUserResponse, LoginAuditResponse } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { ActionModal } from "../../components/tokenconsole/ActionModal";
 
 type UserAction = "approve" | "reject" | "enable" | "disable";
 
@@ -28,6 +29,8 @@ export default function TokenConsoleUsers() {
   const users = useAsyncData(tokenConsole.adminUsers);
   const sessions = useAsyncData(tokenConsole.activeSessions);
   const audit = useAsyncData(() => tokenConsole.loginAudit(50));
+  const config = useAsyncData(tokenConsole.adminConfig);
+  const [editingLimit, setEditingLimit] = useState(false);
   const act = useAction(tokenConsole.userAction);
   const [confirming, setConfirming] = useState<{ user: AdminUserResponse; action: "reject" | "disable" } | null>(null);
 
@@ -65,6 +68,19 @@ export default function TokenConsoleUsers() {
       <PageHeader eyebrow="Tokenization Console" title="Tokenization users" subtitle="The accounts people sign in to BO Admin with: approvals, sessions and the sign-in audit trail." />
 
       {act.error && <NotePanel tone="danger" className="mb-4">{act.error}</NotePanel>}
+
+      <GlassPanel className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4" sheen={false}>
+        <div>
+          <div className="text-[13px] font-semibold text-text">Sessions per account</div>
+          <p className="text-sm text-text-soft">
+            {config.error ? config.error
+              : config.data == null ? "Loading…"
+              : !config.data.maxConcurrentSessions ? "Unlimited — an account can be signed in anywhere at once."
+              : `${config.data.maxConcurrentSessions} at a time. Signing in beyond that signs the oldest session out — so a shared login signs its other users out.`}
+          </p>
+        </div>
+        <Button size="sm" variant="outline" disabled={config.data == null} onClick={() => setEditingLimit(true)}>Change limit</Button>
+      </GlassPanel>
 
       <ConsoleTable<AdminUserResponse>
         title="Accounts"
@@ -130,6 +146,17 @@ export default function TokenConsoleUsers() {
         ]}
       />
 
+      {editingLimit && (
+        <SessionLimitModal
+          current={config.data?.maxConcurrentSessions ?? 0}
+          onClose={() => setEditingLimit(false)}
+          onDone={() => {
+            setEditingLimit(false);
+            toast.push("Session limit saved.");
+            void config.reload();
+          }}
+        />
+      )}
       {confirming && (
         <Modal
           open
@@ -149,5 +176,33 @@ export default function TokenConsoleUsers() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function SessionLimitModal({ current, onClose, onDone }: { current: number; onClose: () => void; onDone: () => void }) {
+  const save = useAction(tokenConsole.updateAdminConfig);
+  const [value, setValue] = useState(String(current));
+  const n = Number(value);
+  const problem = value.trim() === "" || !Number.isInteger(n) || n < 0 ? "A whole number, 0 or more." : undefined;
+  const submit = async () => {
+    const r = await save.run({ maxConcurrentSessions: n });
+    if (r) onDone();
+  };
+  return (
+    <ActionModal
+      title="Sessions per account"
+      description="How many places one account can be signed in at once. It applies from each account's next sign-in."
+      submitLabel="Save"
+      problem={problem}
+      pending={save.pending}
+      error={save.error}
+      onSubmit={() => void submit()}
+      onClose={onClose}
+      size="sm"
+    >
+      <Field label="Limit" hint="0 means unlimited.">
+        <Input type="number" inputMode="numeric" min={0} step={1} value={value} onChange={(e) => setValue(e.target.value)} />
+      </Field>
+    </ActionModal>
   );
 }

@@ -70,7 +70,7 @@ export default function TokenConsoleProducts() {
         />
       )}
       {configuring && (
-        <ProductConfigModal key={configuring} productId={configuring} canWrite={canWrite} onClose={() => setConfiguring(null)} />
+        <ProductConfigModal key={configuring} productId={configuring} canWrite={canWrite} onClose={() => setConfiguring(null)} onChanged={() => void products.reload()} />
       )}
     </div>
   );
