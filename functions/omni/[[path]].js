@@ -9,7 +9,7 @@
 // trusted certificate or OMNI_TARGET points at a host that has one.
 const UPSTREAM = "https://tokenization-omnichannel-lb-1369560458.us-east-1.elb.amazonaws.com";
 // Must match functions/tok — the session this proxy checks lives there.
-const TOK_UPSTREAM = "https://tokenization-web-lb-1075088900.us-east-1.elb.amazonaws.com";
+const TOK_UPSTREAM = "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
 
 const ALLOWED = /^\/omni\/api\/operator\/(link-codes|notifications|investors\/[0-9a-fA-F-]+\/kyc-status)$/;
 const FORWARDED = ["accept", "content-type", "authorization"];
