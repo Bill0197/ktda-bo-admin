@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button, Checkbox, Field, GlassPanel, Modal, NotePanel, Select, useToast } from "../../../ui";
 import { tokenConsole } from "../../../lib/api";
 import { label } from "../../../lib/tokenConsole/format";
-import { useSharedSource } from "../../../lib/tokenConsole/sharedList";
+import { invalidateList, useSharedSource } from "../../../lib/tokenConsole/sharedList";
+import { PENDING_CHANGES_KEY, usePendingChanges } from "../../../lib/tokenConsole/usePendingChanges";
+import { pendingFor, pendingOf } from "../../../lib/tokenConsole/configChanges";
 import { useAction } from "../../../lib/tokenConsole/useAction";
 import { useAsyncData } from "../../../lib/useAsyncData";
 import type { AccountTemplate, AccountingScheme, CreateAccountTemplateRequest } from "../../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, type Source } from "../../../components/tokenconsole/ConsoleTable";
 import { EntityCreateFlow, EntityRefField } from "../../../components/tokenconsole/EntityCreate";
+import { PendingChangesNote } from "../../../components/tokenconsole/PendingChangesNote";
 
 type Role = CreateAccountTemplateRequest["accountRole"];
 type Scope = NonNullable<CreateAccountTemplateRequest["scope"]>;
@@ -26,9 +29,14 @@ export function SchemesTab({ schemes }: { schemes: Source<AccountingScheme> }) {
   const [creating, setCreating] = useState(false);
   // Until someone picks, show the first scheme rather than an empty panel.
   const active = picked ?? schemes.data?.[0]?.schemeId ?? null;
+  // Schemes and templates are maker-checker controlled: say what is still waiting.
+  const pending = usePendingChanges();
+  const { reload: reloadPending } = pending;
+  useEffect(() => { void reloadPending(); }, [reloadPending]);
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <PendingChangesNote changes={pendingOf(pending.data, ["SCHEME_CREATE"])} one="scheme" many="schemes" className="lg:col-span-2" />
       <ConsoleTable<AccountingScheme>
         className=""
         title="Accounting schemes"
@@ -64,11 +72,13 @@ export function SchemesTab({ schemes }: { schemes: Source<AccountingScheme> }) {
 function TemplatesPanel({ schemeId, schemeName }: { schemeId: string; schemeName?: string }) {
   const templates = useAsyncData(() => tokenConsole.schemeTemplates(schemeId));
   const chart = useSharedSource("tok:chartOfAccount", tokenConsole.chart);
+  const pending = usePendingChanges();
   const [adding, setAdding] = useState(false);
   const accountName = (code?: string) => chart.data?.find((a) => a.accountCode === code)?.accountName;
 
   return (
     <>
+      <PendingChangesNote changes={pendingFor(pending.data, schemeId, ["ACCOUNT_TEMPLATE_CREATE"])} one="template" many="templates" className="mb-3" />
       <ConsoleTable<AccountTemplate>
         className=""
         title={schemeName ? `Templates · ${schemeName}` : "Templates"}
@@ -96,7 +106,7 @@ function TemplatesPanel({ schemeId, schemeName }: { schemeId: string; schemeName
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
-            void templates.reload();
+            invalidateList(PENDING_CHANGES_KEY);
           }}
         />
       )}
@@ -105,7 +115,7 @@ function TemplatesPanel({ schemeId, schemeName }: { schemeId: string; schemeName
 }
 
 function AddTemplateModal({ schemeId, onClose, onAdded }: { schemeId: string; onClose: () => void; onAdded: () => void }) {
-  const create = useAction(tokenConsole.createAccountTemplate);
+  const create = useAction((body: CreateAccountTemplateRequest) => tokenConsole.stageChange("ACCOUNT_TEMPLATE_CREATE", body));
   const toast = useToast();
   const [accountRole, setRole] = useState<Role>("PRINCIPAL");
   const [accountCode, setCode] = useState("");
@@ -115,7 +125,7 @@ function AddTemplateModal({ schemeId, onClose, onAdded }: { schemeId: string; on
   const submit = async () => {
     const saved = await create.run({ schemeId, accountRole, accountCode: accountCode || undefined, scope, availableBalance });
     if (saved === undefined) return;
-    toast.push(`Added ${label(accountRole)} to ${schemeId}.`);
+    toast.push(`${label(accountRole)} template sent for approval. It is added to ${schemeId} once someone else approves it.`);
     onAdded();
   };
 
@@ -127,10 +137,11 @@ function AddTemplateModal({ schemeId, onClose, onAdded }: { schemeId: string; on
       footer={
         <>
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={create.pending} onClick={() => void submit()}>{create.pending ? "Adding…" : "Add template"}</Button>
+          <Button size="sm" disabled={create.pending} onClick={() => void submit()}>{create.pending ? "Sending…" : "Send for approval"}</Button>
         </>
       }
     >
+      <p className="mb-4 text-sm text-text-soft">It goes to Change approvals and is added once someone other than you approves it.</p>
       <div className="grid gap-4">
         <Field label="Account role" required>
           <Select value={accountRole} onChange={(e) => setRole(e.target.value as Role)}>

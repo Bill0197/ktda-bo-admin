@@ -18,8 +18,9 @@ type Edit = "status" | "tokenClass" | "subFund" | "coupon";
 
 /** A product's switch and the three things it is bound to after creation: the
  * token class its units are recorded against, the sub-fund whose ladder backs
- * it, and the coupon tariff its accrual reads. The switch is maker-checker
- * controlled: it is staged, and flips once someone else approves it. */
+ * it, and the coupon tariff its accrual reads. The switch and the coupon tariff
+ * are maker-checker controlled: they are staged, and change once someone else
+ * approves them. */
 export function ProductBindings({ productId, canWrite, onChanged }: { productId: string; canWrite: boolean; onChanged: () => void }) {
   const toast = useToast();
   const { user } = useAuth();
@@ -32,6 +33,8 @@ export function ProductBindings({ productId, canWrite, onChanged }: { productId:
   const active = p?.status === "ACTIVE" || p?.active === true;
   const pendingChanges = usePendingChanges();
   const statusWaiting = pendingFor(pendingChanges.data, productId, ["PRODUCT_ACTIVATE", "PRODUCT_DEACTIVATE"])[0];
+  const couponWaiting = pendingFor(pendingChanges.data, productId, ["PRODUCT_COUPON_TARIFF_ASSIGN"])[0];
+  const by = (c: { maker?: string | null }) => (isMaker(c, user?.email) ? "you" : (c.maker ?? "someone"));
 
   const save = useAction(async (kind: Edit, v: string) => {
     if (kind === "status") {
@@ -40,7 +43,10 @@ export function ProductBindings({ productId, canWrite, onChanged }: { productId:
     }
     else if (kind === "tokenClass") await tokenConsole.linkTokenClass(productId, { tokenClassId: v });
     else if (kind === "subFund") await tokenConsole.assignSubFund(productId, { subFundId: v });
-    else await tokenConsole.assignCouponTariff({ productId, tariffId: v });
+    else {
+      await tokenConsole.stageChange("PRODUCT_COUPON_TARIFF_ASSIGN", { productId, tariffId: v });
+      invalidateList(PENDING_CHANGES_KEY);
+    }
     return true;
   });
 
@@ -55,7 +61,7 @@ export function ProductBindings({ productId, canWrite, onChanged }: { productId:
     if (!done) return;
     toast.push(
       edit === "status" ? (active ? "Deactivation sent for approval." : "Activation sent for approval.")
-      : edit === "tokenClass" ? "Token class linked." : edit === "subFund" ? "Sub-fund assigned." : "Coupon tariff assigned.",
+      : edit === "tokenClass" ? "Token class linked." : edit === "subFund" ? "Sub-fund assigned." : "Coupon tariff change sent for approval.",
     );
     setEdit(null);
     void products.reload();
@@ -73,7 +79,7 @@ export function ProductBindings({ productId, canWrite, onChanged }: { productId:
     status: `${active ? "It stops taking new accounts and subscriptions. Existing holdings are unaffected." : "It can take accounts and subscriptions again."} This goes to Change approvals and happens once someone other than you approves it.`,
     tokenClass: "Units of this product are then recorded on the unit ledger against this token class, and the two books can be reconciled.",
     subFund: "The sub-fund whose bond ladder backs this product, and whose NAV it is priced from.",
-    coupon: "The rate the product's interest accrual reads.",
+    coupon: "The rate the product's interest accrual reads. This goes to Change approvals and applies once someone other than you approves it.",
   };
 
   return (
@@ -90,12 +96,17 @@ export function ProductBindings({ productId, canWrite, onChanged }: { productId:
           <Button size="sm" variant="outline" disabled={!p || !!statusWaiting} onClick={() => open("status")}>{active ? "Deactivate" : "Activate"}</Button>
           <Button size="sm" variant="ghost" disabled={!p} onClick={() => open("tokenClass", p?.tokenClassId ?? "")}>Token class</Button>
           <Button size="sm" variant="ghost" disabled={!p} onClick={() => open("subFund", p?.subFundId ?? "")}>Sub-fund</Button>
-          <Button size="sm" variant="ghost" disabled={!p} onClick={() => open("coupon", coupon ?? "")}>Coupon tariff</Button>
+          <Button size="sm" variant="ghost" disabled={!p || !!couponWaiting} onClick={() => open("coupon", coupon ?? "")}>Coupon tariff</Button>
         </div>
       )}
       {statusWaiting && (
         <p className="mt-2 text-[12.5px] text-warning">
-          {statusWaiting.changeType === "PRODUCT_DEACTIVATE" ? "Deactivation" : "Activation"} requested by {isMaker(statusWaiting, user?.email) ? "you" : (statusWaiting.maker ?? "someone")} is awaiting approval.
+          {statusWaiting.changeType === "PRODUCT_DEACTIVATE" ? "Deactivation" : "Activation"} requested by {by(statusWaiting)} is awaiting approval.
+        </p>
+      )}
+      {couponWaiting && (
+        <p className="mt-2 text-[12.5px] text-warning">
+          Coupon tariff change{typeof couponWaiting.payload?.tariffId === "string" ? <> to <span className="tabular">{couponWaiting.payload.tariffId}</span></> : null} requested by {by(couponWaiting)} is awaiting approval.
         </p>
       )}
       {edit && (
@@ -103,10 +114,10 @@ export function ProductBindings({ productId, canWrite, onChanged }: { productId:
           size={edit === "status" ? "sm" : "md"}
           title={TITLES[edit]}
           description={DESCRIPTIONS[edit]}
-          submitLabel={edit === "status" ? "Send for approval" : "Save"}
+          submitLabel={edit === "status" || edit === "coupon" ? "Send for approval" : "Save"}
           tone={edit === "status" && active ? "danger" : "primary"}
-          problem={edit !== "status" && !value ? "Pick one." : undefined}
-          showProblem={false}
+          problem={edit !== "status" && !value ? "Pick one." : edit === "coupon" && value === coupon ? "That is already the coupon tariff." : undefined}
+          showProblem={edit === "coupon" && !!value}
           pending={save.pending}
           error={save.error}
           onSubmit={() => void run()}

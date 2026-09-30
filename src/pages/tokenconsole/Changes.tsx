@@ -18,11 +18,19 @@ import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/C
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
 import { ActionModal } from "../../components/tokenconsole/ActionModal";
 
-/* The maker-checker queue for product configuration. New products, product
-   activation, rates and product limits are staged from their own screens and
+/* The maker-checker queue for configuration. Products (new, activate,
+   deactivate, limits, coupon tariff), tariff domains, types and rates, service
+   packages and their items, schemes and their account templates, and an
+   institution's default tariff domain are staged from their own screens and
    land here; each takes effect only when a different ADMIN or ACCOUNTANT
    approves it. The engine enforces both rules — the page only avoids offering
    a button that is certain to be refused. */
+
+/** The shared lists an approval can add to (see entityRegistry.ts). */
+const DECIDED_LISTS = [
+  "tok:product", "tok:tariffValue", "tok:tariffType", "tok:tariffDomain",
+  "tok:servicePackage", "tok:scheme", "tok:institution",
+];
 
 const STATUS_OPTIONS = [
   { value: "PENDING", label: "Awaiting approval" },
@@ -67,7 +75,7 @@ export default function TokenConsoleChanges() {
       <PageHeader
         eyebrow="Tokenization Console"
         title="Change approvals"
-        subtitle="Product configuration changes waiting on a second person. A change takes effect only when someone other than the person who made it approves it."
+        subtitle="Configuration changes waiting on a second person. A change takes effect only when someone other than the person who made it approves it."
       />
 
       <StatRail className="mb-6">
@@ -138,11 +146,10 @@ export default function TokenConsoleChanges() {
             onDecided={() => {
               setSelected(null);
               void changes.reload();
-              // Products, limits and rates show what is still waiting — and an
-              // approved product or rate now exists in their pickers.
+              // Every staging screen shows what is still waiting — and an
+              // approved record now exists in its pickers.
               invalidateList(PENDING_CHANGES_KEY);
-              invalidateList("tok:product");
-              invalidateList("tok:tariffValue");
+              for (const key of DECIDED_LISTS) invalidateList(key);
             }}
             onRefused={() => {
               void changes.reload();
@@ -308,7 +315,19 @@ function payloadEntries(payload: ConfigChange["payload"]): [string, string][] {
   if (!payload || typeof payload !== "object") return [];
   return Object.entries(payload)
     .filter(([, v]) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))
-    .map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)]);
+    .map(([k, v]) => [k, payloadValue(v)]);
+}
+
+/** One value as text. A nested record (a new scheme's templates, say) reads as
+ *  "Account role: PRINCIPAL, Scope: PER_CONTRACT", empty fields left out. */
+function payloadValue(v: unknown): string {
+  if (v === null || typeof v !== "object") return String(v);
+  // Plain lists read "A, B"; records need a stronger break between them.
+  if (Array.isArray(v)) return v.map(payloadValue).join(v.some((x) => x !== null && typeof x === "object") ? "; " : ", ");
+  return Object.entries(v)
+    .filter(([, x]) => x !== null && x !== undefined && x !== "")
+    .map(([k, x]) => `${fieldName(k)}: ${payloadValue(x)}`)
+    .join(", ");
 }
 
 /** "tariffDomainId" -> "Tariff domain ID": payload keys are the request's camelCase fields. */

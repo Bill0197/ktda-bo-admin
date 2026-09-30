@@ -305,8 +305,15 @@ function EntityCreateForm({
     const body = buildBody(spec.fields, state);
     const data = await mutation.run(body);
     if (!data) return; // the error is on the form
-    const id = createdId(spec, data, body);
     const name = body[spec.labelField];
+    if (spec.staged) {
+      // Only a change request exists yet: there is nothing to pick until it
+      // is approved, so go back to the form that opened this, values kept.
+      toast.push(`New ${spec.label}${typeof name === "string" ? ` "${name}"` : ""} sent for approval. You can pick it once someone else approves it.`);
+      onBack();
+      return;
+    }
+    const id = createdId(spec, data, body);
     toast.push(`Created ${spec.label}${typeof name === "string" ? ` "${name}"` : ""}.`);
     if (id && typeof name === "string") createdNames.set(nameKey(spec.key, id), name);
     if (id) {
@@ -327,7 +334,9 @@ function EntityCreateForm({
         {dirty && problem ? <p className="mr-auto text-[12.5px] text-text-soft">{problem}</p> : null}
         <Button type="button" variant="ghost" size="sm" onClick={onBack}>{backLabel}</Button>
         <Button type="submit" size="sm" disabled={!!problem || mutation.pending}>
-          {mutation.pending ? "Creating…" : `Create ${spec.label}`}
+          {spec.staged
+            ? (mutation.pending ? "Sending…" : "Send for approval")
+            : (mutation.pending ? "Creating…" : `Create ${spec.label}`)}
         </Button>
       </div>
     </form>

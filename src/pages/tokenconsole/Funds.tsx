@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge, Button, DataTable, Field, Input, Modal, NotePanel, PageHeader, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { calendarDate, label, money, percent } from "../../lib/tokenConsole/format";
 import { invalidateList } from "../../lib/tokenConsole/sharedList";
 import { useAction } from "../../lib/tokenConsole/useAction";
+import { PENDING_CHANGES_KEY, usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
+import { pendingFor } from "../../lib/tokenConsole/configChanges";
 import type { BondLadderView, FundResponse, Institution, InstitutionAccount, SubFundResponse } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 import { ActionModal, isNumber, isPositive, isWhole } from "../../components/tokenconsole/ActionModal";
@@ -21,6 +23,12 @@ export default function TokenConsoleFunds() {
   const [ladderFor, setLadderFor] = useState<{ id: string; name?: string } | null>(null);
   const [domainFor, setDomainFor] = useState<Institution | null>(null);
   const toast = useToast();
+  // The default domain is maker-checker controlled: a change waits for approval.
+  const pending = usePendingChanges();
+  const { reload: reloadPending } = pending;
+  useEffect(() => { void reloadPending(); }, [reloadPending]);
+  const domainWaiting = (institutionId?: string) =>
+    institutionId ? pendingFor(pending.data, institutionId, ["INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET"])[0] : undefined;
 
   return (
     <div>
@@ -96,9 +104,22 @@ export default function TokenConsoleFunds() {
           { key: "name", header: "Name", render: (r) => <span className="text-text font-medium">{r.name ?? "—"}</span> },
           { key: "country", header: "Country", render: (r) => r.country ?? "—" },
           { key: "ccy", header: "Local ccy", render: (r) => r.localCurrency ?? "—" },
-          { key: "domain", header: "Default tariff domain", render: (r) => <Code>{r.defaultTariffDomainId ?? "—"}</Code>, hideOnMobile: true },
+          { key: "domain", header: "Default tariff domain", render: (r) => {
+            const waiting = domainWaiting(r.institutionId);
+            const to = waiting?.payload?.tariffDomainId;
+            return (
+              <div>
+                <Code>{r.defaultTariffDomainId ?? "—"}</Code>
+                {waiting && (
+                  <div className="mt-0.5 text-xs text-warning">
+                    {typeof to === "string" && to ? <>Change to <span className="tabular">{to}</span> awaiting approval</> : "Change awaiting approval"}
+                  </div>
+                )}
+              </div>
+            );
+          }, hideOnMobile: true },
           { key: "actions", header: "", className: "text-right", render: (r) => (
-            <Button size="sm" variant="ghost" onClick={() => setDomainFor(r)}>Set default domain</Button>
+            <Button size="sm" variant="ghost" disabled={!!domainWaiting(r.institutionId)} onClick={() => setDomainFor(r)}>Set default domain</Button>
           ) },
         ]}
       />
@@ -128,9 +149,8 @@ export default function TokenConsoleFunds() {
           onClose={() => setDomainFor(null)}
           onDone={() => {
             setDomainFor(null);
-            toast.push("Default tariff domain set.");
-            void institutions.reload();
-            invalidateList("tok:institution");
+            toast.push("Default tariff domain change sent for approval. It applies once someone else approves it.");
+            invalidateList(PENDING_CHANGES_KEY);
           }}
         />
       )}
@@ -264,16 +284,19 @@ function AddRungModal({ subFundId, nextSlot, onClose, onDone }: { subFundId: str
 }
 
 function DefaultDomainModal({ institution, onClose, onDone }: { institution: Institution; onClose: () => void; onDone: () => void }) {
-  const save = useAction(tokenConsole.setDefaultTariffDomain);
+  const save = useAction((institutionId: string, tariffDomainId: string) =>
+    tokenConsole.stageChange("INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET", { institutionId, tariffDomainId }));
   const [domain, setDomain] = useState(institution.defaultTariffDomainId ?? "");
   const submit = async () => {
-    const r = await save.run(institution.institutionId ?? "", { tariffDomainId: domain });
+    if (!institution.institutionId) return;
+    const r = await save.run(institution.institutionId, domain);
     if (r) onDone();
   };
   return (
     <ActionModal title={`Default tariff domain · ${institution.name ?? ""}`}
-      description="The domain a rate resolves to when nothing more specific — contract, product or package — carries one."
-      submitLabel="Save" problem={!domain ? "Pick a tariff domain." : undefined} showProblem={false}
+      description="The domain a rate resolves to when nothing more specific — contract, product or package — carries one. The change goes to Change approvals and applies once someone other than you approves it."
+      submitLabel="Send for approval" pendingLabel="Sending…"
+      problem={!domain ? "Pick a tariff domain." : domain === institution.defaultTariffDomainId ? "That is already the default." : undefined} showProblem={!!domain}
       pending={save.pending} error={save.error} onSubmit={() => void submit()} onClose={onClose}>
       <Field label="Tariff domain" required group><TariffDomainPicker value={domain} onChange={setDomain} /></Field>
     </ActionModal>

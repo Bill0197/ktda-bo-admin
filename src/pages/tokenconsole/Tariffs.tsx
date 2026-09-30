@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { Badge, Button, Field, GlassPanel, Input, NotePanel, PageHeader, Select, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
@@ -8,9 +7,11 @@ import { calendarDate, label, percent } from "../../lib/tokenConsole/format";
 import { invalidateList } from "../../lib/tokenConsole/sharedList";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import { PENDING_CHANGES_KEY, usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
-import type { CreateTariffValueRequest, ResolvedTariff, TariffDomain, TariffType, TariffValue } from "../../lib/tokenConsole/types.gen";
+import { pendingOf } from "../../lib/tokenConsole/configChanges";
+import type { CreateTariffTypeRequest, CreateTariffValueRequest, ResolvedTariff, TariffDomain, TariffType, TariffValue } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable } from "../../components/tokenconsole/ConsoleTable";
 import { ActionModal, isNumber, todayIso } from "../../components/tokenconsole/ActionModal";
+import { PendingChangesNote } from "../../components/tokenconsole/PendingChangesNote";
 import { ContractPicker, TariffDomainPicker, TariffTypePicker } from "../../components/tokenconsole/Pickers";
 
 type DayCount = NonNullable<CreateTariffValueRequest["dayCount"]>;
@@ -29,7 +30,9 @@ export default function TokenConsoleTariffs() {
   const pending = usePendingChanges();
   const { reload: reloadPending } = pending;
   useEffect(() => { void reloadPending(); }, [reloadPending]);
-  const waitingRates = (pending.data ?? []).filter((c) => c.changeType === "TARIFF_VALUE_CREATE");
+  const waitingRates = pendingOf(pending.data, ["TARIFF_VALUE_CREATE"]);
+  const waitingTypes = pendingOf(pending.data, ["TARIFF_TYPE_CREATE"]);
+  const waitingDomains = pendingOf(pending.data, ["TARIFF_DOMAIN_CREATE"]);
 
   return (
     <div>
@@ -47,17 +50,9 @@ export default function TokenConsoleTariffs() {
 
       <ResolveTool />
 
-      {waitingRates.length > 0 && (
-        <NotePanel tone="info" className="mb-4" title={`${waitingRates.length} ${waitingRates.length === 1 ? "rate is" : "rates are"} awaiting approval`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>
-              {waitingRates.slice(0, 2).map((c) => c.summary ?? "New rate").join(" · ")}
-              {waitingRates.length > 2 ? ` · and ${waitingRates.length - 2} more` : ""}. They are not in the table until someone else approves them.
-            </span>
-            <Link to="/token-console/changes" className="text-[13px] font-medium text-primary-600 hover:text-primary-700">Review</Link>
-          </div>
-        </NotePanel>
-      )}
+      <PendingChangesNote changes={waitingRates} one="rate" many="rates" />
+      <PendingChangesNote changes={waitingTypes} one="tariff type" many="tariff types" />
+      <PendingChangesNote changes={waitingDomains} one="tariff domain" many="tariff domains" />
 
       <ConsoleTable<TariffValue>
         what="tariff values"
@@ -117,7 +112,7 @@ export default function TokenConsoleTariffs() {
       />
 
       {creating === "type" && (
-        <TariffTypeModal onClose={() => setCreating(null)} onDone={() => { setCreating(null); toast.push("Tariff type created."); void types.reload(); invalidateList("tok:tariffType"); }} />
+        <TariffTypeModal onClose={() => setCreating(null)} onDone={() => { setCreating(null); toast.push("Tariff type sent for approval. It is added once someone else approves it."); invalidateList(PENDING_CHANGES_KEY); }} />
       )}
       {creating === "value" && (
         <TariffValueModal onClose={() => setCreating(null)} onDone={() => { setCreating(null); toast.push("Rate sent for approval. It is added once someone else approves it."); invalidateList(PENDING_CHANGES_KEY); }} />
@@ -163,7 +158,7 @@ function ResolveTool() {
 }
 
 function TariffTypeModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const create = useAction(tokenConsole.createTariffType);
+  const create = useAction((body: CreateTariffTypeRequest) => tokenConsole.stageChange("TARIFF_TYPE_CREATE", body));
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const problem = !id.trim() ? "An ID is required." : !name.trim() ? "A name is required." : undefined;
@@ -172,8 +167,8 @@ function TariffTypeModal({ onClose, onDone }: { onClose: () => void; onDone: () 
     if (r) onDone();
   };
   return (
-    <ActionModal title="New tariff type" description="A kind of rate a domain can carry — a coupon, a management fee. Its rates are added separately."
-      submitLabel="Create type" problem={problem} showProblem={!!(id || name)} pending={create.pending} error={create.error}
+    <ActionModal title="New tariff type" description="A kind of rate a domain can carry — a coupon, a management fee. Its rates are added separately. It goes to Change approvals and is added once someone other than you approves it."
+      submitLabel="Send for approval" pendingLabel="Sending…" problem={problem} showProblem={!!(id || name)} pending={create.pending} error={create.error}
       onSubmit={() => void submit()} onClose={onClose}>
       <div className="grid gap-4">
         <Field label="ID" required><Input value={id} onChange={(e) => setId(e.target.value)} placeholder="MGMT_FEE" /></Field>

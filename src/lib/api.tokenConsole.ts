@@ -101,7 +101,10 @@ export const tokenConsole = {
   deactivateProduct: (productId: string) => post<T.Product>(`/products/${seg(productId)}/deactivate`),
 
   // Maker-checker (see tokenConsole/configChanges.ts). The console stages every
-  // controlled write here; the direct calls above stay for reference only.
+  // controlled write here. The direct calls for those writes (products above;
+  // coupon tariff, tariffs, schemes, templates, packages, items and an
+  // institution's default domain below) now answer 202 with a change request
+  // and stay for reference only.
   configChanges: (status?: ChangeStatus) => get<ConfigChange[]>(`/config/changes${qs({ status })}`),
   configChange: (requestId: string) => get<ConfigChange>(`/config/changes/${seg(requestId)}`),
   /** 202 with the staged request; nothing is applied until someone else approves it. */

@@ -1,13 +1,17 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { Badge, Button, Checkbox, Field, GlassPanel, Input, Modal, NotePanel, Select, useToast } from "../../../ui";
 import { tokenConsole } from "../../../lib/api";
 import { label } from "../../../lib/tokenConsole/format";
 import { useAction } from "../../../lib/tokenConsole/useAction";
+import { invalidateList } from "../../../lib/tokenConsole/sharedList";
+import { PENDING_CHANGES_KEY, usePendingChanges } from "../../../lib/tokenConsole/usePendingChanges";
+import { pendingFor, pendingOf } from "../../../lib/tokenConsole/configChanges";
 import { useAsyncData } from "../../../lib/useAsyncData";
-import type { ServicePackage, ServicePackageItem } from "../../../lib/tokenConsole/types.gen";
+import type { CreateServicePackageItemRequest, ServicePackage, ServicePackageItem } from "../../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, type Source } from "../../../components/tokenconsole/ConsoleTable";
 import { EntityCreateFlow } from "../../../components/tokenconsole/EntityCreate";
+import { PendingChangesNote } from "../../../components/tokenconsole/PendingChangesNote";
 
 const FEE_DIRECTIONS = ["charged_to_investor", "paid_to_investor"] as const;
 const FX_BEHAVIORS = ["same_currency_only", "fx_at_spot", "fx_at_fixed_rate"] as const;
@@ -24,9 +28,14 @@ export function PackagesTab({ packages }: { packages: Source<ServicePackage> }) 
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const active = picked ?? packages.data?.[0]?.packageId ?? null;
+  // Packages and items are maker-checker controlled: say what is still waiting.
+  const pending = usePendingChanges();
+  const { reload: reloadPending } = pending;
+  useEffect(() => { void reloadPending(); }, [reloadPending]);
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <PendingChangesNote changes={pendingOf(pending.data, ["SERVICE_PACKAGE_CREATE"])} one="service package" many="service packages" className="lg:col-span-2" />
       <ConsoleTable<ServicePackage>
         className=""
         title="Service packages"
@@ -62,10 +71,12 @@ export function PackagesTab({ packages }: { packages: Source<ServicePackage> }) 
 
 function ItemsPanel({ packageId, packageName }: { packageId: string; packageName?: string }) {
   const items = useAsyncData(() => tokenConsole.servicePackageItems(packageId));
+  const pending = usePendingChanges();
   const [adding, setAdding] = useState(false);
 
   return (
     <>
+      <PendingChangesNote changes={pendingFor(pending.data, packageId, ["SERVICE_PACKAGE_ITEM_CREATE"])} one="item" many="items" className="mb-3" />
       <ConsoleTable<ServicePackageItem>
         className=""
         title={packageName ? `Items · ${packageName}` : "Items"}
@@ -99,7 +110,7 @@ function ItemsPanel({ packageId, packageName }: { packageId: string; packageName
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
-            void items.reload();
+            invalidateList(PENDING_CHANGES_KEY);
           }}
         />
       )}
@@ -130,7 +141,7 @@ function AddItemModal({ packageId, onClose, onAdded }: { packageId: string; onCl
   const transactionTypes = useAsyncData(tokenConsole.transactionTypes);
   const feeTypes = useAsyncData(tokenConsole.feeTypes);
   const tariffValues = useAsyncData(tokenConsole.tariffValues);
-  const create = useAction(tokenConsole.createServicePackageItem);
+  const create = useAction((body: CreateServicePackageItemRequest) => tokenConsole.stageChange("SERVICE_PACKAGE_ITEM_CREATE", body));
   const toast = useToast();
 
   const [f, setF] = useState<Draft>(BLANK);
@@ -167,7 +178,7 @@ function AddItemModal({ packageId, onClose, onAdded }: { packageId: string; onCl
       lockInDays: num(f.lockInDays), isAllowed, lockInWaivable, forfeitsReturnsIfEarly,
     });
     if (saved === undefined) return;
-    toast.push(`Added ${f.itemId.trim()} to ${packageId}.`);
+    toast.push(`${f.itemId.trim()} sent for approval. It is added to ${packageId} once someone else approves it.`);
     onAdded();
   };
 
@@ -181,11 +192,11 @@ function AddItemModal({ packageId, onClose, onAdded }: { packageId: string; onCl
         <>
           {problem && (f.itemId || f.itemRole) ? <p className="mr-auto self-center text-[12.5px] text-text-soft">{problem}</p> : null}
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={!!problem || create.pending} onClick={() => void submit()}>{create.pending ? "Adding…" : "Add item"}</Button>
+          <Button size="sm" disabled={!!problem || create.pending} onClick={() => void submit()}>{create.pending ? "Sending…" : "Send for approval"}</Button>
         </>
       }
     >
-      <p className="mb-4 text-sm text-text-soft">Only fields marked * are required.</p>
+      <p className="mb-4 text-sm text-text-soft">Only fields marked * are required. The item goes to Change approvals and is added once someone other than you approves it.</p>
       {listError && <NotePanel tone="warning" className="mb-4">Some lists could not be loaded: {listError}</NotePanel>}
       <div className="flex flex-col gap-5">
         <Group title="What it is">

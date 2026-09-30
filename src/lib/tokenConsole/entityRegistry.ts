@@ -20,6 +20,8 @@ import type { AccountTemplate } from "./types.gen";
 import { tokenConsole as tc } from "../api.tokenConsole";
 import { invalidateList, useSharedList } from "./sharedList";
 import { useAction } from "./useAction";
+import type { ChangeType } from "./configChanges";
+import { PENDING_CHANGES_KEY } from "./usePendingChanges";
 
 export type FieldKind = "text" | "number" | "currency" | "enum" | "date" | "stringList" | "bool" | "ref" | "array";
 
@@ -62,6 +64,9 @@ export interface EntitySpec {
   useList: () => { data?: Row[]; isPending: boolean; error?: string };
   /** Omitted for pick-only entities. */
   useCreate?: () => CreateMutation;
+  /** Maker-checker controlled: creating it stages this change instead, and it
+   *  exists (and can be picked) only once someone else approves it. */
+  staged?: ChangeType;
   idField: string;
   labelField: string;
   metaField?: string;
@@ -91,6 +96,17 @@ const create = (key: string, post: (body: never) => Promise<unknown>) => (): Cre
     const created = (await post(body as never)) as Row;
     invalidateList(`tok:${key}`);
     return created;
+  });
+  return { run: action.run, pending: action.pending, error: action.error };
+};
+/* A create that goes through the change queue (configChanges.ts). Resolves to
+   the change request, not a row: nothing exists until it is approved, so the
+   list is left alone and the pending queue refreshed instead. */
+const stage = (type: ChangeType) => (): CreateMutation => {
+  const action = useAction(async (body: Row) => {
+    const staged = (await tc.stageChange(type, body as never)) as unknown as Row;
+    invalidateList(PENDING_CHANGES_KEY);
+    return staged;
   });
   return { run: action.run, pending: action.pending, error: action.error };
 };
@@ -161,7 +177,8 @@ const specs: EntitySpec[] = [
   {
     key: "scheme", label: "accounting scheme", idField: "schemeId", labelField: "name", metaField: "schemeId",
     useList: list("scheme", tc.schemes),
-    useCreate: create("scheme", tc.createScheme),
+    useCreate: stage("SCHEME_CREATE"),
+    staged: "SCHEME_CREATE",
     fields: [
       { key: "schemeId", label: "Scheme ID", kind: "text", required: true, placeholder: "SCH-UNIT-TRUST" },
       { key: "name", label: "Name", kind: "text", required: true, placeholder: "Unit trust scheme" },
@@ -182,7 +199,8 @@ const specs: EntitySpec[] = [
   {
     key: "servicePackage", label: "service package", idField: "packageId", labelField: "name", metaField: "packageId",
     useList: list("servicePackage", tc.servicePackages),
-    useCreate: create("servicePackage", tc.createServicePackage),
+    useCreate: stage("SERVICE_PACKAGE_CREATE"),
+    staged: "SERVICE_PACKAGE_CREATE",
     fields: [
       { key: "packageId", label: "Package ID", kind: "text", required: true, placeholder: "PKG-RETAIL" },
       { key: "name", label: "Name", kind: "text", required: true, placeholder: "Retail package" },
@@ -196,7 +214,8 @@ const specs: EntitySpec[] = [
   {
     key: "tariffDomain", label: "tariff domain", idField: "tariffDomainId", labelField: "name", metaField: "tariffDomainId",
     useList: list("tariffDomain", tc.tariffDomains),
-    useCreate: create("tariffDomain", tc.createTariffDomain),
+    useCreate: stage("TARIFF_DOMAIN_CREATE"),
+    staged: "TARIFF_DOMAIN_CREATE",
     fields: [
       { key: "tariffDomainId", label: "Domain ID", kind: "text", required: true, placeholder: "TD-RETAIL-KES" },
       { key: "name", label: "Name", kind: "text", required: true, placeholder: "Retail KES tariffs" },
