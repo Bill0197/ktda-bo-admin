@@ -1,7 +1,8 @@
 // /omni/* on Cloudflare Pages -> omnichannel's staff (/api/operator/*) endpoints.
 // The deployed twin of the /omni dev proxy in vite.config.ts.
 //
-// Only the operator surface is reachable through here: BO Admin has no business
+// Only the operator surface is reachable through here, and only the calls
+// BO Admin makes (ALLOWED): BO Admin has no business
 // calling a customer's /api/me/* on their behalf, and on UAT omnichannel runs
 // open (no token), so an unrestricted proxy would hand that surface to anyone.
 //
@@ -11,12 +12,19 @@ const UPSTREAM = "https://tokenization-omnichannel-lb-1369560458.us-east-1.elb.a
 // Must match functions/tok — the session this proxy checks lives there.
 const TOK_UPSTREAM = "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
 
-const ALLOWED = /^\/omni\/api\/operator\/(link-codes|notifications|investors\/[0-9a-fA-F-]+\/kyc-status)$/;
+const UUID = "[0-9a-fA-F-]+";
+// What each method may reach: actions on an investor record, and compliance's
+// identity checks (the registry mismatches, the photo queue, one photo, a decision).
+const ALLOWED = {
+  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review)$`),
+  GET: new RegExp(`^/omni/api/operator/onboarding/(applications|documents|documents/${UUID}/content)$`),
+};
 const FORWARDED = ["accept", "content-type", "authorization"];
 
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);
-  if (request.method !== "POST" || !ALLOWED.test(url.pathname)) {
+  const allowed = ALLOWED[request.method];
+  if (!allowed || !allowed.test(url.pathname)) {
     return json(404, { error: "Not found." });
   }
   // UAT omnichannel checks no token, so this proxy is the only gate: forward
@@ -32,10 +40,18 @@ export async function onRequest({ request, env }) {
     const value = request.headers.get(name);
     if (value !== null) headers.set(name, value);
   }
+  // Omnichannel's audit (reviewedBy) names who acted. UAT takes it from this
+  // header; it is set here from the verified session, never from the browser.
+  if (session.email) headers.set("x-dev-subject", `staff:${session.email}`);
 
   let upstream;
   try {
-    upstream = await fetch(target, { method: "POST", headers, body: request.body, redirect: "manual" });
+    upstream = await fetch(target, {
+      method: request.method,
+      headers,
+      body: request.method === "POST" ? request.body : undefined,
+      redirect: "manual",
+    });
   } catch {
     return unavailable();
   }
@@ -48,15 +64,18 @@ export async function onRequest({ request, env }) {
   return new Response(upstream.body, { status: upstream.status, headers: out });
 }
 
-/** true/false for a signed-in tokenization session; null when that service
- *  itself cannot be reached (so the caller answers 503, not 401). */
+/** The signed-in staff member ({email}) of a live tokenization session, false
+ *  without one; null when that service itself cannot be reached (so the
+ *  caller answers 503, not 401). */
 async function signedIn(request, env) {
   const cookie = request.headers.get("cookie");
   if (!cookie) return false;
   try {
     const res = await fetch((env.TOK_TARGET || TOK_UPSTREAM) + "/api/auth/me", { headers: { cookie } });
     if (res.status >= 520 && res.status <= 530) return null;
-    return res.ok;
+    if (!res.ok) return false;
+    const me = await res.json().catch(() => ({}));
+    return { email: typeof me.email === "string" ? me.email : null };
   } catch {
     return null;
   }
