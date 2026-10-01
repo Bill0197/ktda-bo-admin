@@ -10,8 +10,10 @@ import { useAsyncData } from "../../lib/useAsyncData";
 import { dateOf, dateTime, label, shortId } from "../../lib/tokenConsole/format";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import {
-  allReviews, classifierOutstanding, currentClassifier, decideKyc, isKycReview, type KycDecision,
+  allReviews, canDecideKyc, classifierOutstanding, currentClassifier, decideKyc, isKycReview, KYC_DECIDER_ROLES, type KycDecision,
 } from "../../lib/tokenConsole/kyc";
+import { TokApiError } from "../../lib/tokApi";
+import { useAuth } from "../../lib/auth";
 import type { ComplianceReviewItem, Investor } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
@@ -124,9 +126,24 @@ export default function TokenConsoleKyc() {
 
 function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
   const toast = useToast();
+  const { user } = useAuth();
+  const mayDecide = canDecideKyc(user?.tokRoles);
   const investorId = row.investorId ?? "";
   const detail = useAsyncData(() => tokenConsole.investor(investorId));
-  const decide = useAction(decideKyc);
+  const decide = useAction(async (args: Parameters<typeof decideKyc>[0]) => {
+    try {
+      return await decideKyc(args);
+    } catch (e) {
+      // Someone else decided it first: say so and show the queue as it is now.
+      if (e instanceof TokApiError && e.status === 409) {
+        toast.push(e.message, "warning");
+        setDecision(null);
+        onDone();
+        return undefined;
+      }
+      throw e;
+    }
+  });
   const [decision, setDecision] = useState<KycDecision | null>(null);
   const [note, setNote] = useState("");
 
@@ -205,7 +222,11 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
       ) : null}
 
       <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
-        {isOpen || outstanding ? (
+        {(isOpen || outstanding) && !mayDecide ? (
+          <span className="text-[12.5px] text-text-soft">
+            Deciding a KYC review needs the {KYC_DECIDER_ROLES.map((r) => label(r)).join(" or ")} role. You can see the queue; someone with that role decides.
+          </span>
+        ) : isOpen || outstanding ? (
           <>
             <Button size="sm" disabled={decide.pending || !investorId || !v} onClick={() => start("verify")}>
               <BadgeCheck size={14} /> {isOpen ? "Verify and clear" : "Record KYC verified"}

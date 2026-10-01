@@ -9,6 +9,8 @@ import {
   omniApi, OmniApiError, type CheckedApplication, type DocumentType, type IdentityResult, type QueuedDocument,
 } from "../../lib/omniApi";
 import { useAsyncData } from "../../lib/useAsyncData";
+import { useAuth } from "../../lib/auth";
+import { canDecideKyc, KYC_DECIDER_ROLES } from "../../lib/tokenConsole/kyc";
 import { dateOf, dateTime, label, shortId } from "../../lib/tokenConsole/format";
 import { Code, ConsoleTable, type Source } from "../../components/tokenconsole/ConsoleTable";
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
@@ -195,6 +197,9 @@ export default function TokenConsoleIdentity() {
 
 function ApplicantPanel({ applicant, onDecided }: { applicant: Applicant; onDecided: () => void }) {
   const app = applicant.application;
+  // Photo decisions are identity decisions: the same roles as the KYC desk.
+  const { user } = useAuth();
+  const mayDecide = canDecideKyc(user?.tokRoles);
   return (
     <div className="flex flex-col gap-6">
       {app ? (
@@ -238,9 +243,12 @@ function ApplicantPanel({ applicant, onDecided }: { applicant: Applicant; onDeci
           <p className="text-[13px] text-text-soft">None. Photos already decided are not shown here.</p>
         ) : (
           <>
-            <p className="mb-3 text-[12.5px] text-text-faint">Opening this applicant is recorded as viewing their photos. Photos already decided are not shown.</p>
+            <p className="mb-3 text-[12.5px] text-text-faint">
+              Opening this applicant is recorded as viewing their photos. Photos already decided are not shown.
+              {!mayDecide && ` Accepting or turning down a photo needs the ${KYC_DECIDER_ROLES.map((r) => label(r)).join(" or ")} role.`}
+            </p>
             <div className="grid gap-4 sm:grid-cols-3">
-              {applicant.photos.map((doc) => <PhotoReview key={doc.id} doc={doc} onDecided={onDecided} />)}
+              {applicant.photos.map((doc) => <PhotoReview key={doc.id} doc={doc} mayDecide={mayDecide} onDecided={onDecided} />)}
             </div>
           </>
         )}
@@ -250,7 +258,7 @@ function ApplicantPanel({ applicant, onDecided }: { applicant: Applicant; onDeci
 }
 
 /** One photo: the image, then a pass or a turn-down with a note. */
-function PhotoReview({ doc, onDecided }: { doc: QueuedDocument; onDecided: () => void }) {
+function PhotoReview({ doc, mayDecide, onDecided }: { doc: QueuedDocument; mayDecide: boolean; onDecided: () => void }) {
   const toast = useToast();
   const [url, setUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -311,7 +319,7 @@ function PhotoReview({ doc, onDecided }: { doc: QueuedDocument; onDecided: () =>
           : <span className="px-3 text-center text-[12px] text-text-faint">{loadError ?? "Loading…"}</span>}
       </button>
       {error && <p role="alert" className="text-[12.5px] text-danger">{error}</p>}
-      {turningDown ? (
+      {!mayDecide ? null : turningDown ? (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-1.5">
             {TURN_DOWN_REASONS.filter((r) => r.for.includes(doc.type)).map((r) => (

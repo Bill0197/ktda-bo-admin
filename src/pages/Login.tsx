@@ -16,6 +16,7 @@ const BULLETS = [
  *  signup, so admin only ever comes from the approval workflow. */
 const SIGNUP_ROLES: { value: SelfServiceRole; label: string }[] = [
   { value: "ACCOUNTANT", label: "Accountant" },
+  { value: "COMPLIANCE", label: "Compliance" },
   { value: "DEVELOPER", label: "Developer" },
   { value: "DEVOPS", label: "DevOps" },
 ];

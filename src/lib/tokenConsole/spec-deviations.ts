@@ -33,7 +33,10 @@ export type SignupResponse = MeResponse;
       accounts on a shared UAT box to prove it is not worth the litter. Left
       as the spec's list minus ADMIN, which is the narrowest claim the
       evidence supports. */
-export type SelfServiceRole = Exclude<SignupRequest["role"], "ADMIN">;
+/** COMPLIANCE is on UAT's SignupRequest (2026-10-01; it alone with ADMIN may
+ *  decide a KYC review) but not yet in types.gen.ts. Drop the union once the
+ *  types are regenerated. */
+export type SelfServiceRole = Exclude<SignupRequest["role"], "ADMIN"> | "COMPLIANCE";
 
 export interface SelfServiceSignupRequest extends Omit<SignupRequest, "role"> {
   role: SelfServiceRole;

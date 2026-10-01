@@ -48,16 +48,29 @@ export async function decideKyc({
   note?: string;
 }): Promise<true> {
   const verifying = decision === "verify";
-  // Register first: if the second call fails, the register is right and the
-  // review is still visibly outstanding — the safe way round. The reverse
-  // would leave someone transacting on an unrecorded decision.
-  await tokenConsole.assignClassifier(investorId, { valueId: verifying ? "KYC_STATUS:VERIFIED" : "KYC_STATUS:REJECTED" });
+  // The review first. The engine decides a review once (409 if someone else
+  // already did) and only for ADMIN or COMPLIANCE (403), so it is the gate:
+  // a refusal there must stop before the register is touched — writing the
+  // register first could mark verified someone another reviewer had just
+  // rejected. If the register write then fails, the review is decided and the
+  // desk shows "the register still says …" with a button to record it; KYC
+  // on the register, not the review, is what lets anyone invest.
   if (reviewOpen && queueId) {
     const body = { note: note?.trim() || undefined };
     if (verifying) await tokenConsole.clearReview(queueId, body);
     else await tokenConsole.rejectReview(queueId, body);
   }
+  await tokenConsole.assignClassifier(investorId, { valueId: verifying ? "KYC_STATUS:VERIFIED" : "KYC_STATUS:REJECTED" });
   // A resolved value, so callers going through useAction can tell success
   // from failure (which resolves to undefined there).
   return true;
+}
+
+/** The engine lets only these roles clear or reject a KYC review; every
+ *  signed-in role can read the queue. The engine is the authority — this only
+ *  decides whether to offer the buttons. */
+export const KYC_DECIDER_ROLES = ["ADMIN", "COMPLIANCE"] as const;
+
+export function canDecideKyc(roles: readonly string[] | undefined): boolean {
+  return !!roles?.some((r) => (KYC_DECIDER_ROLES as readonly string[]).includes(r.toUpperCase()));
 }
