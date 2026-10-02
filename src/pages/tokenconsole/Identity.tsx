@@ -14,6 +14,7 @@ import { canDecideKyc, KYC_DECIDER_ROLES } from "../../lib/tokenConsole/kyc";
 import { dateOf, dateTime, label, shortId } from "../../lib/tokenConsole/format";
 import { Code, ConsoleTable, type Source } from "../../components/tokenconsole/ConsoleTable";
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
+import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
 
 /* Compliance's identity checks, from omnichannel (the customer channel):
    - the population-registry check run when a customer applies: a MISMATCH
@@ -240,11 +241,11 @@ function ApplicantPanel({ applicant, onDecided }: { applicant: Applicant; onDeci
       <section>
         <SectionTitle title="Photos waiting" />
         {applicant.photos.length === 0 ? (
-          <p className="text-[13px] text-text-soft">None. Photos already decided are not shown here.</p>
+          <p className="text-[13px] text-text-soft">None.</p>
         ) : (
           <>
             <p className="mb-3 text-[12.5px] text-text-faint">
-              Opening this applicant is recorded as viewing their photos. Photos already decided are not shown.
+              Opening this applicant is recorded as viewing their photos.
               {!mayDecide && ` Accepting or turning down a photo needs the ${KYC_DECIDER_ROLES.map((r) => label(r)).join(" or ")} role.`}
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -252,6 +253,11 @@ function ApplicantPanel({ applicant, onDecided }: { applicant: Applicant; onDeci
             </div>
           </>
         )}
+      </section>
+
+      <section>
+        <SectionTitle title="Every photo sent" />
+        <CustomerPhotos key={applicant.photos.map((p) => p.id).join()} profileId={applicant.profileId} onIdentityPage />
       </section>
     </div>
   );
