@@ -20,6 +20,8 @@ const ALLOWED = {
   GET: new RegExp(`^/omni/api/operator/onboarding/(applications|documents|documents/${UUID}/content)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
+// Lists are paged: the totals travel in these headers, the body stays an array.
+const PASSED_BACK = ["content-type", "x-total-count", "x-page", "x-size", "x-total-pages"];
 
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);
@@ -58,8 +60,10 @@ export async function onRequest({ request, env }) {
   if (upstream.status >= 520 && upstream.status <= 530) return unavailable();
 
   const out = new Headers();
-  const type = upstream.headers.get("content-type");
-  if (type !== null) out.set("content-type", type);
+  for (const name of PASSED_BACK) {
+    const value = upstream.headers.get(name);
+    if (value !== null) out.set(name, value);
+  }
   out.set("cache-control", "no-store");
   return new Response(upstream.body, { status: upstream.status, headers: out });
 }

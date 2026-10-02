@@ -3,7 +3,7 @@
  * their records, so most of what BO Admin *shows* comes from the tokenization
  * service (tokApi.ts). Two reads are omnichannel's own, for compliance: the
  * applications the population-registry check flagged, and the selfie and ID
- * photos waiting for a decision.
+ * photos (the queue waiting for a decision, and every photo one customer sent).
  *
  * Same-origin `/omni/*` (Vite proxy / functions/omni / nginx), which forwards
  * only these calls and only for a caller with a live BO Admin session. */
@@ -56,10 +56,23 @@ async function failure(res: Response): Promise<OmniApiError> {
   return new OmniApiError(res.status, env.detail ?? env.message ?? env.error ?? `Request failed (${res.status}).`);
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await send("GET", path);
-  if (!res.ok) throw await failure(res);
-  return (await res.json()) as T;
+/* Every omnichannel list is paged: `page` from 1, `size` 20 by default and at
+ * most 100, the body a plain array, the totals in X-Total-Pages and friends.
+ * The compliance screens need whole lists (they join and count them), so
+ * this walks the pages. */
+const PAGE_SIZE = 100;
+
+async function getAll<T>(path: string): Promise<T[]> {
+  const all: T[] = [];
+  for (let page = 1; ; page++) {
+    const res = await send("GET", `${path}${path.includes("?") ? "&" : "?"}page=${page}&size=${PAGE_SIZE}`);
+    if (!res.ok) throw await failure(res);
+    const items = (await res.json()) as T[];
+    all.push(...items);
+    // No header means a service (or proxy) that does not page: it sent the whole list.
+    const pages = Number(res.headers.get("X-Total-Pages"));
+    if (!res.headers.has("X-Total-Pages") || !Number.isFinite(pages) || page >= pages || items.length < PAGE_SIZE) return all;
+  }
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -109,7 +122,7 @@ export type CheckedApplication = {
 
 export type DocumentType = "SELFIE" | "ID_FRONT" | "ID_BACK";
 
-/** A selfie or ID photo waiting for compliance. */
+/** A selfie or ID photo: waiting for compliance, or decided. */
 export type QueuedDocument = {
   id: string;
   profileId: string;
@@ -136,9 +149,22 @@ export const omniApi = {
 
   /** Applications by registry result; omnichannel's default is MISMATCH. */
   applications: (identityResult: IdentityResult = "MISMATCH") =>
-    get<CheckedApplication[]>(`/onboarding/applications?identityResult=${identityResult}`),
+    getAll<CheckedApplication>(`/onboarding/applications?identityResult=${identityResult}`),
+  /** The app application behind an accounting investor, whatever the registry
+   *  said; null when they never applied through the app (staff onboarded). */
+  applicationFor: async (investorId: string): Promise<CheckedApplication | null> => {
+    const results: IdentityResult[] = ["MISMATCH", "UNCHECKED", "MATCH"];
+    for (const result of results) {
+      const found = (await omniApi.applications(result)).find((a) => a.product === PRODUCT && a.externalRef === investorId);
+      if (found) return found;
+    }
+    return null;
+  },
   /** Photos waiting for a decision, oldest first. */
-  pendingDocuments: () => get<QueuedDocument[]>("/onboarding/documents?limit=200"),
+  pendingDocuments: () => getAll<QueuedDocument>("/onboarding/documents"),
+  /** Every photo one app profile sent, decided ones included, newest first. */
+  customerDocuments: (profileId: string) =>
+    getAll<QueuedDocument>(`/onboarding/documents?profileId=${encodeURIComponent(profileId)}`),
   /** The image itself. Each view is audited (DOCUMENT_VIEWED), so screens load
    *  it only when someone opens that applicant. */
   documentImage: async (id: string): Promise<Blob> => {

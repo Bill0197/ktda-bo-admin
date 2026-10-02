@@ -8,6 +8,7 @@ import { currentClassifier } from "../../lib/tokenConsole/kyc";
 import { Code, StatusBadge } from "./ConsoleTable";
 import { DetailItem } from "./DetailItem";
 import { ActionModal } from "./ActionModal";
+import { InvestorPhotos } from "./CustomerPhotos";
 
 type Lifecycle = "suspend" | "reactivate" | "offboard";
 const LIFECYCLE: Record<Lifecycle, { title: string; body: string; label: string; ok: string; danger: boolean }> = {
@@ -21,7 +22,8 @@ const LIFECYCLE: Record<Lifecycle, { title: string; body: string; label: string;
 };
 
 /** Everything the register holds on one investor: standing, holdings and cash,
- *  unit movements per product, and the lifecycle decisions staff can take. */
+ *  unit movements per product, the photos they sent from the app, and the
+ *  lifecycle decisions staff can take. */
 export function InvestorPanel({ investorId, onChanged }: { investorId: string; onChanged: () => void }) {
   const toast = useToast();
   const detail = useAsyncData(() => tokenConsole.investor(investorId));
@@ -120,6 +122,9 @@ export function InvestorPanel({ investorId, onChanged }: { investorId: string; o
       {activeProduct
         ? <Movements key={activeProduct} investorId={investorId} product={activeProduct} />
         : <p className="text-sm text-text-soft">No product to show movements for.</p>}
+
+      <h3 className="mt-5 mb-2 text-[13px] font-semibold text-text">Identity photos</h3>
+      <InvestorPhotos investorId={investorId} />
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
         {status === "SUSPENDED"
