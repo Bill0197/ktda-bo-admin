@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, NotePanel, PageHeader, useToast } from "../../ui";
+import { Button, FilterBar, NotePanel, PageHeader, SearchInput, SelectFilter, useToast } from "../../ui";
 import { Plus } from "lucide-react";
 import { tokenConsole } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -12,6 +12,9 @@ import type { Product } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 import { NewProductModal } from "./NewProductModal";
 import { ProductConfigModal } from "./ProductConfigModal";
+
+/** Filter value for a product with no asset class, status or currency set. */
+const NONE = "__none__";
 
 export default function TokenConsoleProducts() {
   const { can } = useAuth();
@@ -26,6 +29,26 @@ export default function TokenConsoleProducts() {
   useEffect(() => { void reloadPending(); }, [reloadPending]);
   // Rates wait too, but they belong to the Tariffs page.
   const waiting = (pending.data ?? []).filter((c) => c.changeType.startsWith("PRODUCT_"));
+
+  const [q, setQ] = useState("");
+  const [assetClass, setAssetClass] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [currency, setCurrency] = useState("all");
+  const all = useMemo(() => products.data ?? [], [products.data]);
+  // Options from what exists, with counts, so no choice leads to an empty table.
+  const options = (key: (p: Product) => string | undefined, name: (v: string) => string) => {
+    const counts = new Map<string, number>();
+    for (const p of all) counts.set(key(p) ?? NONE, (counts.get(key(p) ?? NONE) ?? 0) + 1);
+    return [...counts].sort(([a], [b]) => (a === NONE ? 1 : b === NONE ? -1 : a.localeCompare(b)))
+      .map(([v, n]) => ({ value: v, label: `${v === NONE ? "Not set" : name(v)} (${n})` }));
+  };
+  const term = q.trim().toLowerCase();
+  const rows = all.filter((p) =>
+    (assetClass === "all" || (p.assetClass ?? NONE) === assetClass)
+    && (status === "all" || (p.status ?? NONE) === status)
+    && (currency === "all" || (p.currency ?? NONE) === currency)
+    && (!term || [p.productId, p.name].some((v) => (v ?? "").toLowerCase().includes(term))));
+  const filtered = rows.length !== all.length;
 
   return (
     <div>
@@ -46,11 +69,28 @@ export default function TokenConsoleProducts() {
           </div>
         </NotePanel>
       )}
+      <FilterBar className="mb-3">
+        <SearchInput value={q} onChange={setQ} placeholder="Product id or name…" className="w-64" />
+        <SelectFilter value={assetClass} onChange={setAssetClass} allLabel="All asset classes"
+          options={options((p) => p.assetClass, (v) => label(v))} />
+        <SelectFilter value={status} onChange={setStatus} allLabel="All statuses"
+          options={options((p) => p.status, (v) => label(v))} />
+        <SelectFilter value={currency} onChange={setCurrency} allLabel="All currencies"
+          options={options((p) => p.currency, (v) => v)} />
+        {filtered && (
+          <Button size="sm" variant="ghost" onClick={() => { setQ(""); setAssetClass("all"); setStatus("all"); setCurrency("all"); }}>
+            Clear filters
+          </Button>
+        )}
+      </FilterBar>
       <ConsoleTable<Product>
         what="products"
         source={products}
+        rows={rows}
+        title="Products"
+        description={products.data ? `${rows.length} of ${all.length}` : undefined}
         rowId={(r) => r.productId}
-        emptyLabel="No products defined"
+        emptyLabel={all.length ? "No products match these filters" : "No products defined"}
         columns={[
           { key: "product", header: "Product", render: (r) => (
             <div>

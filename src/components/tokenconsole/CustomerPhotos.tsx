@@ -9,7 +9,7 @@ import { dateOf, dateTime, label } from "../../lib/tokenConsole/format";
 
 /* The selfie and ID photos a customer sent from the app, decided ones
    included, so compliance can look at them again after the review. Decisions
-   stay on Identity checks; this only lists and shows. Each image is fetched
+   are made on the KYC desk; this only lists and shows. Each image is fetched
    only when someone opens it, because omnichannel records every view
    (DOCUMENT_VIEWED), and only the KYC reviewer roles can open one. */
 
@@ -33,9 +33,9 @@ export function InvestorPhotos({ investorId }: { investorId: string }) {
   return <CustomerPhotos profileId={app.data.profileId} />;
 }
 
-/** Every photo one app profile sent, newest first. `onIdentityPage` drops the
- *  pointer to Identity checks when the list is already shown there. */
-export function CustomerPhotos({ profileId, onIdentityPage = false }: { profileId: string; onIdentityPage?: boolean }) {
+/** Every photo one app profile sent, newest first. `onKycDesk` drops the
+ *  pointer to the KYC desk when the list is already shown there. */
+export function CustomerPhotos({ profileId, onKycDesk = false }: { profileId: string; onKycDesk?: boolean }) {
   const { user } = useAuth();
   const mayView = canDecideKyc(user?.tokRoles);
   const docs = useAsyncData(() => omniApi.customerDocuments(profileId));
@@ -49,7 +49,7 @@ export function CustomerPhotos({ profileId, onIdentityPage = false }: { profileI
         {mayView
           ? "Opening a photo is recorded as viewing it."
           : `Opening a photo needs the ${KYC_DECIDER_ROLES.map((r) => label(r)).join(" or ")} role.`}
-        {waiting && !onIdentityPage && <> Photos still waiting are decided on <Link to="/token-console/identity" className="font-medium text-primary-600 hover:text-primary-700">Identity checks</Link>.</>}
+        {waiting && !onKycDesk && <> Photos still waiting are decided on the <Link to="/token-console/kyc" className="font-medium text-primary-600 hover:text-primary-700">KYC desk</Link>.</>}
       </p>
       <DataTable
         rows={docs.data ?? []}
