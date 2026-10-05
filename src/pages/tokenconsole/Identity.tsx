@@ -48,19 +48,39 @@ const TURN_DOWN_REASONS: { short: string; text: string; for: DocumentType[] }[] 
   { short: "Not the same person", text: "The selfie doesn't match the photo on your ID. Please retake the selfie yourself.", for: ["SELFIE"] },
 ];
 
+/** Not something to check: the filter that looks back at accepted photos. */
+const ACCEPTED = "ACCEPTED";
+
 const FILTERS = [
   { value: "MISMATCH", label: "Registry mismatch" },
   { value: "UNCHECKED", label: "Not checked" },
   { value: "PHOTOS", label: "Photos waiting" },
+  { value: ACCEPTED, label: "Photos accepted" },
 ];
 
 type Applicant = {
   profileId: string;
   application: CheckedApplication | null;
   photos: QueuedDocument[];
-  /** When they first needed attention: applied, or the oldest photo sent. */
+  /** When they first needed attention: applied, or the oldest photo sent.
+   *  Under "Photos accepted", when their latest photo was accepted. */
   since: string;
 };
+
+/** Each applicant's photos, newest decision first; the application found by profile. */
+function acceptedApplicants(docs: QueuedDocument[], apps: Map<string, CheckedApplication>): Applicant[] {
+  const byProfile = new Map<string, Applicant>();
+  for (const doc of docs) {
+    let a = byProfile.get(doc.profileId);
+    if (!a) byProfile.set(doc.profileId, (a = { profileId: doc.profileId, application: apps.get(doc.profileId) ?? null, photos: [], since: "" }));
+    a.photos.push(doc);
+  }
+  for (const a of byProfile.values()) {
+    a.photos.sort((x, y) => DOC_ORDER.indexOf(x.type) - DOC_ORDER.indexOf(y.type));
+    a.since = a.photos.map((p) => p.reviewedAt ?? "").sort().at(-1) ?? "";
+  }
+  return [...byProfile.values()];
+}
 
 export default function TokenConsoleIdentity() {
   // Read separately, so one failing list never hides the others.
@@ -70,6 +90,7 @@ export default function TokenConsoleIdentity() {
   const matched = useAsyncData(() => omniApi.applications("MATCH"));
   const flaggedList = useMemo(() => [...(mismatched.data ?? []), ...(unchecked.data ?? [])], [mismatched.data, unchecked.data]);
   const photos = useAsyncData(omniApi.pendingDocuments);
+  const accepted = useAsyncData(omniApi.acceptedDocuments);
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -92,14 +113,18 @@ export default function TokenConsoleIdentity() {
     return [...byProfile.values()];
   }, [flaggedList, matched.data, photos.data]);
 
+  const showingAccepted = filter === ACCEPTED;
+  const acceptedAll = useMemo(() => acceptedApplicants(accepted.data ?? [],
+    new Map([...(matched.data ?? []), ...flaggedList].map((a) => [a.profileId, a]))), [accepted.data, matched.data, flaggedList]);
+
   const term = q.trim().toLowerCase();
-  const rows = all
-    .filter((a) => filter === "all"
+  const rows = (showingAccepted ? acceptedAll : all)
+    .filter((a) => filter === "all" || showingAccepted
       || (filter === "PHOTOS" ? a.photos.length > 0 : a.application?.identityResult === filter))
     .filter((a) => !term || [a.application?.fullName, a.profileId, a.application?.externalRef]
       .some((v) => (v ?? "").toLowerCase().includes(term)))
-    // Oldest first: whoever has waited longest is the one to check next.
-    .sort((a, b) => a.since.localeCompare(b.since));
+    // To check: oldest first, whoever has waited longest is next. Accepted: the latest decisions first.
+    .sort((a, b) => showingAccepted ? b.since.localeCompare(a.since) : a.since.localeCompare(b.since));
 
   const loaded = !!mismatched.data && !!photos.data;
   const mismatchCount = mismatched.data?.length ?? 0;
@@ -111,22 +136,22 @@ export default function TokenConsoleIdentity() {
   ].filter(Boolean);
   const waitingPhotos = photos.data?.length ?? 0;
   const oldestPhoto = (photos.data ?? []).map((p) => p.uploadedAt).sort()[0];
-  const selectedRow = all.find((a) => a.profileId === selected);
+  const selectedRow = (showingAccepted ? acceptedAll : all).find((a) => a.profileId === selected);
+  const reloadAll = () => {
+    void mismatched.reload(); void unchecked.reload(); void matched.reload(); void photos.reload(); void accepted.reload();
+  };
 
   // The table's loading and error come from whichever read has not finished.
-  const source: Source<Applicant> = {
-    data: loaded ? all : null,
-    loading: mismatched.loading || photos.loading,
-    error: mismatched.error ?? photos.error,
-    reload: () => { void mismatched.reload(); void unchecked.reload(); void matched.reload(); void photos.reload(); },
-  };
+  const source: Source<Applicant> = showingAccepted
+    ? { data: accepted.data ? acceptedAll : null, loading: accepted.loading, error: accepted.error, reload: reloadAll }
+    : { data: loaded ? all : null, loading: mismatched.loading || photos.loading, error: mismatched.error ?? photos.error, reload: reloadAll };
 
   return (
     <div>
       <PageHeader
         eyebrow="Tokenization Console"
         title="Identity checks"
-        subtitle="Applicants the population registry could not confirm, and the selfie and ID photos waiting for a decision. Decide the KYC status itself on the KYC desk."
+        subtitle="Applicants the population registry could not confirm, and the selfie and ID photos waiting for a decision. Accepted photos stay here under the filter. Decide the KYC status itself on the KYC desk."
       />
 
       <StatRail className="mb-6">
@@ -157,9 +182,9 @@ export default function TokenConsoleIdentity() {
         rowId={(a) => a.profileId}
         onRowClick={(a) => setSelected(a.profileId)}
         selectedId={selected}
-        title="To check"
-        description={loaded ? `${rows.length} of ${all.length}` : undefined}
-        emptyLabel={all.length ? "Nothing matches that" : "Nothing to check"}
+        title={showingAccepted ? "Photos accepted" : "To check"}
+        description={source.data ? `${rows.length} of ${source.data.length}` : undefined}
+        emptyLabel={source.data?.length ? "Nothing matches that" : showingAccepted ? "No photos accepted yet" : "Nothing to check"}
         columns={[
           { key: "applicant", header: "Applicant", className: "min-w-[220px]", render: (a) => (
             <div>
@@ -177,10 +202,10 @@ export default function TokenConsoleIdentity() {
               ) : null}
             </div>
           ) : <span className="text-xs text-text-faint">—</span> },
-          { key: "photos", header: "Photos waiting", render: (a) => a.photos.length
+          { key: "photos", header: showingAccepted ? "Photos accepted" : "Photos waiting", render: (a) => a.photos.length
             ? <span className="text-text">{a.photos.map((p) => DOC_LABEL[p.type] ?? p.type).join(", ")}</span>
             : <span className="text-xs text-text-faint">None</span> },
-          { key: "since", header: "Waiting since", className: "whitespace-nowrap", render: (a) => (
+          { key: "since", header: showingAccepted ? "Accepted" : "Waiting since", className: "whitespace-nowrap", render: (a) => (
             <span className="tabular text-xs text-text-soft">{a.since ? dateTime(a.since) : "—"}</span>
           ), hideOnMobile: true },
         ]}
@@ -189,7 +214,11 @@ export default function TokenConsoleIdentity() {
       <Modal open={!!selectedRow} onClose={() => setSelected(null)} title={selectedRow?.application?.fullName ?? "Applicant"} size="lg">
         {/* Keyed so one applicant's images and notes never carry to the next. */}
         {selectedRow && (
-          <ApplicantPanel key={selectedRow.profileId} applicant={selectedRow} onDecided={() => void photos.reload()} />
+          <ApplicantPanel key={selectedRow.profileId} applicant={showingAccepted
+            // The panel decides what is waiting; accepted photos are listed under "Every photo sent".
+            ? { ...selectedRow, photos: all.find((x) => x.profileId === selectedRow.profileId)?.photos ?? [] }
+            : selectedRow}
+            onDecided={() => { void photos.reload(); void accepted.reload(); }} />
         )}
       </Modal>
     </div>

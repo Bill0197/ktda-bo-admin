@@ -162,6 +162,8 @@ export const omniApi = {
   },
   /** Photos waiting for a decision, oldest first. */
   pendingDocuments: () => getAll<QueuedDocument>("/onboarding/documents"),
+  /** Every accepted photo, across customers, newest first. */
+  acceptedDocuments: () => getAll<QueuedDocument>("/onboarding/documents?status=PASSED"),
   /** Every photo one app profile sent, decided ones included, newest first. */
   customerDocuments: (profileId: string) =>
     getAll<QueuedDocument>(`/onboarding/documents?profileId=${encodeURIComponent(profileId)}`),
