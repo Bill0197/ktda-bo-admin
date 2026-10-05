@@ -1,70 +1,178 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { BadgeCheck, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { BadgeCheck, Camera, Fingerprint, ShieldQuestion } from "lucide-react";
 import {
-  Button, Field, FilterBar, GlassStat, Modal, NotePanel, PageHeader, SearchInput, SectionTitle, SelectFilter,
+  Badge, Button, Field, FilterBar, GlassStat, Modal, NotePanel, PageHeader, SearchInput, SectionTitle, SelectFilter,
   StatRail, Textarea, useToast,
 } from "../../ui";
 import { tokenConsole } from "../../lib/api";
+import { omniApi, type CheckedApplication, type QueuedDocument } from "../../lib/omniApi";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { dateOf, dateTime, label, shortId } from "../../lib/tokenConsole/format";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import {
   allReviews, canDecideKyc, classifierOutstanding, currentClassifier, decideKyc, isKycReview, KYC_DECIDER_ROLES, type KycDecision,
 } from "../../lib/tokenConsole/kyc";
+import { DOC_LABEL, DOC_ORDER, fieldWords, REGISTRY_RESULT } from "../../lib/tokenConsole/identity";
 import { TokApiError } from "../../lib/tokApi";
 import { useAuth } from "../../lib/auth";
 import type { ComplianceReviewItem, Investor } from "../../lib/tokenConsole/types.gen";
-import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { Code, ConsoleTable, StatusBadge, type Source } from "../../components/tokenconsole/ConsoleTable";
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
+import { ApplicationSection, PhotosWaiting } from "../../components/tokenconsole/IdentityReview";
+import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
 
-/* The KYC desk (ported from tokenization-web).
-   Onboarding opens a review whenever it cannot clear an applicant itself.
-   Until someone decides, the investor sits at UNDER_REVIEW and the investor
-   app shows "we're reviewing your application" with investing disabled.
-   A decision here writes the register and the review — see lib/tokenConsole/kyc.ts. */
+/* The KYC desk: everything a reviewer needs to decide who someone is, on one
+   page, one row per applicant.
+   - The KYC review (accounting): onboarding opens one whenever it cannot clear
+     an applicant itself. Until someone decides, the investor sits at
+     UNDER_REVIEW and the investor app shows "we're reviewing your application"
+     with investing disabled. A decision writes the review and the register —
+     see lib/tokenConsole/kyc.ts.
+   - The identity checks (omnichannel): what they applied with in the app and
+     what the population registry made of it (a MISMATCH or an unreachable
+     registry is what usually opens the review), and the selfie and ID photos,
+     each accepted or turned down with a note the customer receives.
+   Joined on the investor: an application names its investor (externalRef) and
+   its app profile, and photos belong to the profile. */
 
-type Row = ComplianceReviewItem & { investor?: Investor; name: string; reference: string };
+type Row = {
+  /** The investor id, or `profile:<id>` for photos from someone with no investor yet. */
+  key: string;
+  investorId: string | null;
+  /** The open review if there is one, else the latest. */
+  review: ComplianceReviewItem | null;
+  investor?: Investor;
+  application: CheckedApplication | null;
+  /** Waiting for a decision. */
+  photos: QueuedDocument[];
+  accepted: QueuedDocument[];
+  name: string;
+  reference: string;
+  /** When they first needed attention. */
+  since: string;
+};
 
-const STATUS_OPTIONS = [
-  { value: "OPEN", label: "Open" },
+const TO_DECIDE = "TODO";
+const SHOW_OPTIONS = [
+  { value: TO_DECIDE, label: "To decide" },
+  { value: "OPEN", label: "Review open" },
+  { value: "MISMATCH", label: "Registry mismatch" },
+  { value: "UNCHECKED", label: "Registry not checked" },
+  { value: "PHOTOS", label: "Photos waiting" },
+  { value: "ACCEPTED", label: "Photos accepted" },
   { value: "CLEARED", label: "Cleared" },
   { value: "REJECTED", label: "Rejected" },
 ];
 
+const toDecide = (r: Row) => r.review?.status === "OPEN" || r.photos.length > 0;
+
+function matches(r: Row, show: string) {
+  switch (show) {
+    case "all": return true;
+    case TO_DECIDE: return toDecide(r);
+    case "MISMATCH":
+    case "UNCHECKED": return r.application?.identityResult === show;
+    case "PHOTOS": return r.photos.length > 0;
+    case "ACCEPTED": return r.accepted.length > 0;
+    default: return r.review?.status === show; // OPEN, CLEARED, REJECTED
+  }
+}
+
+/** One row per applicant from the four sources; see the comment above. */
+function applicants(
+  reviews: ComplianceReviewItem[], investors: Investor[], applications: CheckedApplication[],
+  waiting: QueuedDocument[], accepted: QueuedDocument[],
+): Row[] {
+  const investorsById = new Map(investors.map((i) => [i.investorId ?? "", i]));
+  const appByInvestor = new Map(applications.map((a) => [a.externalRef, a]));
+  const appByProfile = new Map(applications.map((a) => [a.profileId, a]));
+  const rows = new Map<string, Row>();
+  const row = (investorId: string | null, profileId?: string) => {
+    const key = investorId ?? `profile:${profileId}`;
+    let r = rows.get(key);
+    if (!r) {
+      rows.set(key, (r = {
+        key, investorId, review: null, application: investorId ? appByInvestor.get(investorId) ?? null : appByProfile.get(profileId ?? "") ?? null,
+        photos: [], accepted: [], name: "", reference: "", since: "",
+      }));
+    }
+    return r;
+  };
+  for (const review of reviews) {
+    if (!review.investorId) continue;
+    const r = row(review.investorId);
+    // The open one decides; otherwise the latest is the story so far.
+    if (!r.review || (review.status === "OPEN" && r.review.status !== "OPEN")
+      || (r.review.status !== "OPEN" && (review.openedAt ?? "") > (r.review.openedAt ?? ""))) r.review = review;
+  }
+  for (const app of applications) {
+    if (app.identityResult !== "MATCH") row(app.externalRef || null, app.profileId);
+  }
+  const place = (doc: QueuedDocument) => row(appByProfile.get(doc.profileId)?.externalRef || null, doc.profileId);
+  for (const doc of waiting) place(doc).photos.push(doc);
+  for (const doc of accepted) place(doc).accepted.push(doc);
+  for (const r of rows.values()) {
+    r.investor = r.investorId ? investorsById.get(r.investorId) : undefined;
+    r.name = r.investor?.displayName ?? r.application?.fullName ?? "";
+    r.reference = r.investor?.externalRef ?? "";
+    r.photos.sort((x, y) => DOC_ORDER.indexOf(x.type) - DOC_ORDER.indexOf(y.type));
+    // What is waiting now: the open review and the photos. Otherwise, when it started.
+    r.since = [r.review?.status === "OPEN" ? r.review.openedAt ?? "" : "", ...r.photos.map((p) => p.uploadedAt)]
+      .filter(Boolean).sort()[0] ?? r.application?.submittedAt ?? r.review?.openedAt ?? "";
+  }
+  return [...rows.values()];
+}
+
 export default function TokenConsoleKyc() {
   const reviews = useAsyncData(allReviews);
   const investors = useAsyncData(tokenConsole.investors);
-  const [status, setStatus] = useState("OPEN");
+  // Omnichannel's half, each read on its own so one failing never hides the rest.
+  const mismatched = useAsyncData(() => omniApi.applications("MISMATCH"));
+  const unchecked = useAsyncData(() => omniApi.applications("UNCHECKED"));
+  const matched = useAsyncData(() => omniApi.applications("MATCH"));
+  const waiting = useAsyncData(omniApi.pendingDocuments);
+  const accepted = useAsyncData(omniApi.acceptedDocuments);
+  const [show, setShow] = useState(TO_DECIDE);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 
-  const all = useMemo<Row[]>(() => {
-    const byId = new Map((investors.data ?? []).map((i) => [i.investorId ?? "", i]));
-    return (reviews.data ?? []).filter(isKycReview).map((review) => {
-      const investor = byId.get(review.investorId ?? "");
-      return { ...review, investor, name: investor?.displayName ?? "", reference: investor?.externalRef ?? "" };
-    });
-  }, [reviews.data, investors.data]);
+  const all = useMemo<Row[]>(() => applicants(
+    (reviews.data ?? []).filter(isKycReview), investors.data ?? [],
+    [...(mismatched.data ?? []), ...(unchecked.data ?? []), ...(matched.data ?? [])],
+    waiting.data ?? [], accepted.data ?? [],
+  ), [reviews.data, investors.data, mismatched.data, unchecked.data, matched.data, waiting.data, accepted.data]);
 
   const term = q.trim().toLowerCase();
+  const showingAccepted = show === "ACCEPTED";
+  const latestAccepted = (r: Row) => r.accepted.map((d) => d.reviewedAt ?? "").sort().at(-1) ?? "";
   const rows = all
-    .filter((r) => status === "all" || r.status === status)
-    .filter((r) => !term || r.name.toLowerCase().includes(term) || r.reference.toLowerCase().includes(term) || (r.investorId ?? "").toLowerCase().includes(term))
-    // Oldest first: whoever has waited longest is the one to decide next.
-    .sort((a, b) => (a.openedAt ?? "").localeCompare(b.openedAt ?? ""));
+    .filter((r) => matches(r, show))
+    .filter((r) => !term || [r.name, r.reference, r.investorId, r.application?.profileId].some((v) => (v ?? "").toLowerCase().includes(term)))
+    // To decide: whoever has waited longest is next. Accepted photos: the latest decisions first.
+    .sort((a, b) => showingAccepted ? latestAccepted(b).localeCompare(latestAccepted(a)) : a.since.localeCompare(b.since));
 
-  const waitingRows = all.filter((r) => r.status === "OPEN");
-  const oldest = waitingRows.map((r) => r.openedAt ?? "").filter(Boolean).sort()[0];
-  const selectedRow = all.find((r) => r.queueId === selected);
   const loaded = !!reviews.data;
+  const openReviews = all.filter((r) => r.review?.status === "OPEN").length;
+  const photosWaiting = waiting.data?.length ?? 0;
+  const mismatches = all.filter((r) => r.application?.identityResult === "MISMATCH" && toDecide(r)).length;
+  const oldest = all.filter(toDecide).map((r) => r.since).filter(Boolean).sort()[0];
+  const selectedRow = all.find((r) => r.key === selected);
+  // The omnichannel half failing leaves the reviews usable: say what is missing.
+  const partial = [
+    (mismatched.error || unchecked.error || matched.error) && `the registry results (${mismatched.error ?? unchecked.error ?? matched.error})`,
+    waiting.error && `the photos waiting (${waiting.error})`,
+    accepted.error && `the accepted photos (${accepted.error})`,
+  ].filter(Boolean);
+  const reloadAll = () => {
+    for (const s of [reviews, investors, mismatched, unchecked, matched, waiting, accepted]) void s.reload();
+  };
 
-  // One table over two sources: the queue, and the register it names.
-  const source = {
-    data: reviews.data ? rows : null,
+  const source: Source<Row> = {
+    data: loaded ? rows : null,
     loading: reviews.loading || investors.loading,
     error: reviews.error ?? investors.error,
-    reload: () => Promise.all([reviews.reload(), investors.reload()]).then(() => undefined),
+    reload: reloadAll,
   };
 
   return (
@@ -72,51 +180,84 @@ export default function TokenConsoleKyc() {
       <PageHeader
         eyebrow="Tokenization Console"
         title="KYC desk"
-        subtitle="Applicants waiting on an identity decision. Clearing one lets them invest straight away, so the same decision also records what the register says about them."
+        subtitle="Who each applicant is, in one place: the KYC review, what the population registry said about their application, and the selfie and ID photos they sent. Clearing someone lets them invest straight away."
       />
 
       <StatRail className="mb-6">
-        <GlassStat label="Awaiting decision" value={loaded ? waitingRows.length : "—"} icon={<ShieldQuestion size={16} />} tone={waitingRows.length ? "warning" : "neutral"} />
-        <GlassStat label="Cleared" value={loaded ? all.filter((r) => r.status === "CLEARED").length : "—"} icon={<ShieldCheck size={16} />} tone="success" emphasis={false} />
-        <GlassStat label="Rejected" value={loaded ? all.filter((r) => r.status === "REJECTED").length : "—"} icon={<ShieldAlert size={16} />} />
-        <GlassStat label="Oldest waiting" value={oldest ? dateOf(oldest) : "—"} hint={waitingRows.length ? "Decide this one first." : "Nothing is waiting."} />
+        <GlassStat label="Reviews open" value={loaded ? openReviews : "—"} icon={<ShieldQuestion size={16} />} tone={openReviews ? "warning" : "neutral"} />
+        <GlassStat label="Photos waiting" value={waiting.data ? photosWaiting : "—"} icon={<Camera size={16} />} tone={photosWaiting ? "warning" : "neutral"} emphasis={false} />
+        <GlassStat label="Registry mismatches" value={mismatched.data ? mismatches : "—"} icon={<Fingerprint size={16} />} tone={mismatches ? "danger" : "neutral"} emphasis={false}
+          hint="To decide, with a name or date of birth the registry does not hold." />
+        <GlassStat label="Oldest waiting" value={oldest ? dateOf(oldest) : "—"} hint={oldest ? "Decide this one first." : "Nothing is waiting."} />
       </StatRail>
+
+      {partial.length > 0 && (
+        <NotePanel tone="warning" className="mb-4" title="Part of this page could not be loaded">
+          Missing: {partial.join("; ")}. The KYC reviews below are complete.
+        </NotePanel>
+      )}
 
       <FilterBar className="mb-3">
         <SearchInput value={q} onChange={setQ} placeholder="Name, reference or investor id…" className="w-72" />
-        <SelectFilter value={status} onChange={setStatus} options={STATUS_OPTIONS} allLabel="Any decision" />
+        <SelectFilter value={show} onChange={setShow} options={SHOW_OPTIONS} allLabel="Everyone" />
       </FilterBar>
 
       <ConsoleTable<Row>
-        what="the KYC queue"
+        what="the KYC desk"
         source={source}
-        rowId={(r) => r.queueId}
-        onRowClick={(r) => setSelected(r.queueId ?? null)}
+        rows={rows}
+        rowId={(r) => r.key}
+        onRowClick={(r) => setSelected(r.key)}
         selectedId={selected}
-        description={loaded ? `${rows.length} of ${all.length} KYC items` : undefined}
-        title="Queue"
-        emptyLabel={status === "OPEN" ? "Nothing is waiting on a KYC decision" : "No KYC items match that"}
+        title={showingAccepted ? "Photos accepted" : "Applicants"}
+        description={loaded ? `${rows.length} of ${all.length}` : undefined}
+        emptyLabel={show === TO_DECIDE ? "Nothing is waiting on a KYC decision" : "Nobody matches that"}
         columns={[
-          { key: "applicant", header: "Applicant", render: (r) => r.name ? <span className="font-medium text-text">{r.name}</span> : <Code>{shortId(r.investorId)}</Code> },
-          { key: "ref", header: "Reference", render: (r) => <Code>{r.reference || "—"}</Code>, hideOnMobile: true },
-          { key: "category", header: "Category", render: (r) => label(r.investor?.investorCategory), hideOnMobile: true },
-          { key: "lifecycle", header: "Lifecycle", render: (r) => <StatusBadge status={r.investor?.lifecycleStatus} /> },
-          { key: "since", header: "Waiting since", render: (r) => <span className="tabular text-xs text-text-soft">{dateTime(r.openedAt)}</span>, hideOnMobile: true },
-          { key: "decision", header: "Decision", render: (r) => <StatusBadge status={r.status} /> },
+          { key: "applicant", header: "Applicant", className: "min-w-[200px]", render: (r) => (
+            <div>
+              <div className="font-medium text-text">{r.name || <Code>{shortId(r.investorId ?? r.application?.profileId)}</Code>}</div>
+              <div className="mt-0.5 text-xs text-text-faint">
+                {r.application ? `Born ${dateOf(r.application.dateOfBirth)} · ${r.application.nationality}` : r.reference || "—"}
+              </div>
+            </div>
+          ) },
+          { key: "registry", header: "Registry", render: (r) => r.application ? (
+            <div>
+              <Badge tone={REGISTRY_RESULT[r.application.identityResult]?.tone ?? "neutral"} className="whitespace-nowrap">
+                {REGISTRY_RESULT[r.application.identityResult]?.text ?? label(r.application.identityResult)}
+              </Badge>
+              {r.application.identityMismatches?.length ? (
+                <div className="mt-1 text-xs text-text-soft">Differs: {r.application.identityMismatches.map(fieldWords).join(", ")}</div>
+              ) : null}
+            </div>
+          ) : <span className="text-xs text-text-faint">Not via the app</span>, hideOnMobile: true },
+          { key: "photos", header: showingAccepted ? "Photos accepted" : "Photos waiting", render: (r) => {
+            const list = showingAccepted ? r.accepted : r.photos;
+            return list.length
+              ? <span className="text-text">{list.map((p) => DOC_LABEL[p.type] ?? p.type).join(", ")}</span>
+              : <span className="text-xs text-text-faint">None</span>;
+          } },
+          { key: "since", header: showingAccepted ? "Accepted" : "Waiting since", className: "whitespace-nowrap", render: (r) => {
+            const at = showingAccepted ? latestAccepted(r) : r.since;
+            return <span className="tabular text-xs text-text-soft">{at ? dateTime(at) : "—"}</span>;
+          }, hideOnMobile: true },
+          { key: "decision", header: "Review", render: (r) => r.review
+            ? <StatusBadge status={r.review.status} />
+            : <span className="text-xs text-text-faint">No review</span> },
         ]}
       />
 
       <Modal open={!!selectedRow} onClose={() => setSelected(null)} title={selectedRow?.name || "Applicant"} size="lg">
-        {/* Keyed so one applicant's notes and errors never carry to the next. */}
+        {/* Keyed so one applicant's notes, images and errors never carry to the next. */}
         {selectedRow && (
           <ApplicantPanel
-            key={selectedRow.queueId}
+            key={selectedRow.key}
             row={selectedRow}
             onDone={() => {
               setSelected(null);
-              void reviews.reload();
-              void investors.reload();
+              reloadAll();
             }}
+            onPhotoDecided={() => { void waiting.reload(); void accepted.reload(); }}
           />
         )}
       </Modal>
@@ -124,12 +265,12 @@ export default function TokenConsoleKyc() {
   );
 }
 
-function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
+function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () => void; onPhotoDecided: () => void }) {
   const toast = useToast();
   const { user } = useAuth();
   const mayDecide = canDecideKyc(user?.tokRoles);
   const investorId = row.investorId ?? "";
-  const detail = useAsyncData(() => tokenConsole.investor(investorId));
+  const detail = useAsyncData(() => (investorId ? tokenConsole.investor(investorId) : Promise.resolve(null)));
   const decide = useAction(async (args: Parameters<typeof decideKyc>[0]) => {
     try {
       return await decideKyc(args);
@@ -151,13 +292,14 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
   const kyc = currentClassifier(v, "KYC_STATUS");
   const risk = currentClassifier(v, "RISK_TIER");
   const jurisdiction = currentClassifier(v, "JURISDICTION");
-  const isOpen = row.status === "OPEN";
+  const review = row.review;
+  const isOpen = review?.status === "OPEN";
   const outstanding = classifierOutstanding(v);
   const name = v?.displayName ?? row.name;
 
   const submit = async () => {
     if (!decision) return;
-    const done = await decide.run({ investorId, queueId: row.queueId, reviewOpen: isOpen, decision, note });
+    const done = await decide.run({ investorId, queueId: review?.queueId, reviewOpen: isOpen, decision, note });
     if (!done) return; // the error is on the confirmation
     toast.push(decision === "verify" ? `${name || "Applicant"} is verified and can invest now.` : `${name || "Applicant"} was rejected.`);
     setDecision(null);
@@ -171,9 +313,14 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
   };
 
   return (
-    <>
+    <div className="flex flex-col">
       {detail.error && <NotePanel tone="danger" className="mb-4">{detail.error}</NotePanel>}
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      {!investorId && (
+        <NotePanel tone="info" className="mb-4">
+          Photos from someone who has not applied yet: there is no investor record or review to decide.
+        </NotePanel>
+      )}
+      {investorId && <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         <DetailItem term="Applicant">{v?.displayName ?? row.name ?? "—"}</DetailItem>
         <DetailItem term="Reference"><Code>{v?.externalRef ?? "—"}</Code></DetailItem>
         <DetailItem term="Category">{label(v?.category)}</DetailItem>
@@ -182,29 +329,42 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
         <DetailItem term="Risk tier">{risk?.name ?? "—"}</DetailItem>
         <DetailItem term="Jurisdiction">{jurisdiction?.name ?? "—"}</DetailItem>
         <DetailItem term="Accounts">{detail.loading && !v ? "…" : (v?.accounts?.length ?? 0)}</DetailItem>
-      </dl>
+      </dl>}
 
-      <div className="mt-6">
-        <SectionTitle title="Why this is here" description="The rule that opened the review, in the wording onboarding recorded." />
-        <div className="rounded-md border border-border bg-surface-sunken px-4 py-3">
-          <p className="text-[13px] text-text">{row.reason ?? "No reason recorded."}</p>
-          <p className="mt-1 text-xs text-text-soft">
-            Opened {dateTime(row.openedAt)}
-            {row.assignedTo ? ` · assigned to ${row.assignedTo}` : ""}
-          </p>
-          {!isOpen && (
-            <p className="mt-2 text-xs text-text-soft">
-              {label(row.status)} {dateTime(row.resolvedAt)}
-              {row.resolutionNote ? ` — “${row.resolutionNote}”` : ""}
+      {review && (
+        <div className="mt-6">
+          <SectionTitle title="Why this is here" description="The rule that opened the review, in the wording onboarding recorded." />
+          <div className="rounded-md border border-border bg-surface-sunken px-4 py-3">
+            <p className="text-[13px] text-text">{review.reason ?? "No reason recorded."}</p>
+            <p className="mt-1 text-xs text-text-soft">
+              Opened {dateTime(review.openedAt)}
+              {review.assignedTo ? ` · assigned to ${review.assignedTo}` : ""}
             </p>
-          )}
+            {!isOpen && (
+              <p className="mt-2 text-xs text-text-soft">
+                {label(review.status)} {dateTime(review.resolvedAt)}
+                {review.resolutionNote ? ` — “${review.resolutionNote}”` : ""}
+              </p>
+            )}
+          </div>
+          {/* ID and KRA numbers stay with onboarding; neither service returns them. */}
+          <p className="mt-2 text-xs text-text-soft">
+            Identity numbers stay with onboarding and are not shown. What is checkable is the registry result and the
+            photos below, and the register's own classifiers above.
+          </p>
         </div>
-        {/* Identity documents stay with onboarding; this API never returns them. */}
-        <p className="mt-2 text-xs text-text-soft">
-          Identity numbers stay with onboarding and are not exposed here. What is checkable is the screening outcome
-          that let the application through, and the register's own classifiers above.
-        </p>
-      </div>
+      )}
+
+      {row.application && <div className="mt-6"><ApplicationSection app={row.application} /></div>}
+      {(row.application || row.photos.length > 0) && (
+        <div className="mt-6"><PhotosWaiting photos={row.photos} onDecided={onPhotoDecided} /></div>
+      )}
+      {(row.application?.profileId ?? row.photos[0]?.profileId) && (
+        <div className="mt-6">
+          <SectionTitle title="Every photo sent" />
+          <CustomerPhotos key={row.photos.map((p) => p.id).join()} profileId={(row.application?.profileId ?? row.photos[0]?.profileId)!} onKycDesk />
+        </div>
+      )}
 
       {v?.lifecycle?.length ? (
         <div className="mt-6">
@@ -221,7 +381,7 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+      {investorId && <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
         {(isOpen || outstanding) && !mayDecide ? (
           <span className="text-[12.5px] text-text-soft">
             Deciding a KYC review needs the {KYC_DECIDER_ROLES.map((r) => label(r)).join(" or ")} role. You can see the queue; someone with that role decides.
@@ -239,9 +399,9 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
             )}
           </>
         ) : (
-          <span className="text-[12.5px] text-text-soft">This one is decided. Nothing is outstanding.</span>
+          <span className="text-[12.5px] text-text-soft">{review ? "This one is decided. Nothing is outstanding." : "No KYC review is open for them."}</span>
         )}
-      </div>
+      </div>}
 
       {decision &&
         // Portalled: BO Admin's Modal is not, and this one opens over another.
@@ -259,9 +419,10 @@ function ApplicantPanel({ row, onDone }: { row: Row; onDone: () => void }) {
           />,
           document.body,
         )}
-    </>
+    </div>
   );
 }
+
 
 
 /** Both decisions are irreversible from here — a cleared applicant can start
