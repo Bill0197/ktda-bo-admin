@@ -11,13 +11,14 @@ const ALL_PAGES = NAV_DEFS.map((n) => n.to);
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const footerNote = useContentField("regulatory_footer", "text", "Bond Retail Fund is regulated by the Capital Markets Authority (CMA).");
+  const footerNote = useContentField("regulatory_footer", "text", "Investcent Investment Bank is regulated by the Capital Markets Authority (CMA).");
   if (!user) return null;
 
   return (
     <AppShell
-      appName="BRF BO Admin"
-      appTag="Investcent Investment Bank"
+      appName="Investcent"
+      appTag="Investment Bank"
+      appMark="II"
       nav={navForRole(ALL_PAGES)}
       user={{ name: user.name, role: user.tokRoles.join(", ") || "Staff", avatarInitials: user.initials }}
       footerNote={footerNote}

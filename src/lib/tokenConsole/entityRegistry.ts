@@ -229,7 +229,7 @@ const specs: EntitySpec[] = [
     useList: list("fund", tc.funds),
     useCreate: create("fund", tc.createFund),
     fields: [
-      { key: "name", label: "Name", kind: "text", required: true, placeholder: "Bond Retail Fund" },
+      { key: "name", label: "Name", kind: "text", required: true, placeholder: "Fixed Income Fund" },
       { key: "institutionId", label: "Institution", kind: "ref", refEntity: "institution", required: true },
       { key: "registrationRef", label: "Registration ref", kind: "text", placeholder: "CMA/UT/2026/014", wide: true },
     ],
@@ -239,7 +239,7 @@ const specs: EntitySpec[] = [
     useList: list("subFund", tc.subFunds),
     useCreate: create("subFund", tc.createSubFund),
     fields: [
-      { key: "name", label: "Name", kind: "text", required: true, placeholder: "BRF KES Fixed Income" },
+      { key: "name", label: "Name", kind: "text", required: true, placeholder: "KES Fixed Income" },
       { key: "fundId", label: "Fund", kind: "ref", refEntity: "fund", required: true },
       { key: "baseCurrency", label: "Base currency", kind: "currency", required: true, placeholder: "KES" },
       { key: "assetId", label: "Backing asset", kind: "ref", refEntity: "asset" },

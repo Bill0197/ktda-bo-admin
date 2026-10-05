@@ -131,10 +131,10 @@ export function NewProductModal({ onClose, onStaged }: { onClose: () => void; on
       <div className="flex flex-col gap-5">
         <Section title="Identity">
           <Field label="Product ID" required>
-            <Input value={f.productId} onChange={(e) => set("productId", e.target.value)} placeholder="BRF-KES-INC" />
+            <Input value={f.productId} onChange={(e) => set("productId", e.target.value)} placeholder="KES-FI-INC" />
           </Field>
           <Field label="Name" required>
-            <Input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="BRF KES Income Fund" />
+            <Input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="KES Income Fund" />
           </Field>
           <Field label="Currency" required>
             <Input value={f.currency} maxLength={3} className="uppercase" onChange={(e) => set("currency", e.target.value)} placeholder="KES" />

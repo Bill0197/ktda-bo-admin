@@ -6,12 +6,15 @@ import { AmbientBackdrop } from "./Ambient";
  * screen), and a form panel on the right. Keeps the five apps' auth
  * screens visually consistent without duplicating the layout five times. */
 export function AuthLayout({
+  mark,
   eyebrow,
   title,
   description,
   bullets,
   children,
 }: {
+  /** Two letters in the brand square. */
+  mark: string;
   eyebrow: string;
   title: string;
   description: string;
@@ -23,7 +26,7 @@ export function AuthLayout({
       <div className="hidden lg:flex lg:w-[42%] xl:w-[38%] relative overflow-hidden bg-primary-50 flex-col justify-between p-12 xl:p-14">
         <AmbientBackdrop />
         <div className="relative z-10 h-11 w-11 rounded-xl brand-mark text-white flex items-center justify-center font-display font-bold animate-float-slow">
-          BF
+          {mark}
         </div>
         <div className="relative z-10">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-600 mb-4">{eyebrow}</div>
