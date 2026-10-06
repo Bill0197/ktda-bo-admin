@@ -1,9 +1,10 @@
 /* Omnichannel's staff (operator) endpoints — the only part of omnichannel a
  * back office uses. Omnichannel owns the customer's identity and channels, not
  * their records, so most of what BO Admin *shows* comes from the tokenization
- * service (tokApi.ts). Two reads are omnichannel's own, for compliance: the
- * applications the population-registry check flagged, and the selfie and ID
- * photos (the queue waiting for a decision, and every photo one customer sent).
+ * service (tokApi.ts). The reads that are omnichannel's own: for compliance,
+ * the applications the population-registry check flagged and the selfie and
+ * ID photos (the queue waiting for a decision, and every photo one customer
+ * sent); for support, one customer's standing, money, messages and activity.
  *
  * Same-origin `/omni/*` (Vite proxy / functions/omni / nginx), which forwards
  * only these calls and only for a caller with a live BO Admin session. */
@@ -75,6 +76,21 @@ async function getAll<T>(path: string): Promise<T[]> {
   }
 }
 
+/** One page of a list, and how many pages there are. */
+export type Page<T> = { items: T[]; page: number; pages: number; total: number };
+
+async function getPage<T>(path: string, page: number, size: number): Promise<Page<T>> {
+  const res = await send("GET", `${path}${path.includes("?") ? "&" : "?"}page=${page}&size=${size}`);
+  if (!res.ok) throw await failure(res);
+  const items = (await res.json()) as T[];
+  const num = (name: string, fallback: number) => {
+    const v = Number(res.headers.get(name));
+    return res.headers.has(name) && Number.isFinite(v) ? v : fallback;
+  };
+  // Without the headers (a service that does not page) this is the whole list.
+  return { items, page, pages: num("X-Total-Pages", page), total: num("X-Total-Count", items.length) };
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await send("POST", path, body);
   const text = await res.text();
@@ -136,6 +152,77 @@ export type QueuedDocument = {
   uploadedAt: string;
 };
 
+export type ContactView = {
+  id: string;
+  type: "MOBILE" | "EMAIL" | "WHATSAPP" | string;
+  value: string;
+  verified: boolean;
+  primary: boolean;
+  createdAt: string;
+};
+
+export type ProductLinkView = { id: string; product: string; externalRef: string; status: string; linkedAt: string };
+
+/** One customer as support sees them: profile, contacts in full, product
+ *  links and the live standing in the product, and whether push reaches them. */
+export type CustomerSummary = {
+  profileId: string;
+  displayName: string | null;
+  legalName: string | null;
+  status: "PENDING" | "ACTIVE" | "SUSPENDED" | "CLOSED" | string;
+  registeredAt: string;
+  contacts: ContactView[];
+  links: ProductLinkView[];
+  account: { linked: boolean; investorId: string | null; legalName: string | null; kycStatus: string; canInvest: boolean } | null;
+  activeDevices: number;
+  pushEnabled: boolean;
+};
+
+/** M-Pesa payments and payouts (`MPESA`) merged with the product's own
+ *  movements (`PRODUCT`), newest first. `direction` is from the customer's
+ *  side: OUT is money leaving them. */
+export type TimelineEntry = {
+  occurredAt: string;
+  source: "MPESA" | "PRODUCT" | string;
+  kind: string;
+  label: string;
+  direction: "IN" | "OUT" | string;
+  amount: number | null;
+  currency: string | null;
+  status: string | null;
+  reference: string | null;
+  detail: string | null;
+};
+
+export type SentMessage = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  reference: string | null;
+  /** Whether the push went out; the inbox always has the message. */
+  delivery: "PENDING" | "SENT" | "NO_DEVICE" | "FAILED" | "MUTED" | string;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type CustomerAction = { id: string; action: string; target: string | null; outcome: number | null; requestId: string | null; occurredAt: string };
+
+export type CustomerQuery = { phone: string } | { email: string } | { investorId: string } | { profileId: string };
+
+/** Omnichannel lists applications by registry result only, so this reads
+ *  each result until one matches. */
+async function findApplication(match: (a: CheckedApplication) => boolean): Promise<CheckedApplication | null> {
+  const results: IdentityResult[] = ["MISMATCH", "UNCHECKED", "MATCH"];
+  for (const result of results) {
+    const found = (await omniApi.applications(result)).find((a) => a.product === PRODUCT && match(a));
+    if (found) return found;
+  }
+  return null;
+}
+
+const customerPath = (id: string) => `/customers/${encodeURIComponent(id)}`;
+
 export const omniApi = {
   /** A one-time code the investor enters in the app to link this record to
    *  their profile. */
@@ -152,14 +239,10 @@ export const omniApi = {
     getAll<CheckedApplication>(`/onboarding/applications?identityResult=${identityResult}`),
   /** The app application behind an accounting investor, whatever the registry
    *  said; null when they never applied through the app (staff onboarded). */
-  applicationFor: async (investorId: string): Promise<CheckedApplication | null> => {
-    const results: IdentityResult[] = ["MISMATCH", "UNCHECKED", "MATCH"];
-    for (const result of results) {
-      const found = (await omniApi.applications(result)).find((a) => a.product === PRODUCT && a.externalRef === investorId);
-      if (found) return found;
-    }
-    return null;
-  },
+  applicationFor: (investorId: string) => findApplication((a) => a.externalRef === investorId),
+  /** The app application one profile made, whatever the registry said; null
+   *  when they have not applied. */
+  applicationOfProfile: (profileId: string) => findApplication((a) => a.profileId === profileId),
   /** Photos waiting for a decision, oldest first. */
   pendingDocuments: () => getAll<QueuedDocument>("/onboarding/documents"),
   /** Every accepted photo, across customers, newest first. */
@@ -174,6 +257,23 @@ export const omniApi = {
     if (!res.ok) throw await failure(res);
     return res.blob();
   },
+  /** Customers by a verified phone (international format), a verified email,
+   *  their investor id or their profile id; empty when nothing matches. */
+  findCustomers: (q: CustomerQuery) => {
+    const [key, value] = Object.entries(q)[0];
+    return getAll<CustomerSummary>(`/customers?${key}=${encodeURIComponent(value)}`);
+  },
+  customer: async (profileId: string): Promise<CustomerSummary> => {
+    const res = await send("GET", customerPath(profileId));
+    if (!res.ok) throw await failure(res);
+    return (await res.json()) as CustomerSummary;
+  },
+  customerTimeline: (profileId: string, page: number, size = 20) =>
+    getPage<TimelineEntry>(`${customerPath(profileId)}/timeline`, page, size),
+  customerMessages: (profileId: string, page: number, size = 20) =>
+    getPage<SentMessage>(`${customerPath(profileId)}/messages`, page, size),
+  customerActivity: (profileId: string, page: number, size = 20) =>
+    getPage<CustomerAction>(`${customerPath(profileId)}/activity`, page, size),
   /** FAILED needs a note: the customer receives it as a message. 409 when it
    *  is no longer pending (someone else decided). */
   reviewDocument: (id: string, decision: "PASSED" | "FAILED", note?: string) =>

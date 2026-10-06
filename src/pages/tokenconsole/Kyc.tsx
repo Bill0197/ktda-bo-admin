@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { BadgeCheck, Camera, Fingerprint, ShieldQuestion } from "lucide-react";
 import {
   Badge, Button, Field, FilterBar, GlassStat, Modal, NotePanel, PageHeader, SearchInput, SectionTitle, SelectFilter,
@@ -21,6 +22,7 @@ import { Code, ConsoleTable, StatusBadge, type Source } from "../../components/t
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
 import { ApplicationSection, PhotosWaiting } from "../../components/tokenconsole/IdentityReview";
 import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
+import { customerDeskLink } from "../../lib/tokenConsole/customerSearch";
 
 /* The KYC desk: everything a reviewer needs to decide who someone is, on one
    page, one row per applicant.
@@ -364,6 +366,12 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
           <SectionTitle title="Every photo sent" />
           <CustomerPhotos key={row.photos.map((p) => p.id).join()} profileId={(row.application?.profileId ?? row.photos[0]?.profileId)!} onKycDesk />
         </div>
+      )}
+      {(row.investorId ?? row.application?.profileId) && (
+        <p className="mt-4 text-[12.5px] text-text-soft">
+          Their M-Pesa payments, the messages we sent and what they did in the app are on the{" "}
+          <Link to={customerDeskLink(row.investorId ?? row.application?.profileId)} className="font-medium text-primary-600 hover:text-primary-700">Customer desk</Link>.
+        </p>
       )}
 
       {v?.lifecycle?.length ? (

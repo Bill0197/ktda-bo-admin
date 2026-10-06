@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Button, DataTable, Field, NotePanel, Select, Textarea, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
@@ -9,6 +10,7 @@ import { Code, StatusBadge } from "./ConsoleTable";
 import { DetailItem } from "./DetailItem";
 import { ActionModal } from "./ActionModal";
 import { InvestorPhotos } from "./CustomerPhotos";
+import { customerDeskLink } from "../../lib/tokenConsole/customerSearch";
 
 type Lifecycle = "suspend" | "reactivate" | "offboard";
 const LIFECYCLE: Record<Lifecycle, { title: string; body: string; label: string; ok: string; danger: boolean }> = {
@@ -125,6 +127,10 @@ export function InvestorPanel({ investorId, onChanged }: { investorId: string; o
 
       <h3 className="mt-5 mb-2 text-[13px] font-semibold text-text">Identity photos</h3>
       <InvestorPhotos investorId={investorId} />
+      <p className="mt-3 text-[12.5px] text-text-soft">
+        Their M-Pesa payments, the messages we sent and what they did in the app are on the{" "}
+        <Link to={customerDeskLink(investorId)} className="font-medium text-primary-600 hover:text-primary-700">Customer desk</Link>.
+      </p>
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
         {status === "SUSPENDED"
