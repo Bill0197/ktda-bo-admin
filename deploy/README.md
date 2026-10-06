@@ -10,7 +10,7 @@ CORS, and the engine's session cookie works as it does for tokenization-web toda
 | `/tok/*` | the accounting engine, `127.0.0.1:8086/api/*` |
 | `/omni/api/operator/*` (POST only, signed-in staff only) | omnichannel, `127.0.0.1:8087/api/operator/*` |
 | `/omni/api/operator/onboarding/{applications,documents,documents/<id>/content}` (GET only, signed-in staff only) | the same, for the Identity checks page |
-| `/omni/api/operator/customers`, `/customers/<id>` and `/customers/<id>/{timeline,messages,activity}` (GET only, signed-in staff only) | the same, for the Customer support page |
+| `/omni/api/operator/customers`, `/customers/<id>` and `/customers/<id>/{timeline,messages,activity}` (GET only, signed-in staff only) | the same, for the KYC desk's Customer support tab |
 | anything else | the app (`/var/www/bo-admin`, falling back to `index.html`) |
 
 The build needs no environment variables.

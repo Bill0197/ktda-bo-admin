@@ -2,18 +2,19 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import {
-  Badge, Button, Card, DataTable, Input, NotePanel, PageHeader, SectionTitle, Tabs,
+  Badge, Button, Card, DataTable, Input, NotePanel, SectionTitle, Tabs,
 } from "../../ui";
 import {
   omniApi, type CustomerSummary, type Page, type TimelineEntry,
 } from "../../lib/omniApi";
 import { dateOf, dateTime, label, money, shortId } from "../../lib/tokenConsole/format";
-import { queriesFor } from "../../lib/tokenConsole/customerSearch";
-import { Code } from "../../components/tokenconsole/ConsoleTable";
-import { DetailItem } from "../../components/tokenconsole/DetailItem";
-import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
+import { queriesFor, SUPPORT_VIEW } from "../../lib/tokenConsole/customerSearch";
+import { Code } from "./ConsoleTable";
+import { DetailItem } from "./DetailItem";
+import { CustomerPhotos } from "./CustomerPhotos";
 
-/* Customer support, from omnichannel (the customer channel): find someone by
+/* Customer support, a tab of the KYC desk, from omnichannel (the customer
+   channel): find someone by
    the number or email they use, or by an id, and answer "I paid but nothing
    happened" or "I never got the code" without a developer reading logs —
    their standing, their money (M-Pesa and the product's own movements as one
@@ -33,8 +34,11 @@ const DELIVERY: Record<string, { tone: Tone; text: string }> = {
 const PROFILE_TONE: Record<string, Tone> = { ACTIVE: "success", PENDING: "warning", SUSPENDED: "danger", CLOSED: "neutral" };
 const KYC_TONE: Record<string, Tone> = { VERIFIED: "success", IN_REVIEW: "warning", PENDING: "warning", REJECTED: "danger" };
 
-export default function TokenConsoleCustomers() {
+/** Lives under the KYC desk's `view=support`; the search and the customer
+ *  open travel in the URL (`q`, `id`) beside it, so a lookup can be linked. */
+export function CustomerSupport() {
   const [params, setParams] = useSearchParams();
+  const withView = useCallback((next: Record<string, string>) => ({ view: SUPPORT_VIEW, ...next }), []);
   const [text, setText] = useState(params.get("q") ?? "");
   const [problem, setProblem] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -60,13 +64,13 @@ export default function TokenConsoleCustomers() {
       if (run !== searchId.current) return;
       setResults(found);
       // One match opens straight away; several are listed to choose from.
-      setParams(found.length === 1 ? { q: typed.trim(), id: found[0].profileId } : { q: typed.trim() }, { replace: true });
+      setParams(withView(found.length === 1 ? { q: typed.trim(), id: found[0].profileId } : { q: typed.trim() }), { replace: true });
     } catch (e) {
       if (run === searchId.current) setProblem(e instanceof Error ? e.message : "The search did not go through.");
     } finally {
       if (run === searchId.current) setSearching(false);
     }
-  }, [setParams]);
+  }, [setParams, withView]);
 
   // A link in (?q=…, e.g. from an investor's panel) searches on arrival.
   const initial = useRef(params.get("q"));
@@ -83,12 +87,6 @@ export default function TokenConsoleCustomers() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Tokenization Console"
-        title="Customer support"
-        subtitle="Find a customer by the phone or email they use, or by an id. Their standing, money, the messages we sent and what they did in the app, in one place. Every lookup is recorded against you."
-      />
-
       <form onSubmit={submit} className="mb-5 flex max-w-2xl flex-wrap items-start gap-2" role="search">
         <div className="min-w-[260px] flex-1">
           <Input
@@ -118,7 +116,7 @@ export default function TokenConsoleCustomers() {
             columns={[
               { key: "name", header: "Customer", render: (c) => (
                 <button type="button" className="text-left font-medium text-primary-600 hover:text-primary-700"
-                  onClick={() => setParams({ q: text.trim(), id: c.profileId })}>
+                  onClick={() => setParams(withView({ q: text.trim(), id: c.profileId }))}>
                   {c.legalName ?? c.displayName ?? "Unnamed"}
                 </button>
               ) },

@@ -10,6 +10,7 @@ import { Code, StatusBadge } from "./ConsoleTable";
 import { DetailItem } from "./DetailItem";
 import { ActionModal } from "./ActionModal";
 import { InvestorPhotos } from "./CustomerPhotos";
+import { supportLink } from "../../lib/tokenConsole/customerSearch";
 
 type Lifecycle = "suspend" | "reactivate" | "offboard";
 const LIFECYCLE: Record<Lifecycle, { title: string; body: string; label: string; ok: string; danger: boolean }> = {
@@ -128,7 +129,7 @@ export function InvestorPanel({ investorId, onChanged }: { investorId: string; o
       <InvestorPhotos investorId={investorId} />
       <p className="mt-3 text-[12.5px] text-text-soft">
         Their M-Pesa payments, the messages we sent and what they did in the app are on{" "}
-        <Link to={`/token-console/customers?q=${encodeURIComponent(investorId)}`} className="font-medium text-primary-600 hover:text-primary-700">Customer support</Link>.
+        <Link to={supportLink(investorId)} className="font-medium text-primary-600 hover:text-primary-700">Customer support</Link>.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">

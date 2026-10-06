@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BadgeCheck, Camera, Fingerprint, ShieldQuestion } from "lucide-react";
 import {
   Badge, Button, Field, FilterBar, GlassStat, Modal, NotePanel, PageHeader, SearchInput, SectionTitle, SelectFilter,
-  StatRail, Textarea, useToast,
+  StatRail, Tabs, Textarea, useToast,
 } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { omniApi, type CheckedApplication, type QueuedDocument } from "../../lib/omniApi";
@@ -21,6 +22,8 @@ import { Code, ConsoleTable, StatusBadge, type Source } from "../../components/t
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
 import { ApplicationSection, PhotosWaiting } from "../../components/tokenconsole/IdentityReview";
 import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
+import { CustomerSupport } from "../../components/tokenconsole/CustomerSupport";
+import { SUPPORT_VIEW, supportLink } from "../../lib/tokenConsole/customerSearch";
 
 /* The KYC desk: everything a reviewer needs to decide who someone is, on one
    page, one row per applicant.
@@ -124,7 +127,36 @@ function applicants(
   return [...rows.values()];
 }
 
+/** Two tabs: the applicants waiting on a decision, and Customer support for
+ *  anyone at all (their money, messages and app activity). The tab is in the
+ *  URL (`view=support`) so either can be linked to. */
 export default function TokenConsoleKyc() {
+  const [params, setParams] = useSearchParams();
+  const support = params.get("view") === SUPPORT_VIEW;
+  return (
+    <div>
+      <PageHeader
+        eyebrow="Tokenization Console"
+        title="KYC desk"
+        subtitle={support
+          ? "Find any customer by the phone or email they use, or by an id: their standing, money, the messages we sent and what they did in the app. Every lookup is recorded against you."
+          : "Who each applicant is, in one place: the KYC review, what the population registry said about their application, and the selfie and ID photos they sent. Clearing someone lets them invest straight away."}
+      />
+      <Tabs
+        className="mb-5"
+        active={support ? SUPPORT_VIEW : "applicants"}
+        onChange={(key) => setParams(key === SUPPORT_VIEW ? { view: SUPPORT_VIEW } : {})}
+        tabs={[
+          { key: "applicants", label: "Applicants" },
+          { key: SUPPORT_VIEW, label: "Customer support" },
+        ]}
+      />
+      {support ? <CustomerSupport /> : <Applicants />}
+    </div>
+  );
+}
+
+function Applicants() {
   const reviews = useAsyncData(allReviews);
   const investors = useAsyncData(tokenConsole.investors);
   // Omnichannel's half, each read on its own so one failing never hides the rest.
@@ -177,12 +209,6 @@ export default function TokenConsoleKyc() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Tokenization Console"
-        title="KYC desk"
-        subtitle="Who each applicant is, in one place: the KYC review, what the population registry said about their application, and the selfie and ID photos they sent. Clearing someone lets them invest straight away."
-      />
-
       <StatRail className="mb-6">
         <GlassStat label="Reviews open" value={loaded ? openReviews : "—"} icon={<ShieldQuestion size={16} />} tone={openReviews ? "warning" : "neutral"} />
         <GlassStat label="Photos waiting" value={waiting.data ? photosWaiting : "—"} icon={<Camera size={16} />} tone={photosWaiting ? "warning" : "neutral"} emphasis={false} />
@@ -364,6 +390,12 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
           <SectionTitle title="Every photo sent" />
           <CustomerPhotos key={row.photos.map((p) => p.id).join()} profileId={(row.application?.profileId ?? row.photos[0]?.profileId)!} onKycDesk />
         </div>
+      )}
+      {(row.investorId ?? row.application?.profileId) && (
+        <p className="mt-4 text-[12.5px] text-text-soft">
+          Their M-Pesa payments, the messages we sent and what they did in the app are under{" "}
+          <Link to={supportLink(row.investorId ?? row.application?.profileId)} className="font-medium text-primary-600 hover:text-primary-700">Customer support</Link>.
+        </p>
       )}
 
       {v?.lifecycle?.length ? (
