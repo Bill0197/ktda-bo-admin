@@ -201,7 +201,7 @@ export type SentMessage = {
   body: string;
   reference: string | null;
   /** Whether the push went out; the inbox always has the message. */
-  delivery: "PENDING" | "SENT" | "NO_DEVICE" | "FAILED" | string;
+  delivery: "PENDING" | "SENT" | "NO_DEVICE" | "FAILED" | "MUTED" | string;
   readAt: string | null;
   createdAt: string;
 };
@@ -209,6 +209,17 @@ export type SentMessage = {
 export type CustomerAction = { id: string; action: string; target: string | null; outcome: number | null; requestId: string | null; occurredAt: string };
 
 export type CustomerQuery = { phone: string } | { email: string } | { investorId: string } | { profileId: string };
+
+/** Omnichannel lists applications by registry result only, so this reads
+ *  each result until one matches. */
+async function findApplication(match: (a: CheckedApplication) => boolean): Promise<CheckedApplication | null> {
+  const results: IdentityResult[] = ["MISMATCH", "UNCHECKED", "MATCH"];
+  for (const result of results) {
+    const found = (await omniApi.applications(result)).find((a) => a.product === PRODUCT && match(a));
+    if (found) return found;
+  }
+  return null;
+}
 
 const customerPath = (id: string) => `/customers/${encodeURIComponent(id)}`;
 
@@ -228,14 +239,10 @@ export const omniApi = {
     getAll<CheckedApplication>(`/onboarding/applications?identityResult=${identityResult}`),
   /** The app application behind an accounting investor, whatever the registry
    *  said; null when they never applied through the app (staff onboarded). */
-  applicationFor: async (investorId: string): Promise<CheckedApplication | null> => {
-    const results: IdentityResult[] = ["MISMATCH", "UNCHECKED", "MATCH"];
-    for (const result of results) {
-      const found = (await omniApi.applications(result)).find((a) => a.product === PRODUCT && a.externalRef === investorId);
-      if (found) return found;
-    }
-    return null;
-  },
+  applicationFor: (investorId: string) => findApplication((a) => a.externalRef === investorId),
+  /** The app application one profile made, whatever the registry said; null
+   *  when they have not applied. */
+  applicationOfProfile: (profileId: string) => findApplication((a) => a.profileId === profileId),
   /** Photos waiting for a decision, oldest first. */
   pendingDocuments: () => getAll<QueuedDocument>("/onboarding/documents"),
   /** Every accepted photo, across customers, newest first. */
@@ -261,11 +268,11 @@ export const omniApi = {
     if (!res.ok) throw await failure(res);
     return (await res.json()) as CustomerSummary;
   },
-  customerTimeline: (profileId: string, page: number, size = 25) =>
+  customerTimeline: (profileId: string, page: number, size = 20) =>
     getPage<TimelineEntry>(`${customerPath(profileId)}/timeline`, page, size),
-  customerMessages: (profileId: string, page: number, size = 25) =>
+  customerMessages: (profileId: string, page: number, size = 20) =>
     getPage<SentMessage>(`${customerPath(profileId)}/messages`, page, size),
-  customerActivity: (profileId: string, page: number, size = 25) =>
+  customerActivity: (profileId: string, page: number, size = 20) =>
     getPage<CustomerAction>(`${customerPath(profileId)}/activity`, page, size),
   /** FAILED needs a note: the customer receives it as a message. 409 when it
    *  is no longer pending (someone else decided). */

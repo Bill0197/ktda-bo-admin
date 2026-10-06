@@ -1,13 +1,10 @@
 import type { CustomerQuery } from "../omniApi";
 
-/* How the Customer support search box reads what staff type, and where it
-   lives: the KYC desk's support tab. */
+/* How the Customer desk search box reads what staff type, and where it lives. */
 
-export const SUPPORT_VIEW = "support";
-
-/** The KYC desk's Customer support tab, searching for `q` when given. */
-export const supportLink = (q?: string | null) =>
-  `/token-console/kyc?view=${SUPPORT_VIEW}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+/** The Customer desk, searching for `q` when given. */
+export const customerDeskLink = (q?: string | null) =>
+  `/token-console/customers${q ? `?q=${encodeURIComponent(q)}` : ""}`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

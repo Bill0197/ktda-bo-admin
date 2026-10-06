@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./ui";
 import { AuthProvider } from "./lib/auth";
 import { ProtectedRoute } from "./lib/ProtectedRoute";
@@ -67,6 +67,7 @@ const TokenConsoleTariffs = lazy(() => import("./pages/tokenconsole/Tariffs"));
 const TokenConsoleConfiguration = lazy(() => import("./pages/tokenconsole/Configuration"));
 const TokenConsoleLoans = lazy(() => import("./pages/tokenconsole/Loans"));
 const TokenConsoleKyc = lazy(() => import("./pages/tokenconsole/Kyc"));
+const TokenConsoleCustomers = lazy(() => import("./pages/tokenconsole/Customers"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
 const TokenConsoleNav = lazy(() => import("./pages/tokenconsole/Nav"));
 const TokenConsoleAssets = lazy(() => import("./pages/tokenconsole/Assets"));
@@ -156,7 +157,7 @@ function AppRoutes() {
       <Route path="/token-console/configuration" element={<ProtectedRoute><TokenConsoleConfiguration /></ProtectedRoute>} />
       <Route path="/token-console/loans" element={<ProtectedRoute><TokenConsoleLoans /></ProtectedRoute>} />
       <Route path="/token-console/kyc" element={<ProtectedRoute><TokenConsoleKyc /></ProtectedRoute>} />
-      <Route path="/token-console/customers" element={<CustomersRedirect />} />
+      <Route path="/token-console/customers" element={<ProtectedRoute><TokenConsoleCustomers /></ProtectedRoute>} />
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />
@@ -202,12 +203,4 @@ export default function App() {
       </AuthProvider>
     </ErrorBoundary>
   );
-}
-
-/** Customer support moved onto the KYC desk as a tab; an old link keeps its search. */
-function CustomersRedirect() {
-  const { search } = useLocation();
-  const params = new URLSearchParams(search);
-  params.set("view", "support");
-  return <Navigate to={`/token-console/kyc?${params}`} replace />;
 }

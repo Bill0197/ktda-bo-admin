@@ -1,26 +1,27 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import {
   Badge, Button, Card, DataTable, Input, NotePanel, SectionTitle, Tabs,
 } from "../../ui";
 import {
-  omniApi, type CustomerSummary, type Page, type TimelineEntry,
+  omniApi, type CheckedApplication, type CustomerSummary, type Page, type TimelineEntry,
 } from "../../lib/omniApi";
 import { dateOf, dateTime, label, money, shortId } from "../../lib/tokenConsole/format";
-import { queriesFor, SUPPORT_VIEW } from "../../lib/tokenConsole/customerSearch";
+import { queriesFor } from "../../lib/tokenConsole/customerSearch";
+import { ApplicationSection } from "./IdentityReview";
 import { Code } from "./ConsoleTable";
 import { DetailItem } from "./DetailItem";
 import { CustomerPhotos } from "./CustomerPhotos";
 
-/* Customer support, a tab of the KYC desk, from omnichannel (the customer
-   channel): find someone by
+/* The Customer desk, from omnichannel (the customer channel): find someone by
    the number or email they use, or by an id, and answer "I paid but nothing
    happened" or "I never got the code" without a developer reading logs —
    their standing, their money (M-Pesa and the product's own movements as one
    list), what we sent them and whether it reached the phone, and what they
    did in the app. Reads only; omnichannel audits every lookup against the
-   staff member signed in. */
+   staff member signed in. KYC and photo standing are shown for context; the
+   decisions stay on the KYC desk. */
 
 type Tone = "success" | "warning" | "danger" | "neutral";
 
@@ -29,16 +30,16 @@ const DELIVERY: Record<string, { tone: Tone; text: string }> = {
   SENT: { tone: "success", text: "Pushed" },
   PENDING: { tone: "warning", text: "Sending" },
   NO_DEVICE: { tone: "neutral", text: "No device" },
+  MUTED: { tone: "neutral", text: "Muted" },
   FAILED: { tone: "danger", text: "Push failed" },
 };
 const PROFILE_TONE: Record<string, Tone> = { ACTIVE: "success", PENDING: "warning", SUSPENDED: "danger", CLOSED: "neutral" };
 const KYC_TONE: Record<string, Tone> = { VERIFIED: "success", IN_REVIEW: "warning", PENDING: "warning", REJECTED: "danger" };
 
-/** Lives under the KYC desk's `view=support`; the search and the customer
- *  open travel in the URL (`q`, `id`) beside it, so a lookup can be linked. */
-export function CustomerSupport() {
+/** The search and the customer open travel in the URL (`q`, `id`), so a
+ *  lookup can be linked. */
+export function CustomerDesk() {
   const [params, setParams] = useSearchParams();
-  const withView = useCallback((next: Record<string, string>) => ({ view: SUPPORT_VIEW, ...next }), []);
   const [text, setText] = useState(params.get("q") ?? "");
   const [problem, setProblem] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -64,13 +65,13 @@ export function CustomerSupport() {
       if (run !== searchId.current) return;
       setResults(found);
       // One match opens straight away; several are listed to choose from.
-      setParams(withView(found.length === 1 ? { q: typed.trim(), id: found[0].profileId } : { q: typed.trim() }), { replace: true });
+      setParams(found.length === 1 ? { q: typed.trim(), id: found[0].profileId } : { q: typed.trim() }, { replace: true });
     } catch (e) {
       if (run === searchId.current) setProblem(e instanceof Error ? e.message : "The search did not go through.");
     } finally {
       if (run === searchId.current) setSearching(false);
     }
-  }, [setParams, withView]);
+  }, [setParams]);
 
   // A link in (?q=…, e.g. from an investor's panel) searches on arrival.
   const initial = useRef(params.get("q"));
@@ -103,8 +104,8 @@ export function CustomerSupport() {
       </form>
 
       {results && results.length === 0 && !selectedId && (
-        <NotePanel tone="info">
-          No customer uses that. A phone number or email only matches once the customer has verified it.
+        <NotePanel tone="info" title="No customer found.">
+          A phone number or email only matches once the customer has verified it.
         </NotePanel>
       )}
 
@@ -116,7 +117,7 @@ export function CustomerSupport() {
             columns={[
               { key: "name", header: "Customer", render: (c) => (
                 <button type="button" className="text-left font-medium text-primary-600 hover:text-primary-700"
-                  onClick={() => setParams(withView({ q: text.trim(), id: c.profileId }))}>
+                  onClick={() => setParams({ q: text.trim(), id: c.profileId })}>
                   {c.legalName ?? c.displayName ?? "Unnamed"}
                 </button>
               ) },
@@ -136,7 +137,7 @@ export function CustomerSupport() {
 function CustomerView({ profileId }: { profileId: string }) {
   const [summary, setSummary] = useState<CustomerSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState("money");
+  const [tab, setTab] = useState("timeline");
 
   useEffect(() => {
     let stale = false;
@@ -197,16 +198,16 @@ function CustomerView({ profileId }: { profileId: string }) {
           active={tab}
           onChange={setTab}
           tabs={[
-            { key: "money", label: "Money" },
+            { key: "timeline", label: "Timeline" },
             { key: "messages", label: "Messages" },
-            { key: "activity", label: "App activity" },
-            { key: "photos", label: "Photos" },
+            { key: "activity", label: "Activity" },
+            { key: "compliance", label: "Compliance" },
           ]}
         />
-        {tab === "money" && <MoneyList profileId={profileId} />}
+        {tab === "timeline" && <TimelineList profileId={profileId} />}
         {tab === "messages" && <MessageList profileId={profileId} />}
         {tab === "activity" && <ActivityList profileId={profileId} />}
-        {tab === "photos" && <CustomerPhotos profileId={profileId} />}
+        {tab === "compliance" && <Compliance profileId={profileId} />}
       </div>
     </div>
   );
@@ -261,7 +262,34 @@ function PagedFooter({ list, empty }: { list: { items: unknown[]; total: number 
   );
 }
 
-function MoneyList({ profileId }: { profileId: string }) {
+/** KYC context: what the registry said about their application, and their
+ *  photos with each decision. Deciding stays on the KYC desk. */
+function Compliance({ profileId }: { profileId: string }) {
+  const [app, setApp] = useState<CheckedApplication | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let stale = false;
+    omniApi.applicationOfProfile(profileId).then(
+      (a) => { if (!stale) setApp(a); },
+      (e: unknown) => { if (!stale) setError(e instanceof Error ? e.message : "The application could not be loaded."); },
+    );
+    return () => { stale = true; };
+  }, [profileId]);
+  return (
+    <div className="flex flex-col gap-6">
+      {error ? <NotePanel tone="danger">{error}</NotePanel>
+        : app === undefined ? <p className="text-sm text-text-soft">Loading…</p>
+        : app ? <ApplicationSection app={app} />
+        : <NotePanel tone="info">They have not applied to invest from the app, so there is no registry result.</NotePanel>}
+      <section>
+        <SectionTitle title="Photos" description={<>Decisions are made on the <Link to="/token-console/kyc" className="font-medium text-primary-600 hover:text-primary-700">KYC desk</Link>.</>} />
+        <CustomerPhotos profileId={profileId} />
+      </section>
+    </div>
+  );
+}
+
+function TimelineList({ profileId }: { profileId: string }) {
   const list = usePaged((page) => omniApi.customerTimeline(profileId, page));
   const rows = list.items.map((t: TimelineEntry, i) => ({ ...t, id: `${i}-${t.occurredAt}-${t.source}` }));
   return (
@@ -274,7 +302,10 @@ function MoneyList({ profileId }: { profileId: string }) {
             { key: "what", header: "What", render: (t) => (
               <div>
                 <div className="text-text">{t.label}</div>
-                <div className="text-xs text-text-faint">{t.source === "MPESA" ? "M-Pesa" : "Product"}{t.detail ? ` · ${t.detail}` : ""}</div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-faint">
+                  <span className="rounded border border-border px-1.5 py-px text-[10.5px] font-medium uppercase tracking-wide">{t.source === "MPESA" ? "M-Pesa" : "Product"}</span>
+                  {t.detail}
+                </div>
               </div>
             ) },
             { key: "amount", header: "Amount", className: "tabular text-right whitespace-nowrap", render: (t) => t.amount === null ? "—"
@@ -283,7 +314,7 @@ function MoneyList({ profileId }: { profileId: string }) {
             { key: "ref", header: "Reference", hideOnMobile: true, render: (t) => t.reference ? <Code>{t.reference.length > 20 ? shortId(t.reference) : t.reference}</Code> : "—" },
           ]}
         />
-      <PagedFooter list={list} empty="No money has moved yet." />
+      <PagedFooter list={list} empty="No payments or movements yet." />
     </>
   );
 }
