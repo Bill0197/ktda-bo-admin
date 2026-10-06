@@ -197,7 +197,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ErrorBoundary appName="BRF BO Admin">
+    <ErrorBoundary appName="Investcent BO Admin">
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

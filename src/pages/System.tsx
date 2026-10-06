@@ -83,7 +83,7 @@ export default function System() {
       <PageHeader
         title="System"
         tooltip="Platform plumbing — third-party integrations, the scheduled batch jobs behind NAV/reconciliation/distributions, and per-app maintenance mode. Every action is audit-logged."
-        subtitle="Integrations, scheduled processing and maintenance control for every BRF surface."
+        subtitle="Integrations, scheduled processing and maintenance control for every surface of the platform."
       />
 
       <div className="flex flex-col gap-6">

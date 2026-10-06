@@ -143,7 +143,7 @@ export default function PlatformSettings() {
       <PageHeader
         title="Platform settings"
         tooltip="Every business parameter the investor apps, IFA portal and payment rails read lives here — changing one raises a static-data change that a second person must approve before it applies."
-        subtitle="The single point of truth for commercial parameters across every BRF surface. Changes are maker-checker gated."
+        subtitle="The single point of truth for commercial parameters across every surface of the platform. Changes are maker-checker gated."
       />
 
       <Tabs
