@@ -17,7 +17,7 @@ const UUID = "[0-9a-fA-F-]+";
 // identity checks (the registry mismatches, the photo queue, one photo, a decision).
 const ALLOWED = {
   POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review)$`),
-  GET: new RegExp(`^/omni/api/operator/onboarding/(applications|documents|documents/${UUID}/content)$`),
+  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|documents|documents/${UUID}/content)|customers|customers/${UUID}(/(timeline|messages|activity))?)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.
