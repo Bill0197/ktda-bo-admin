@@ -62,8 +62,12 @@ export function shortId(id: string | null | undefined, head = 8, tail = 4): stri
 }
 
 /** SCREAMING_SNAKE_CASE -> "Screaming snake case". */
+/** Codes that read as a word in capitals ("ETF", not "Etf"). */
+const ACRONYMS = new Set(["ETF"]);
+
 export function label(value: string | null | undefined): string {
   if (!value) return "—";
+  if (ACRONYMS.has(value)) return value;
   const words = value.toLowerCase().split("_");
   return [words[0].charAt(0).toUpperCase() + words[0].slice(1), ...words.slice(1)].join(" ");
 }
