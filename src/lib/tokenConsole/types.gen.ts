@@ -193,7 +193,7 @@ export interface AssetBackingRow {
   /** UUID */
   assetId?: string;
   name?: string;
-  assetClass?: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "LOAN";
+  assetClass?: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "SUKUK" | "MUTUAL_FUND" | "ETF" | "LOAN";
   status?: "DRAFT" | "APPROVED" | "OFFERED" | "RETIRED";
   currency?: string;
   valuation?: number;
@@ -209,7 +209,7 @@ export interface AssetResponse {
   /** UUID */
   assetId?: string;
   name?: string;
-  assetClass?: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "LOAN";
+  assetClass?: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "SUKUK" | "MUTUAL_FUND" | "ETF" | "LOAN";
   description?: string;
   currency?: string;
   appreciationRate?: number;
@@ -473,7 +473,7 @@ export interface CreateProductRequest {
   productId: string;
   name: string;
   currency: string;
-  assetClass: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "LOAN";
+  assetClass: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "SUKUK" | "MUTUAL_FUND" | "ETF" | "LOAN";
   structureType: "POOLED_UNITIZED" | "DISCRETIONARY_MANDATE";
   schemeId: string;
   packageId: string;
@@ -1059,7 +1059,7 @@ export interface Product {
   institutionId?: string;
   name?: string;
   currency?: string;
-  assetClass?: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "LOAN";
+  assetClass?: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "SUKUK" | "MUTUAL_FUND" | "ETF" | "LOAN";
   structureType?: "POOLED_UNITIZED" | "DISCRETIONARY_MANDATE";
   schemeId?: string;
   packageId?: string;
@@ -1156,7 +1156,7 @@ export interface RedemptionResponse {
 
 export interface RegisterAssetRequest {
   name: string;
-  assetClass: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "LOAN";
+  assetClass: "BOND" | "EQUITY" | "FX" | "DERIVATIVE" | "MONEY_MARKET" | "INDEX" | "BALANCED" | "SUKUK" | "MUTUAL_FUND" | "ETF" | "LOAN";
   description?: string;
   currency: string;
   appreciationRate?: number;
