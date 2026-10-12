@@ -8,7 +8,7 @@ export default function TokenConsoleCustomers() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Customer desk"
         subtitle="Find any customer by the phone or email they use, or by an id: their standing, every payment and movement, the messages we sent and what they did in the app. Every lookup is recorded against you."
       />

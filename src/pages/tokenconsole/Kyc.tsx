@@ -180,7 +180,7 @@ export default function TokenConsoleKyc() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="KYC desk"
         subtitle="Who each applicant is, in one place: the KYC review, what the population registry said about their application, and the selfie and ID photos they sent. Clearing someone lets them invest straight away."
       />

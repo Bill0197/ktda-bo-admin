@@ -1,6 +1,6 @@
 /* Which pages show live data, and which run on the in-browser demo.
 
-   Live: everything the tokenization service backs — the Tokenization Console,
+   Live: everything the tokenization service backs — Baracel Unyt,
    and the BO Admin pages whose records it holds. Everything else would come
    from CORE API, which is not deployed, so it runs on src/mock (see
    api.demo.ts) unless the build sets VITE_CORE_API_BASE. */

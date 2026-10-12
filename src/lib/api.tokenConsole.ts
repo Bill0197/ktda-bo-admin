@@ -1,4 +1,4 @@
-/* Tokenization console (the absorbed apps/tokenization-web) — straight to the
+/* Baracel Unyt (the absorbed apps/tokenization-web) — straight to the
  * tokenization (accounting) service through the same-origin `/tok` proxy, on
  * the signed-in user's own session (see tokApi.ts). The service enforces its
  * own rules per request; a page shows its 403 rather than guessing.

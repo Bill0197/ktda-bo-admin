@@ -13,7 +13,7 @@ export default function TokenConsoleUnitLedger() {
 
   return (
     <div>
-      <PageHeader eyebrow="Tokenization Console" title="Unit ledger" subtitle="Who holds what, and every movement that got them there." />
+      <PageHeader eyebrow="Baracel Unyt" title="Unit ledger" subtitle="Who holds what, and every movement that got them there." />
 
       <ConsoleTable<UnitHoldingRow>
         what="holdings"

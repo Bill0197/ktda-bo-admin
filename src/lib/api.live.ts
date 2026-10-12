@@ -9,7 +9,7 @@
  *   Products     needs AUM, fee bps, benchmark, CMA approval — not held.
  *   Redemptions  needs settlement tier, due date, funded-by-sale — not held.
  *   Clients/KYC  their detail pages (documents, UBOs, screening, activation)
- *                have no counterpart; the Tokenization Console's Investors and
+ *                have no counterpart; Baracel Unyt's Investors and
  *                KYC desk show the real register and decide real reviews. */
 import { tokenConsole } from "./api.tokenConsole";
 import type { InvestmentOrder, OrderStatus } from "../mock";

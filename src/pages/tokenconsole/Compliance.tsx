@@ -15,7 +15,7 @@ export default function TokenConsoleCompliance() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Review queue"
         subtitle="Items land here when onboarding or a movement in the accounting service trips a rule and needs a human decision."
       />

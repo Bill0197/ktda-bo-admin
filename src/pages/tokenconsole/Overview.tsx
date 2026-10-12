@@ -16,7 +16,7 @@ const RECENT_POSTINGS = 8;
 type JournalRow = LedgerEntryView & { id: string };
 type ReconRow = ReconciliationResult & { id: string };
 
-/** Tokenization console overview — the books, the register, and whether the
+/** Baracel Unyt overview — the books, the register, and whether the
  * unit ledger still agrees with the general ledger.
  *
  * Reads CardinalForge's accounting service through CORE's gateway. Each
@@ -93,7 +93,7 @@ export default function TokenConsoleOverview() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Overview"
         subtitle="The books, the register, and whether the unit ledger still agrees with them."
       />

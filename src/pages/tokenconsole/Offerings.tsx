@@ -33,7 +33,7 @@ export default function TokenConsoleOfferings() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Offerings"
         subtitle="Primary issuance windows: what is on sale, at what price, and how much is left. Select one to work its order book."
         actions={<Button size="sm" onClick={() => setCreating(true)}><Plus size={14} /> New offering</Button>}

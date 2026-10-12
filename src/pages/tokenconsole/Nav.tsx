@@ -30,7 +30,7 @@ export default function TokenConsoleNav() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="NAV"
         subtitle="Net asset value per unit, per product. Select a product for its history."
         actions={<Button size="sm" onClick={() => setRunning(true)}><Play size={14} /> Run NAV</Button>}

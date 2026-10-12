@@ -33,7 +33,7 @@ export default function TokenConsoleAssets() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Assets"
         subtitle="The assets offerings are backed by, and how much of each has been claimed. A new asset needs approval before it can back anything."
         actions={<Button size="sm" onClick={() => setRegistering(true)}><Plus size={14} /> Register asset</Button>}

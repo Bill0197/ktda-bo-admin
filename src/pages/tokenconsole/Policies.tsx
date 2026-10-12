@@ -70,7 +70,7 @@ export default function TokenConsolePolicies() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Accrual & distribution policies"
         subtitle="What the batch runs do when they execute. An unapproved or inactive policy is inert: the run finds nothing to act on."
         actions={

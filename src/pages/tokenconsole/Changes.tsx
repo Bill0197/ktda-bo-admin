@@ -73,7 +73,7 @@ export default function TokenConsoleChanges() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Change approvals"
         subtitle="Configuration changes waiting on a second person. A change takes effect only when someone other than the person who made it approves it."
       />

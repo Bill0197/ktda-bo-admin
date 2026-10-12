@@ -18,7 +18,7 @@ export default function TokenConsoleReconciliation() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Reconciliation"
         subtitle="Does the unit ledger still agree with the general ledger? A difference means units moved without the matching posting, or the reverse. Select a product to re-check it now."
       />

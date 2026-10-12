@@ -37,7 +37,7 @@ export default function TokenConsoleTariffs() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Tariffs"
         subtitle="Fee and rate definitions: a domain groups types, and a value is what a type actually charges, from a date."
         actions={
