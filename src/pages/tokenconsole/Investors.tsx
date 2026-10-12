@@ -31,7 +31,7 @@ export default function TokenConsoleInvestors() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Investors"
         subtitle="Everyone on the token register, and where each one sits in its lifecycle. Select one for their holdings, cash and movements."
         actions={<Button size="sm" onClick={() => setOnboarding(true)}><Plus size={14} /> Onboard investor</Button>}

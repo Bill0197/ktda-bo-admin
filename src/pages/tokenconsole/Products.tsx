@@ -53,7 +53,7 @@ export default function TokenConsoleProducts() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Products"
         subtitle="Share classes: what an investor actually holds units of, and what NAV is struck against."
         actions={canWrite ? <Button size="sm" onClick={() => setCreating(true)}><Plus size={14} /> New product</Button> : undefined}

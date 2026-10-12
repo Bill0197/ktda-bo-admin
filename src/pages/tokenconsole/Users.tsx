@@ -39,7 +39,7 @@ export default function TokenConsoleUsers() {
   if (user && !user.isTokAdmin) {
     return (
       <div>
-        <PageHeader eyebrow="Tokenization Console" title="Tokenization users" />
+        <PageHeader eyebrow="Baracel Unyt" title="Tokenization users" />
         <GlassPanel className="p-6">
           <p className="text-sm text-text">This page needs the ADMIN role on the tokenization service.</p>
           <p className="mt-1 text-[13px] text-text-soft">
@@ -65,7 +65,7 @@ export default function TokenConsoleUsers() {
 
   return (
     <div>
-      <PageHeader eyebrow="Tokenization Console" title="Tokenization users" subtitle="The accounts people sign in to BO Admin with: approvals, sessions and the sign-in audit trail." />
+      <PageHeader eyebrow="Baracel Unyt" title="Tokenization users" subtitle="The accounts people sign in to BO Admin with: approvals, sessions and the sign-in audit trail." />
 
       {act.error && <NotePanel tone="danger" className="mb-4">{act.error}</NotePanel>}
 

@@ -33,7 +33,7 @@ export default function TokenConsoleFunds() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Funds"
         subtitle="The structure products hang off: institutions, funds, sub-funds and their bond ladders. Select a sub-fund to work its ladder."
       />

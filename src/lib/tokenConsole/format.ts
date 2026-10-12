@@ -1,4 +1,4 @@
-/* Display formatting for the tokenization console pages. Ported from
+/* Display formatting for the Baracel Unyt pages. Ported from
  * apps/tokenization-web/src/lib/{format,status}.ts.
  *
  * Money arrives as JSON numbers in any currency the accounting service

@@ -175,7 +175,7 @@ export default function TokenConsoleJournals() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Journals"
         subtitle="Every posting to the books. Select an entry for the debits and credits it is made of."
         actions={<Button size="sm" onClick={() => setPosting(true)}><Plus size={14} /> Post event</Button>}

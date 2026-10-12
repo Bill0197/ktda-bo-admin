@@ -16,7 +16,7 @@ export default function TokenConsoleAccounts() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Accounts"
         subtitle="Investor contracts: one per investor per product, and the anchor every posting hangs off. Select one for its ledger accounts and cash."
       />

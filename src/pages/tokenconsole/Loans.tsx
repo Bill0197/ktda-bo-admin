@@ -84,7 +84,7 @@ export default function TokenConsoleLoans() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Loans"
         subtitle="The lending lifecycle — disburse, accrue interest on the outstanding balance, repay (interest first, then principal), close."
         actions={<Button size="sm" onClick={() => setOpening(true)}><Plus size={14} /> Open loan account</Button>}

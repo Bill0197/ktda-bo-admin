@@ -20,7 +20,7 @@ export default function TokenConsoleTrialBalance() {
 
   return (
     <div>
-      <PageHeader eyebrow="Tokenization Console" title="Trial balance" subtitle="Every GL account with its debits, credits and net position." />
+      <PageHeader eyebrow="Baracel Unyt" title="Trial balance" subtitle="Every GL account with its debits, credits and net position." />
 
       {books.length > 0 && (
         <StatRail columns={books.length >= 4 ? 4 : books.length === 3 ? 3 : 2} className="mb-5">

@@ -1,5 +1,5 @@
 /* Fetch wrapper for the tokenization (accounting) service — BO Admin's real
- * backend for sign-in, the Tokenization Console and every page that shows live
+ * backend for sign-in, Baracel Unyt and every page that shows live
  * tokenization data.
  *
  * Always same-origin: `/tok/*` is proxied to the service's `/api/*` (Vite in

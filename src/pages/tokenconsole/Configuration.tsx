@@ -27,7 +27,7 @@ export default function TokenConsoleConfiguration() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Configuration"
         subtitle="The reference data everything else is defined against: schemes, packages, subtypes, the chart and classifiers."
       />

@@ -68,6 +68,7 @@ const TokenConsoleConfiguration = lazy(() => import("./pages/tokenconsole/Config
 const TokenConsoleLoans = lazy(() => import("./pages/tokenconsole/Loans"));
 const TokenConsoleKyc = lazy(() => import("./pages/tokenconsole/Kyc"));
 const TokenConsoleCustomers = lazy(() => import("./pages/tokenconsole/Customers"));
+const TokenConsoleTransactions = lazy(() => import("./pages/tokenconsole/Transactions"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
 const TokenConsoleNav = lazy(() => import("./pages/tokenconsole/Nav"));
 const TokenConsoleAssets = lazy(() => import("./pages/tokenconsole/Assets"));
@@ -135,7 +136,7 @@ function AppRoutes() {
       <Route path="/tokenization/issuance" element={<ProtectedRoute><TokenIssuance /></ProtectedRoute>} />
       <Route path="/tokenization/lifecycle" element={<ProtectedRoute><TokenLifecycle /></ProtectedRoute>} />
       <Route path="/tokenization/smart-contracts" element={<ProtectedRoute><SmartContracts /></ProtectedRoute>} />
-      {/* The merged tokenization console. The bare prefix is not a page: its
+      {/* Baracel Unyt, the merged tokenization console. The bare prefix is not a page: its
           overview lives one level down so a grant on it cannot cover the
           console's other pages (see canAccess in lib/auth.tsx). */}
       <Route path="/token-console" element={<Navigate to="/token-console/overview" replace />} />
@@ -158,6 +159,7 @@ function AppRoutes() {
       <Route path="/token-console/loans" element={<ProtectedRoute><TokenConsoleLoans /></ProtectedRoute>} />
       <Route path="/token-console/kyc" element={<ProtectedRoute><TokenConsoleKyc /></ProtectedRoute>} />
       <Route path="/token-console/customers" element={<ProtectedRoute><TokenConsoleCustomers /></ProtectedRoute>} />
+      <Route path="/token-console/transactions" element={<ProtectedRoute><TokenConsoleTransactions /></ProtectedRoute>} />
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />

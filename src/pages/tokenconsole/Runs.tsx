@@ -67,7 +67,7 @@ export default function TokenConsoleRuns() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tokenization Console"
+        eyebrow="Baracel Unyt"
         title="Batch runs"
         subtitle="Jobs against the books: interest accrual, distributions, fees and tax remittance. A partial run skipped contracts it could not price. Select a run for what it posted per contract."
         actions={<Button size="sm" onClick={() => setStarting(true)}><Play size={14} /> Start {RUN_NOUN[tab]} run</Button>}
