@@ -194,6 +194,35 @@ export type TimelineEntry = {
   detail: string | null;
 };
 
+/** One M-Pesa payment or payout in the list across customers: a timeline
+ *  entry with whose it is. `customer` is null only for a profile that has
+ *  since been removed. */
+export type CustomerTransactionEntry = TimelineEntry & { id: string; profileId: string; customer: string | null };
+
+/** What the Transactions page asks for; every part is optional. `from` is
+ *  inclusive and `to` exclusive, both ISO instants. */
+export type TransactionQuery = { status?: string; kind?: string; from?: string; to?: string; q?: string };
+
+export type TransactionTotal = { count: number; amount: number };
+/** The matching payments added up, one entry per currency. */
+export type TransactionTotals = { currency: string; collected: TransactionTotal; paidOut: TransactionTotal; failed: TransactionTotal; pending: TransactionTotal };
+
+function transactionParams(query: TransactionQuery): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value) params.set(key, value);
+  }
+  return params.toString();
+}
+
+/** A body that is not the list asked for: an older omnichannel answers 404,
+ *  but a proxy that does not know the path may hand back the app's own page. */
+async function listOf<T>(res: Response): Promise<T[]> {
+  const data: unknown = await res.json().catch(() => null);
+  if (!Array.isArray(data)) throw new OmniApiError(404, "This list is not available on this server yet.");
+  return data as T[];
+}
+
 export type SentMessage = {
   id: string;
   type: string;
@@ -274,6 +303,26 @@ export const omniApi = {
     getPage<SentMessage>(`${customerPath(profileId)}/messages`, page, size),
   customerActivity: (profileId: string, page: number, size = 20) =>
     getPage<CustomerAction>(`${customerPath(profileId)}/activity`, page, size),
+  /** Every customer's M-Pesa payments and payouts, newest first. 404 when
+   *  omnichannel (or the proxy in front of it) predates the list. */
+  transactions: async (query: TransactionQuery, page: number, size = 50): Promise<Page<CustomerTransactionEntry>> => {
+    const qs = transactionParams(query);
+    const res = await send("GET", `/transactions?${qs ? `${qs}&` : ""}page=${page}&size=${size}`);
+    if (!res.ok) throw await failure(res);
+    const items = await listOf<CustomerTransactionEntry>(res);
+    const num = (name: string, fallback: number) => {
+      const v = Number(res.headers.get(name));
+      return res.headers.has(name) && Number.isFinite(v) ? v : fallback;
+    };
+    return { items, page, pages: num("X-Total-Pages", page), total: num("X-Total-Count", items.length) };
+  },
+  /** The same payments added up per currency; empty when nothing matches. */
+  transactionTotals: async (query: TransactionQuery): Promise<TransactionTotals[]> => {
+    const qs = transactionParams(query);
+    const res = await send("GET", `/transactions/summary${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw await failure(res);
+    return listOf<TransactionTotals>(res);
+  },
   /** FAILED needs a note: the customer receives it as a message. 409 when it
    *  is no longer pending (someone else decided). */
   reviewDocument: (id: string, decision: "PASSED" | "FAILED", note?: string) =>
