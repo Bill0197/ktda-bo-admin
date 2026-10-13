@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { BadgeCheck, Camera, Fingerprint, ShieldQuestion } from "lucide-react";
@@ -20,7 +20,7 @@ import { useAuth } from "../../lib/auth";
 import type { ComplianceReviewItem, Investor } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge, type Source } from "../../components/tokenconsole/ConsoleTable";
 import { DetailItem } from "../../components/tokenconsole/DetailItem";
-import { ApplicationSection, PhotosWaiting } from "../../components/tokenconsole/IdentityReview";
+import { ApplicantPhotos, ApplicationSection } from "../../components/tokenconsole/IdentityReview";
 import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
 import { customerDeskLink } from "../../lib/tokenConsole/customerSearch";
 
@@ -34,7 +34,7 @@ import { customerDeskLink } from "../../lib/tokenConsole/customerSearch";
    - The identity checks (omnichannel): what they applied with in the app and
      what the population registry made of it (a MISMATCH or an unreachable
      registry is what usually opens the review), and the selfie and ID photos,
-     each accepted or turned down with a note the customer receives.
+     each approved or rejected with a note the customer receives.
    Joined on the investor: an application names its investor (externalRef) and
    its app profile, and photos belong to the profile. */
 
@@ -62,7 +62,7 @@ const SHOW_OPTIONS = [
   { value: "MISMATCH", label: "Registry mismatch" },
   { value: "UNCHECKED", label: "Registry not checked" },
   { value: "PHOTOS", label: "Photos waiting" },
-  { value: "ACCEPTED", label: "Photos accepted" },
+  { value: "ACCEPTED", label: "Photos approved" },
   { value: "CLEARED", label: "Cleared" },
   { value: "REJECTED", label: "Rejected" },
 ];
@@ -151,7 +151,7 @@ export default function TokenConsoleKyc() {
   const rows = all
     .filter((r) => matches(r, show))
     .filter((r) => !term || [r.name, r.reference, r.investorId, r.application?.profileId].some((v) => (v ?? "").toLowerCase().includes(term)))
-    // To decide: whoever has waited longest is next. Accepted photos: the latest decisions first.
+    // To decide: whoever has waited longest is next. Approved photos: the latest decisions first.
     .sort((a, b) => showingAccepted ? latestAccepted(b).localeCompare(latestAccepted(a)) : a.since.localeCompare(b.since));
 
   const loaded = !!reviews.data;
@@ -159,12 +159,17 @@ export default function TokenConsoleKyc() {
   const photosWaiting = waiting.data?.length ?? 0;
   const mismatches = all.filter((r) => r.application?.identityResult === "MISMATCH" && toDecide(r)).length;
   const oldest = all.filter(toDecide).map((r) => r.since).filter(Boolean).sort()[0];
-  const selectedRow = all.find((r) => r.key === selected);
+  // Deciding someone's last photo can take their row off the desk; the panel
+  // stays open on what it had, with nothing left to decide.
+  const found = all.find((r) => r.key === selected);
+  const lastOpen = useRef<Row | null>(null);
+  if (found) lastOpen.current = found;
+  const selectedRow = found ?? (selected && lastOpen.current?.key === selected ? { ...lastOpen.current, photos: [], accepted: [] } : undefined);
   // The omnichannel half failing leaves the reviews usable: say what is missing.
   const partial = [
     (mismatched.error || unchecked.error || matched.error) && `the registry results (${mismatched.error ?? unchecked.error ?? matched.error})`,
     waiting.error && `the photos waiting (${waiting.error})`,
-    accepted.error && `the accepted photos (${accepted.error})`,
+    accepted.error && `the approved photos (${accepted.error})`,
   ].filter(Boolean);
   const reloadAll = () => {
     for (const s of [reviews, investors, mismatched, unchecked, matched, waiting, accepted]) void s.reload();
@@ -211,7 +216,7 @@ export default function TokenConsoleKyc() {
         rowId={(r) => r.key}
         onRowClick={(r) => setSelected(r.key)}
         selectedId={selected}
-        title={showingAccepted ? "Photos accepted" : "Applicants"}
+        title={showingAccepted ? "Photos approved" : "Applicants"}
         description={loaded ? `${rows.length} of ${all.length}` : undefined}
         emptyLabel={show === TO_DECIDE ? "Nothing is waiting on a KYC decision" : "Nobody matches that"}
         columns={[
@@ -233,13 +238,13 @@ export default function TokenConsoleKyc() {
               ) : null}
             </div>
           ) : <span className="text-xs text-text-faint">Not via the app</span>, hideOnMobile: true },
-          { key: "photos", header: showingAccepted ? "Photos accepted" : "Photos waiting", render: (r) => {
+          { key: "photos", header: showingAccepted ? "Photos approved" : "Photos waiting", render: (r) => {
             const list = showingAccepted ? r.accepted : r.photos;
             return list.length
               ? <span className="text-text">{list.map((p) => DOC_LABEL[p.type] ?? p.type).join(", ")}</span>
               : <span className="text-xs text-text-faint">None</span>;
           } },
-          { key: "since", header: showingAccepted ? "Accepted" : "Waiting since", className: "whitespace-nowrap", render: (r) => {
+          { key: "since", header: showingAccepted ? "Approved" : "Waiting since", className: "whitespace-nowrap", render: (r) => {
             const at = showingAccepted ? latestAccepted(r) : r.since;
             return <span className="tabular text-xs text-text-soft">{at ? dateTime(at) : "—"}</span>;
           }, hideOnMobile: true },
@@ -259,7 +264,15 @@ export default function TokenConsoleKyc() {
               setSelected(null);
               reloadAll();
             }}
-            onPhotoDecided={() => { void waiting.reload(); void accepted.reload(); }}
+            onPhotoDecided={(decided) => {
+              // Moved across before the reloads, so an approved photo never leaves the panel in between.
+              if (decided) {
+                waiting.setData((list) => list?.filter((d) => d.id !== decided.id) ?? list);
+                if (decided.status === "PASSED") accepted.setData((list) => [decided, ...(list ?? []).filter((d) => d.id !== decided.id)]);
+              }
+              void waiting.reload();
+              void accepted.reload();
+            }}
           />
         )}
       </Modal>
@@ -267,7 +280,18 @@ export default function TokenConsoleKyc() {
   );
 }
 
-function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () => void; onPhotoDecided: () => void }) {
+/** The photos to decide, with the latest approved one of each kind and the
+ *  ones rejected while the panel is open beside them. */
+function photosOnShow(r: Row, rejected: QueuedDocument[]): QueuedDocument[] {
+  const approved = DOC_ORDER.flatMap((type) => {
+    const latest = r.accepted.filter((d) => d.type === type)
+      .sort((x, y) => (y.reviewedAt ?? "").localeCompare(x.reviewedAt ?? ""))[0];
+    return latest ? [latest] : [];
+  });
+  return [...r.photos, ...rejected, ...approved].sort((x, y) => DOC_ORDER.indexOf(x.type) - DOC_ORDER.indexOf(y.type));
+}
+
+function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () => void; onPhotoDecided: (decided?: QueuedDocument) => void }) {
   const toast = useToast();
   const { user } = useAuth();
   const mayDecide = canDecideKyc(user?.tokRoles);
@@ -298,6 +322,14 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
   const isOpen = review?.status === "OPEN";
   const outstanding = classifierOutstanding(v);
   const name = v?.displayName ?? row.name;
+  // Rejected just now: kept on show until the panel closes. After that they are in "Every photo sent".
+  const [rejected, setRejected] = useState<QueuedDocument[]>([]);
+  const photos = photosOnShow(row, rejected);
+  const photoDecided = (decided?: QueuedDocument) => {
+    if (decided?.status === "FAILED") setRejected((list) => [...list, decided]);
+    onPhotoDecided(decided);
+  };
+  const profileId = row.application?.profileId ?? photos[0]?.profileId;
 
   const submit = async () => {
     if (!decision) return;
@@ -358,13 +390,13 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
       )}
 
       {row.application && <div className="mt-6"><ApplicationSection app={row.application} /></div>}
-      {(row.application || row.photos.length > 0) && (
-        <div className="mt-6"><PhotosWaiting photos={row.photos} onDecided={onPhotoDecided} /></div>
+      {(row.application || photos.length > 0) && (
+        <div className="mt-6"><ApplicantPhotos photos={photos} onDecided={photoDecided} /></div>
       )}
-      {(row.application?.profileId ?? row.photos[0]?.profileId) && (
+      {profileId && (
         <div className="mt-6">
           <SectionTitle title="Every photo sent" />
-          <CustomerPhotos key={row.photos.map((p) => p.id).join()} profileId={(row.application?.profileId ?? row.photos[0]?.profileId)!} onKycDesk />
+          <CustomerPhotos key={row.photos.map((p) => p.id).join()} profileId={profileId} onKycDesk />
         </div>
       )}
       {(row.investorId ?? row.application?.profileId) && (

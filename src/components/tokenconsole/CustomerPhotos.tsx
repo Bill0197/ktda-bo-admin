@@ -16,8 +16,8 @@ import { dateOf, dateTime, label } from "../../lib/tokenConsole/format";
 const DOC_LABEL: Record<DocumentType, string> = { SELFIE: "Selfie", ID_FRONT: "ID front", ID_BACK: "ID back" };
 
 const STATUS: Record<QueuedDocument["status"], { tone: "success" | "danger" | "warning"; text: string }> = {
-  PASSED: { tone: "success", text: "Accepted" },
-  FAILED: { tone: "danger", text: "Turned down" },
+  PASSED: { tone: "success", text: "Approved" },
+  FAILED: { tone: "danger", text: "Rejected" },
   PENDING_REVIEW: { tone: "warning", text: "Waiting" },
 };
 
