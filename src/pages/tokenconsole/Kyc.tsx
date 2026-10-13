@@ -335,7 +335,7 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
     if (!decision) return;
     const done = await decide.run({ investorId, queueId: review?.queueId, reviewOpen: isOpen, decision, note });
     if (!done) return; // the error is on the confirmation
-    toast.push(decision === "verify" ? `${name || "Applicant"} is verified and can invest now.` : `${name || "Applicant"} was rejected.`);
+    toast.push(decision === "verify" ? `${name || "Applicant"} is approved and can invest now.` : `${name || "Applicant"} was rejected.`);
     setDecision(null);
     onDone();
   };
@@ -429,7 +429,7 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
         ) : isOpen || outstanding ? (
           <>
             <Button size="sm" disabled={decide.pending || !investorId || !v} onClick={() => start("verify")}>
-              <BadgeCheck size={14} /> {isOpen ? "Verify and clear" : "Record KYC verified"}
+              <BadgeCheck size={14} /> Approve
             </Button>
             <Button variant="outline" size="sm" disabled={decide.pending || !investorId || !v} onClick={() => start("reject")}>
               Reject
@@ -495,12 +495,12 @@ function ConfirmDecision({
       open
       onClose={busy ? () => undefined : onCancel}
       size="sm"
-      title={verifying ? "Verify this applicant?" : "Reject this applicant?"}
+      title={verifying ? "Approve this applicant?" : "Reject this applicant?"}
       footer={
         <>
           <Button variant="ghost" size="sm" disabled={busy} onClick={onCancel}>Cancel</Button>
           <Button variant={verifying ? "primary" : "danger"} size="sm" disabled={busy} onClick={onConfirm}>
-            {busy ? "Saving…" : verifying ? "Verify applicant" : "Reject applicant"}
+            {busy ? "Saving…" : verifying ? "Approve applicant" : "Reject applicant"}
           </Button>
         </>
       }
