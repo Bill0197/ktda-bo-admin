@@ -100,7 +100,7 @@ export default function Orders() {
 
       <SectionTitle title="Order book" description="Institutional and retail flow in one book — the dealing rules are the same, only the settlement tiers differ." />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No orders" />
+        <DataTable newest={(r) => r.placedAt} columns={columns} rows={rows} columnPicker emptyLabel="No orders" />
       </GlassPanel>
     </div>
   );

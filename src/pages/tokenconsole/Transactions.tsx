@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownLeft, ArrowUpRight, CircleAlert, Hourglass, RefreshCw } from "lucide-react";
 import {
-  Badge, Button, DataTable, DateRangeFilter, FilterBar, GlassPanel, NotePanel, PageHeader, SearchInput,
+  Badge, Button, DataTable, DateRangeFilter, DEFAULT_PAGE_SIZE, FilterBar, GlassPanel, NotePanel, PageHeader, Pagination, SearchInput,
   SelectFilter, Skeleton, StatCard, inDateRange,
 } from "../../ui";
 import { dateTime, label, money, shortId } from "../../lib/tokenConsole/format";
@@ -26,8 +26,6 @@ import { Code, SourceError } from "../../components/tokenconsole/ConsoleTable";
 
 type Tone = "success" | "warning" | "danger" | "neutral";
 const STATUS_TONE: Record<string, Tone> = { PAID: "success", SENT: "success", POSTED: "success", PENDING: "warning", FAILED: "danger" };
-const PAGE = 100;
-const SERVER_PAGE = 50;
 
 const SUBTITLE_TAIL = "Open a customer for their full history on the Customer desk.";
 
@@ -52,10 +50,14 @@ function StatTiles({ collected, paidOut, failed, pending }: { collected: Tile; p
   );
 }
 
-function TransactionsTable({ rows, emptyLabel }: { rows: Row[]; emptyLabel: string }) {
+/** `footer` is the pager of the list omnichannel pages; without one the rows
+ *  are all here and the table pages them itself. */
+function TransactionsTable({ rows, emptyLabel, footer }: { rows: Row[]; emptyLabel: string; footer?: ReactNode }) {
   return (
     <GlassPanel className="p-1" sheen={false}>
       <DataTable<Row>
+        paged={footer === undefined}
+        footer={footer}
         rows={rows}
         emptyLabel={emptyLabel}
         columns={[
@@ -146,28 +148,30 @@ function ServerTransactions({ onNotServed }: { onNotServed: () => void }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const sizeRef = useRef(pageSize);
+  sizeRef.current = pageSize;
   const [totals, setTotals] = useState<TransactionTotals[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const run = useRef(0);
 
-  const fetchPage = useCallback(async (which: number, fresh: boolean) => {
+  const fetchPage = useCallback(async (which: number, fresh: boolean, size = sizeRef.current) => {
     const mine = ++run.current;
     const stale = () => run.current !== mine;
     setLoading(true);
     setError(null);
     try {
       const [list, sums] = await Promise.all([
-        omniApi.transactions(query, which, SERVER_PAGE),
+        omniApi.transactions(query, which, size),
         // The totals cover the whole result, so only a new search re-reads them.
         fresh ? omniApi.transactionTotals(query) : Promise.resolve(null),
       ]);
       if (stale()) return;
-      setRows((before) => (fresh || !before ? list.items : [...before, ...list.items]));
+      setRows(list.items);
       setTotal(list.total);
       setPage(list.page);
-      setPages(list.pages);
+      setPageSize(size);
       if (sums) setTotals(sums);
     } catch (e) {
       if (stale()) return;
@@ -223,15 +227,21 @@ function ServerTransactions({ onNotServed }: { onNotServed: () => void }) {
           <TransactionsTable
             rows={rows}
             emptyLabel={filtered ? "No transaction matches those filters" : "No customer has paid yet"}
+            footer={
+              // More rows than were asked for: this omnichannel sent the whole list, so there is nothing to page.
+              rows.length > pageSize ? null : (
+                <Pagination
+                  className="px-3 pt-3 pb-2"
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  disabled={loading}
+                  onPage={(p) => void fetchPage(p, false)}
+                  onPageSize={(n) => void fetchPage(1, false, n)}
+                />
+              )
+            }
           />
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[12.5px] text-text-faint">
-            {rows.length > 0 && <span>Showing {rows.length} of {total}</span>}
-            {page < pages && (
-              <Button size="sm" variant="outline" disabled={loading} onClick={() => void fetchPage(page + 1, false)}>
-                {loading ? "Loading…" : "Show more"}
-              </Button>
-            )}
-          </div>
           <p className="mt-6 max-w-3xl text-xs leading-relaxed text-text-faint">
             Amounts are signed from the customer's side: − is money leaving them, + is money reaching them. Investments and
             redemptions inside the product are not listed here; they are on each customer's timeline on the Customer desk.
@@ -288,7 +298,6 @@ function FanOutTransactions() {
   const [kind, setKind] = useState("all");
   const [status, setStatus] = useState("all");
   const [range, setRange] = useState({ from: "", to: "" });
-  const [shown, setShown] = useState(PAGE);
 
   const all = useMemo(() => load?.rows ?? [], [load]);
   const options = useMemo(() => {
@@ -311,8 +320,6 @@ function FanOutTransactions() {
       && (!term || [r.customer, r.reference, r.detail, r.label, r.profileId].some((v) => (v ?? "").toLowerCase().includes(term)))),
     [all, source, kind, status, range, term],
   );
-  // A changed filter starts again from the first page of results.
-  useEffect(() => setShown(PAGE), [source, kind, status, range, term]);
 
   const stats = useMemo(() => {
     const mpesa = rows.filter((r) => r.source === "MPESA");
@@ -380,14 +387,10 @@ function FanOutTransactions() {
           </p>
 
           <TransactionsTable
-            rows={rows.slice(0, shown)}
+            rows={rows}
             emptyLabel={all.length === 0 ? "No customer has paid or invested yet" : "No transaction matches those filters"}
           />
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[12.5px] text-text-faint">
-            {rows.length > 0 && <span>Showing {Math.min(shown, rows.length)} of {rows.length}</span>}
-            {rows.length > shown && <Button size="sm" variant="outline" onClick={() => setShown((n) => n + PAGE)}>Show more</Button>}
-          </div>
 
           <p className="mt-6 max-w-3xl text-xs leading-relaxed text-text-faint">
             Amounts are signed from the customer's side: − is money leaving them, + is money reaching them. The list covers

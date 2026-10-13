@@ -86,6 +86,7 @@ export default function TokenConsoleRuns() {
       <ConsoleTable<RunRow>
         key={tab}
         what={active.what}
+        newest={(r) => r.startedAt}
         source={{ data: active.rows, loading: state.loading, error: state.error, reload: state.reload }}
         rowId={(r) => r.runId}
         onRowClick={(r) => r.runId && setOpenRun({ kind: tab, runId: r.runId })}

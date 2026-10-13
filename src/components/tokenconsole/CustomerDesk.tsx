@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import {
-  Badge, Button, Card, DataTable, Input, NotePanel, SectionTitle, Tabs,
+  Badge, Button, Card, DataTable, DEFAULT_PAGE_SIZE, Input, NotePanel, Pagination, SectionTitle, Tabs,
 } from "../../ui";
 import {
   omniApi, type CheckedApplication, type CustomerSummary, type Page, type TimelineEntry,
@@ -113,6 +113,7 @@ export function CustomerDesk() {
         <Card className="p-0">
           <DataTable
             rows={results.map((r) => ({ ...r, id: r.profileId }))}
+            newest={(r) => r.registeredAt}
             emptyLabel="No customers"
             columns={[
               { key: "name", header: "Customer", render: (c) => (
@@ -213,51 +214,60 @@ function CustomerView({ profileId }: { profileId: string }) {
   );
 }
 
-/** A paged list read a page at a time, with "Load more". */
-function usePaged<T>(fetch: (page: number) => Promise<Page<T>>) {
+/** A list its service pages, read one page at a time. */
+function usePaged<T>(fetch: (page: number, size: number) => Promise<Page<T>>) {
   const [items, setItems] = useState<T[]>([]);
   const [last, setLast] = useState<Page<T> | null>(null);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const run = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchRef = useRef(fetch);
   fetchRef.current = fetch;
   const alive = useRef(true);
 
-  const load = useCallback(async (page: number) => {
+  const load = useCallback(async (page: number, size: number) => {
+    // Only the latest page asked for lands, however the answers are ordered.
+    const mine = ++run.current;
+    const current = () => alive.current && run.current === mine;
     setLoading(true);
     setError(null);
     try {
-      const p = await fetchRef.current(page);
-      if (!alive.current) return;
-      setItems((prev) => (page === 1 ? p.items : [...prev, ...p.items]));
+      const p = await fetchRef.current(page, size);
+      if (!current()) return;
+      setItems(p.items);
       setLast(p);
+      setPageSize(size);
     } catch (e) {
-      if (alive.current) setError(e instanceof Error ? e.message : "This could not be loaded.");
+      if (current()) setError(e instanceof Error ? e.message : "This could not be loaded.");
     } finally {
-      if (alive.current) setLoading(false);
+      if (current()) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     alive.current = true;
-    void load(1);
+    void load(1, DEFAULT_PAGE_SIZE);
     return () => { alive.current = false; };
   }, [load]);
 
-  const more = last && last.page < last.pages ? () => void load(last.page + 1) : null;
-  return { items, total: last?.total ?? null, loading, error, more };
+  return {
+    items, total: last?.total ?? null, page: last?.page ?? 1, pageSize, loading, error,
+    go: (page: number) => void load(page, pageSize),
+    resize: (size: number) => void load(1, size),
+  };
 }
 
-/** Under a paged list: how much is shown, and the next page on demand. */
-function PagedFooter({ list, empty }: { list: { items: unknown[]; total: number | null; loading: boolean; error: string | null; more: (() => void) | null }; empty: string }) {
+/** Under a paged list: its error or empty note, and the pager. */
+function PagedFooter({ list, empty }: { list: ReturnType<typeof usePaged<unknown>>; empty: string }) {
   return (
     <>
       {list.error && <NotePanel tone="danger" className="mt-3">{list.error}</NotePanel>}
-      <div className="mt-3 flex items-center gap-3 text-[12.5px] text-text-faint">
-        {list.total !== null && list.total > 0 && <span>{list.items.length} of {list.total}</span>}
-        {!list.loading && list.total === 0 && !list.error && <span>{empty}</span>}
-        {list.more && <Button size="sm" variant="outline" disabled={list.loading} onClick={list.more}>{list.loading ? "Loading…" : "Load more"}</Button>}
-      </div>
+      {!list.loading && list.total === 0 && !list.error && <p className="mt-3 text-[12.5px] text-text-faint">{empty}</p>}
+      {/* More rows than were asked for: the service sent the whole list, so there is nothing to page. */}
+      {list.total !== null && list.items.length <= list.pageSize && (
+        <Pagination className="mt-3 px-1" page={list.page} pageSize={list.pageSize} total={list.total} disabled={list.loading} onPage={list.go} onPageSize={list.resize} />
+      )}
     </>
   );
 }
@@ -290,11 +300,12 @@ function Compliance({ profileId }: { profileId: string }) {
 }
 
 function TimelineList({ profileId }: { profileId: string }) {
-  const list = usePaged((page) => omniApi.customerTimeline(profileId, page));
+  const list = usePaged((page, size) => omniApi.customerTimeline(profileId, page, size));
   const rows = list.items.map((t: TimelineEntry, i) => ({ ...t, id: `${i}-${t.occurredAt}-${t.source}` }));
   return (
     <>
         <DataTable
+          paged={false}
           rows={rows}
           emptyLabel={list.loading ? "Loading…" : "No payments or movements"}
           columns={[
@@ -320,10 +331,11 @@ function TimelineList({ profileId }: { profileId: string }) {
 }
 
 function MessageList({ profileId }: { profileId: string }) {
-  const list = usePaged((page) => omniApi.customerMessages(profileId, page));
+  const list = usePaged((page, size) => omniApi.customerMessages(profileId, page, size));
   return (
     <>
         <DataTable
+          paged={false}
           rows={list.items}
           emptyLabel={list.loading ? "Loading…" : "No messages"}
           columns={[
@@ -347,10 +359,11 @@ function MessageList({ profileId }: { profileId: string }) {
 }
 
 function ActivityList({ profileId }: { profileId: string }) {
-  const list = usePaged((page) => omniApi.customerActivity(profileId, page));
+  const list = usePaged((page, size) => omniApi.customerActivity(profileId, page, size));
   return (
     <>
         <DataTable
+          paged={false}
           rows={list.items}
           emptyLabel={list.loading ? "Loading…" : "No activity"}
           columns={[

@@ -111,7 +111,7 @@ export default function Complaints() {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} onRowClick={(r) => setSelectedId(r.id)} columnPicker emptyLabel="No complaints match" />
+        <DataTable newest={(r) => r.submittedAt} columns={columns} rows={rows} onRowClick={(r) => setSelectedId(r.id)} columnPicker emptyLabel="No complaints match" />
       )}
 
       <ComplaintModal

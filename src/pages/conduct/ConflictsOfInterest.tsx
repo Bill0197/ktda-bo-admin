@@ -113,7 +113,7 @@ export default function ConflictsOfInterest() {
         description="Gifts and hospitality carry a value because the KES 25,000 acceptance threshold is what escalates them; every other category carries none, and shows &ldquo;n/a&rdquo; rather than a misleading zero."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No declarations on the register" />
+        <DataTable newest={(r) => r.declaredAt} columns={columns} rows={rows} columnPicker emptyLabel="No declarations on the register" />
       </GlassPanel>
     </div>
   );

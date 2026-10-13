@@ -85,7 +85,7 @@ export default function InstitutionalClients() {
         description="A terminated client stays listed. The mandate ended; the record-keeping obligation and the closing reports did not."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No institutional clients" />
+        <DataTable newest={(r) => r.onboardedAt} columns={columns} rows={rows} columnPicker emptyLabel="No institutional clients" />
       </GlassPanel>
     </div>
   );

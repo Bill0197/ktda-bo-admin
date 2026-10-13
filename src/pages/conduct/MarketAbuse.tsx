@@ -112,7 +112,7 @@ export default function MarketAbuse() {
         description="A closed alert stays on the register. &ldquo;Closed — no action&rdquo; is a finding in its own right and is what makes a repeat pattern by the same subject visible later."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No surveillance alerts" />
+        <DataTable newest={(r) => r.detectedAt} columns={columns} rows={rows} columnPicker emptyLabel="No surveillance alerts" />
       </GlassPanel>
     </div>
   );

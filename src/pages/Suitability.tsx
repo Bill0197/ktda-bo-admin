@@ -62,7 +62,7 @@ export default function Suitability() {
           {[0, 1].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable
+        <DataTable newest={(r) => r.proposedAt}
           columns={columns}
           rows={rows}
           columnPicker

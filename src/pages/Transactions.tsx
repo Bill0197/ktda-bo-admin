@@ -73,7 +73,7 @@ export default function Transactions() {
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No transactions match" />
+        <DataTable newest={(r) => r.createdAt} columns={columns} rows={rows} columnPicker emptyLabel="No transactions match" />
       )}
     </div>
   );

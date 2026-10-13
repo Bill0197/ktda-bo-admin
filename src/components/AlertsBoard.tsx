@@ -166,7 +166,7 @@ export function AlertsBoard({
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel={`No ${noun} match`} />
+        <DataTable newest={(r) => r.raisedAt} columns={columns} rows={rows} columnPicker emptyLabel={`No ${noun} match`} />
       )}
     </div>
   );

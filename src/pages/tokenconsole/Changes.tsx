@@ -62,10 +62,9 @@ export default function TokenConsoleChanges() {
     .filter((c) => status === "all" || c.status === status)
     .filter((c) => !term || [c.summary, subjectOf(c), c.maker, c.checker, CHANGE_TYPE_LABEL[c.changeType]]
       .some((v) => (v ?? "").toLowerCase().includes(term)))
-    // Waiting ones oldest first — whoever has waited longest is decided next;
-    // decided ones newest first, like any history.
+    // Newest first: waiting ones by when they were made, decided ones by the decision.
     .sort((a, b) => status === "PENDING"
-      ? (a.madeAt ?? "").localeCompare(b.madeAt ?? "")
+      ? (b.madeAt ?? "").localeCompare(a.madeAt ?? "")
       : (b.decidedAt ?? b.madeAt ?? "").localeCompare(a.decidedAt ?? a.madeAt ?? ""));
 
   const selectedRow = all.find((c) => c.requestId === selected);

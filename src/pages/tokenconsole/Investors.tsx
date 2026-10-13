@@ -38,6 +38,7 @@ export default function TokenConsoleInvestors() {
       />
       <ConsoleTable<Investor>
         what="investors"
+        newest={(r) => r.onboardedAt}
         source={investors}
         rows={rows}
         rowId={(r) => r.investorId}

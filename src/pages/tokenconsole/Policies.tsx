@@ -85,6 +85,7 @@ export default function TokenConsolePolicies() {
 
       <ConsoleTable<AccrualPolicyResponse>
         what="accrual policies"
+        newest={(r) => r.createdAt}
         source={accrual}
         rowId={(r) => r.policyId}
         title="Accrual policies"
@@ -130,6 +131,7 @@ export default function TokenConsolePolicies() {
 
       <ConsoleTable<DistributionPolicyResponse>
         what="distribution policies"
+        newest={(r) => r.createdAt}
         source={distribution}
         rowId={(r) => r.policyId}
         title="Distribution policies"
@@ -154,6 +156,7 @@ export default function TokenConsolePolicies() {
 
       <ConsoleTable<ScheduleResponse>
         what="schedules"
+        newest={(r) => r.createdAt}
         source={schedules}
         rowId={(r) => r.scheduleId}
         title="Schedules"

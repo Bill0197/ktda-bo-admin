@@ -49,7 +49,7 @@ export default function KycQueue() {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable
+        <DataTable newest={(r) => r.joinedAt}
           columns={columns}
           rows={rows}
           columnPicker

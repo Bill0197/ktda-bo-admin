@@ -14,6 +14,7 @@ export function Dropdown({
   placeholder = "Select…",
   disabled,
   size = "md",
+  placement = "bottom",
   className,
   ariaLabel,
 }: {
@@ -24,6 +25,8 @@ export function Dropdown({
   disabled?: boolean;
   /** sm = compact filter chrome (h-9); md = form field (h-11). */
   size?: "sm" | "md";
+  /** Where the list opens. "top" for a control at the foot of a page or panel. */
+  placement?: "bottom" | "top";
   className?: string;
   ariaLabel?: string;
 }) {
@@ -132,7 +135,10 @@ export function Dropdown({
           id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute z-30 mt-1.5 w-full min-w-[160px] max-h-64 overflow-y-auto rounded-lg border border-border bg-surface shadow-md p-1 animate-fade-in"
+          className={clsx(
+            "absolute z-30 w-full max-h-64 overflow-y-auto rounded-lg border border-border bg-surface shadow-md p-1 animate-fade-in",
+            placement === "top" ? "bottom-full mb-1.5 min-w-full" : "mt-1.5 min-w-[160px]",
+          )}
         >
           {options.map((o, idx) => {
             const isSelected = o.value === value;

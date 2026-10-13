@@ -100,7 +100,7 @@ export default function Redemptions() {
         description="A rejected request carries the reason it was blocked, but the customer is never told a compliance reason — the restriction is communicated, the cause is not."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No redemption requests" />
+        <DataTable newest={(r) => r.requestedAt} columns={columns} rows={rows} columnPicker emptyLabel="No redemption requests" />
       </GlassPanel>
     </div>
   );

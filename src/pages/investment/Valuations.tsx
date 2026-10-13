@@ -106,7 +106,7 @@ export default function Valuations() {
         description="Both the move and the tolerance are shown together. A 0.6% move is unremarkable in an equity fund and a query in this one — the band is what makes the number readable."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No valuation runs" />
+        <DataTable newest={(r) => r.valuationDate} columns={columns} rows={rows} columnPicker emptyLabel="No valuation runs" />
       </GlassPanel>
     </div>
   );

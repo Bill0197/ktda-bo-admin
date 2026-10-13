@@ -40,6 +40,7 @@ export default function TokenConsoleOfferings() {
       />
       <ConsoleTable<OfferingResponse>
         what="offerings"
+        newest={(r) => r.createdAt}
         source={offerings}
         rowId={(r) => r.offeringId}
         onRowClick={(r) => setOpen(r.offeringId ?? null)}
@@ -63,6 +64,7 @@ export default function TokenConsoleOfferings() {
         title="Secondary trades"
         description="Units that changed hands between investors, across every offering."
         what="trades"
+        newest={(r) => r.createdAt}
         source={trades}
         rowId={(r) => r.tradeId}
         emptyLabel="No secondary trades yet"
@@ -239,6 +241,7 @@ function OfferingPanel({ offeringId, onChanged }: { offeringId: string; onChange
         <ConsoleTable<SubscriptionResponse>
           className=""
           what="subscriptions"
+          newest={(r) => r.createdAt}
           source={subs}
           rowId={(r) => r.subscriptionId}
           onRowClick={(r) => setSubOpen(r.subscriptionId ?? null)}
@@ -258,6 +261,7 @@ function OfferingPanel({ offeringId, onChanged }: { offeringId: string; onChange
         <ConsoleTable<RedemptionResponse>
           className=""
           what="redemptions"
+          newest={(r) => r.createdAt}
           source={reds}
           rowId={(r) => r.redemptionId}
           onRowClick={(r) => setRedOpen(r.redemptionId ?? null)}
@@ -276,6 +280,7 @@ function OfferingPanel({ offeringId, onChanged }: { offeringId: string; onChange
         <ConsoleTable<TradeResponse>
           className=""
           what="trades"
+          newest={(r) => r.createdAt}
           source={trades}
           rowId={(r) => r.tradeId}
           actions={<Button size="sm" onClick={() => setOrder("trade")}>Record a trade</Button>}
@@ -289,6 +294,7 @@ function OfferingPanel({ offeringId, onChanged }: { offeringId: string; onChange
         <ConsoleTable<HoldingResponse>
           className=""
           what="holdings"
+          newest={(r) => r.updatedAt}
           source={holdings}
           rowId={(r) => r.holdingId}
           title="Holdings"

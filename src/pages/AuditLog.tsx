@@ -139,7 +139,7 @@ export default function AuditLog() {
             <DateRangeFilter from={range.from} to={range.to} onChange={setRange} />
             <span className="text-xs text-text-faint ml-auto">{rows.length} of {events.length} events</span>
           </FilterBar>
-          <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No events match" />
+          <DataTable newest={(r) => r.at} columns={columns} rows={rows} columnPicker emptyLabel="No events match" />
         </>
       )}
     </div>

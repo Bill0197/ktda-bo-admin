@@ -116,7 +116,7 @@ export default function IcApprovals() {
         description="Votes are shown individually, including dissent. A decision carried two-to-one is a materially different record from a unanimous one, and only the vote list preserves that."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="Nothing before the Committee" />
+        <DataTable newest={(r) => r.proposedAt} columns={columns} rows={rows} columnPicker emptyLabel="Nothing before the Committee" />
       </GlassPanel>
     </div>
   );

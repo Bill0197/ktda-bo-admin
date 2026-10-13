@@ -100,6 +100,7 @@ export default function TokenConsoleLoans() {
       <ConsoleTable<InvestorContract>
         title="Loan accounts"
         what="loan accounts"
+        newest={(r) => r.openedAt}
         source={source}
         rowId={(r) => r.contractId}
         onRowClick={(r) => setSelected(r.contractId ?? null)}

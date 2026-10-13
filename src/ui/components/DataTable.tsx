@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { Columns3 } from "lucide-react";
+import { Pagination, usePagination } from "./Pagination";
 
 export type Column<T> = {
   key: string;
@@ -15,28 +16,64 @@ export type Column<T> = {
 
 /** Renders a real <table> on tablet+ and collapses to stacked cards on
  * mobile — data tables are where "mobile friendly" usually breaks first.
- * With `columnPicker`, users can toggle any declared column on or off. */
+ * With `columnPicker`, users can toggle any declared column on or off.
+ * The rows are shown a page at a time with the pager below, unless `paged`
+ * is turned off; `newest` lists them newest first. */
+
+/** Newest first by the date `at` picks; rows without one go last, in the
+ *  order they came. */
+function newestFirst<T>(rows: T[], at: (row: T) => string | null | undefined): T[] {
+  const time = (r: T) => Date.parse(at(r) ?? "") || -Infinity;
+  return [...rows].sort((a, b) => {
+    const x = time(a), y = time(b);
+    return x === y ? 0 : y > x ? 1 : -1;
+  });
+}
+
 export function DataTable<T extends { id: string | number }>({
   columns,
-  rows,
+  rows: given,
+  newest,
   onRowClick,
   emptyLabel = "No records",
   columnPicker = false,
   selectedId,
+  paged = true,
+  footer,
 }: {
   columns: Column<T>[];
   rows: T[];
+  /** The date that puts the newest row first. Left out for a list that has
+   *  none, or whose page has already ordered it. */
+  newest?: (row: T) => string | null | undefined;
   onRowClick?: (row: T) => void;
   emptyLabel?: string;
   columnPicker?: boolean;
   /** Marks one row as the current selection — for master-detail layouts,
    *  where the list drives a panel beside it. */
   selectedId?: string | number | null;
+  /** Off for a set that is read whole (the lines of one journal entry), or
+   *  one its service pages (the pager then comes in as `footer`). */
+  paged?: boolean;
+  /** Under the rows — the pager of a list its service pages. */
+  footer?: ReactNode;
 }) {
   const [hidden, setHidden] = useState<Set<string>>(
     () => new Set(columns.filter((c) => c.defaultHidden).map((c) => c.key)),
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  // `newest` is a new function every render, so the order follows the rows alone.
+  const newestRef = useRef(newest);
+  newestRef.current = newest;
+  const sorted = newest !== undefined;
+  const rows = useMemo(() => (sorted && newestRef.current ? newestFirst(given, newestRef.current) : given), [given, sorted]);
+  const pagination = usePagination(rows, paged);
+  const topRef = useRef<HTMLDivElement>(null);
+  // A new page starts at its first row, not wherever the last one was left.
+  const toTop = () => {
+    const top = topRef.current;
+    if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: "start" });
+  };
 
   const visible = useMemo(() => columns.filter((c) => !hidden.has(c.key)), [columns, hidden]);
 
@@ -98,6 +135,7 @@ export function DataTable<T extends { id: string | number }>({
 
   return (
     <>
+      {paged && <div ref={topRef} className="scroll-mt-24" />}
       {picker}
       <div className="hidden sm:block overflow-x-auto rounded-lg border border-border bg-surface shadow-sm">
         <table className="w-full text-sm">
@@ -111,7 +149,7 @@ export function DataTable<T extends { id: string | number }>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {pagination.pageRows.map((row) => (
               <tr
                 key={row.id}
                 onClick={() => onRowClick?.(row)}
@@ -140,7 +178,7 @@ export function DataTable<T extends { id: string | number }>({
       </div>
 
       <div className="sm:hidden flex flex-col gap-2.5">
-        {rows.map((row) => (
+        {pagination.pageRows.map((row) => (
           <div
             key={row.id}
             onClick={() => onRowClick?.(row)}
@@ -161,6 +199,17 @@ export function DataTable<T extends { id: string | number }>({
           </div>
         ))}
       </div>
+      {paged && (
+        <Pagination
+          className="px-3 pt-3 pb-2"
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={rows.length}
+          onPage={(p) => { pagination.setPage(p); toTop(); }}
+          onPageSize={(n) => { pagination.setPageSize(n); toTop(); }}
+        />
+      )}
+      {footer}
     </>
   );
 }

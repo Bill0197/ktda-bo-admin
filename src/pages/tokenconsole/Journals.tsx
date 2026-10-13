@@ -59,6 +59,7 @@ function EntryPanel({ journalId, onApproved }: { journalId: string; onApproved: 
         </div>
       )}
       <DataTable
+        paged={false}
         rows={lines}
         emptyLabel={entry.loading ? "Loading…" : "This entry has no lines"}
         columns={[
@@ -182,6 +183,7 @@ export default function TokenConsoleJournals() {
       />
       <ConsoleTable<LedgerEntryView>
         what="journal entries"
+        newest={(r) => r.postedAt}
         source={journals}
         rows={rows}
         rowId={(r) => r.journalId}

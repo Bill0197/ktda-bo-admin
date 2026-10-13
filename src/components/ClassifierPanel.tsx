@@ -157,7 +157,7 @@ export default function ClassifierPanel({ clientId }: { clientId: string }) {
       <div>
         <h2 className="text-sm font-semibold text-text mb-3">Assignment history</h2>
         {history?.length
-          ? <Card className="p-1"><DataTable columns={columns} rows={history} columnPicker /></Card>
+          ? <Card className="p-1"><DataTable newest={(r) => r.validFrom} columns={columns} rows={history} columnPicker /></Card>
           : <EmptyState title="No assignments on file" body="This client predates the classifier register, or has never been rated." />}
       </div>
 

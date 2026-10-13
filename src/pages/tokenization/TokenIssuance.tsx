@@ -119,7 +119,7 @@ export default function TokenIssuance() {
         description="A batch is only mintable when the on-chain count equals the off-chain unit register at the same cut, every recipient wallet is whitelisted, and every recipient resolves to a jurisdiction currently open for distribution."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No issuance batches" />
+        <DataTable newest={(r) => r.requestedAt} columns={columns} rows={rows} columnPicker emptyLabel="No issuance batches" />
       </GlassPanel>
     </div>
   );

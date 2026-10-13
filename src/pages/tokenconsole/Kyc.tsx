@@ -151,8 +151,8 @@ export default function TokenConsoleKyc() {
   const rows = all
     .filter((r) => matches(r, show))
     .filter((r) => !term || [r.name, r.reference, r.investorId, r.application?.profileId].some((v) => (v ?? "").toLowerCase().includes(term)))
-    // To decide: whoever has waited longest is next. Approved photos: the latest decisions first.
-    .sort((a, b) => showingAccepted ? latestAccepted(b).localeCompare(latestAccepted(a)) : a.since.localeCompare(b.since));
+    // Newest first: by when they started waiting, or for approved photos by the latest decision.
+    .sort((a, b) => showingAccepted ? latestAccepted(b).localeCompare(latestAccepted(a)) : b.since.localeCompare(a.since));
 
   const loaded = !!reviews.data;
   const openReviews = all.filter((r) => r.review?.status === "OPEN").length;

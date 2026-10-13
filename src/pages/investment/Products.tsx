@@ -105,7 +105,7 @@ export default function Products() {
         description="Approved channels are a control, not a description. A product live on the app but not approved for the IFA channel that an advisor nonetheless recommends is a mis-selling event."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No products" />
+        <DataTable newest={(r) => r.launchedAt} columns={columns} rows={rows} columnPicker emptyLabel="No products" />
       </GlassPanel>
     </div>
   );

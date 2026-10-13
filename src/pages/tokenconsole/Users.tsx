@@ -86,6 +86,7 @@ export default function TokenConsoleUsers() {
         title="Accounts"
         description="New signups arrive here pending approval."
         what="accounts"
+        newest={(r) => r.createdAt}
         source={users}
         rowId={(r) => r.id}
         emptyLabel="No accounts"
@@ -120,6 +121,7 @@ export default function TokenConsoleUsers() {
       <ConsoleTable<ActiveSessionResponse>
         title="Active sessions"
         what="active sessions"
+        newest={(r) => r.lastRequest}
         source={sessions}
         rowId={(r) => `${r.email ?? ""}-${r.lastRequest ?? ""}`}
         emptyLabel="No active sessions"
@@ -134,6 +136,7 @@ export default function TokenConsoleUsers() {
         title="Sign-in audit"
         description="Who signed in, when, and from where — the latest 50."
         what="the sign-in audit"
+        newest={(r) => r.occurredAt}
         source={audit}
         rowId={(r) => r.id ?? `${r.email ?? ""}-${r.occurredAt ?? ""}`}
         emptyLabel="No sign-ins recorded"

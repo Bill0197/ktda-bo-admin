@@ -102,7 +102,7 @@ export default function SmartContracts() {
         description="Deprecated contracts stay listed. Balances migrate, the audit trail does not — a superseded contract still has to be answerable for what it did while it was live."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No contracts registered" />
+        <DataTable newest={(r) => r.deployedAt} columns={columns} rows={rows} columnPicker emptyLabel="No contracts registered" />
       </GlassPanel>
     </div>
   );

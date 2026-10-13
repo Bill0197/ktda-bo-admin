@@ -115,7 +115,7 @@ export default function Breaches() {
         description="Near misses caught by a pre-trade check are logged as cured breaches with no exposure taken. Counting them is how you tell a control that is working from one that is never tested."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No breaches on the register" />
+        <DataTable newest={(r) => r.detectedAt} columns={columns} rows={rows} columnPicker emptyLabel="No breaches on the register" />
       </GlassPanel>
     </div>
   );

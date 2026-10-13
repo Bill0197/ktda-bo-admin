@@ -107,7 +107,7 @@ export default function Clients() {
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} onRowClick={(r) => navigate(`/clients/${r.id}`)} columnPicker emptyLabel="No clients match" />
+        <DataTable newest={(r) => r.joinedAt} columns={columns} rows={rows} onRowClick={(r) => navigate(`/clients/${r.id}`)} columnPicker emptyLabel="No clients match" />
       )}
     </div>
   );

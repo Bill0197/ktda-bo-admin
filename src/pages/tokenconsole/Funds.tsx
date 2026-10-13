@@ -197,6 +197,7 @@ function LadderPanel({ subFundId, onChanged }: { subFundId: string; onChanged: (
         </p>
       )}
       <DataTable
+        paged={false}
         rows={rungs}
         emptyLabel={ladder.loading ? "Loading…" : "No rungs — add one, or load the sample ladder"}
         columns={[

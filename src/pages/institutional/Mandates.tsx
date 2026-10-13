@@ -119,7 +119,7 @@ export default function InstitutionalMandates() {
 
       <SectionTitle title="Agreements" description="A terminating mandate keeps running under its original terms until the termination date — notice does not suspend the restrictions." />
       <GlassPanel className="p-1 mb-6" sheen={false}>
-        <DataTable columns={mandateColumns} rows={mandateRows} columnPicker emptyLabel="No agreements" />
+        <DataTable newest={(r) => r.inceptionDate} columns={mandateColumns} rows={mandateRows} columnPicker emptyLabel="No agreements" />
       </GlassPanel>
 
       <SectionTitle

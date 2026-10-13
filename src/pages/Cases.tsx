@@ -157,7 +157,7 @@ export default function Cases({ scope }: { scope?: CaseType } = {}) {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} onRowClick={(r) => navigate(`/cases/${r.id}`)} columnPicker emptyLabel="No cases match" />
+        <DataTable newest={(r) => r.openedAt} columns={columns} rows={rows} onRowClick={(r) => navigate(`/cases/${r.id}`)} columnPicker emptyLabel="No cases match" />
       )}
 
       <CreateCaseModal

@@ -83,7 +83,7 @@ export default function RelationshipPanel({ clientId }: { clientId: string }) {
         />
         {data.coverageHistory.length ? (
           <GlassPanel className="p-1" sheen={false}>
-            <DataTable columns={historyColumns} rows={data.coverageHistory} />
+            <DataTable newest={(r) => r.validFrom} columns={historyColumns} rows={data.coverageHistory} />
           </GlassPanel>
         ) : (
           <EmptyState title="Never assigned" body="Mass-retail clients are serviced by the pooled queue and carry no named owner." />
@@ -97,7 +97,7 @@ export default function RelationshipPanel({ clientId }: { clientId: string }) {
         />
         {data.segmentHistory.length ? (
           <GlassPanel className="p-1" sheen={false}>
-            <DataTable columns={historyColumns} rows={data.segmentHistory} />
+            <DataTable newest={(r) => r.validFrom} columns={historyColumns} rows={data.segmentHistory} />
           </GlassPanel>
         ) : (
           <EmptyState title="Never segmented" body="No commercial segment has been assigned to this client." />

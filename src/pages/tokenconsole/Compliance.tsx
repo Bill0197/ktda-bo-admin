@@ -21,6 +21,7 @@ export default function TokenConsoleCompliance() {
       />
       <ConsoleTable<ComplianceReviewItem>
         what="the review queue"
+        newest={(r) => r.openedAt}
         source={reviews}
         rowId={(r) => r.queueId}
         title="Reviews"

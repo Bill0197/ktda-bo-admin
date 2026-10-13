@@ -91,7 +91,7 @@ export default function Reconciliation() {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No breaks match" />
+        <DataTable newest={(r) => r.detectedAt} columns={columns} rows={rows} columnPicker emptyLabel="No breaks match" />
       )}
     </div>
   );

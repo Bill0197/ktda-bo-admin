@@ -102,7 +102,7 @@ export default function PortfolioManagement() {
         description="A failed trade stays on the blotter with its re-book alongside it. Deleting the failure would hide a counterparty performance problem that counterparty due diligence needs to see."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No trades" />
+        <DataTable newest={(r) => r.tradeDate} columns={columns} rows={rows} columnPicker emptyLabel="No trades" />
       </GlassPanel>
     </div>
   );

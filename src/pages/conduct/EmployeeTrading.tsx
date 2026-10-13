@@ -135,7 +135,7 @@ export default function EmployeeTrading() {
         description="Each of the three rules is reported separately, so a breach names which rule broke. Cross-check anything flagged here against the market abuse board — the same trade often appears on both."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No dealing requests" />
+        <DataTable newest={(r) => r.requestedAt} columns={columns} rows={rows} columnPicker emptyLabel="No dealing requests" />
       </GlassPanel>
     </div>
   );

@@ -54,11 +54,11 @@ function withIds<T>(rows: T[], rowId: (row: T) => string | null | undefined): Ro
 
 /**
  * One accounting-service list: a title, its loading, error and empty states,
- * and the table. Every console page is built from these, so a failing
+ * and the table, a page at a time. Every console page is built from these, so a failing
  * source shows its own error and retry without blanking the rest of the page.
  */
 export function ConsoleTable<T extends object>({
-  title, description, actions, what, source, rows, rowId, columns, emptyLabel, onRowClick, selectedId, className = "mb-6",
+  title, description, actions, what, source, rows, newest, rowId, columns, emptyLabel, onRowClick, selectedId, className = "mb-6",
 }: {
   title?: string;
   description?: ReactNode;
@@ -68,6 +68,9 @@ export function ConsoleTable<T extends object>({
   source: Source<T>;
   /** Rows to show when the page filters the source; defaults to all of it. */
   rows?: T[];
+  /** The date that puts the newest row first. Left out for a list that has
+   *  none, or whose page has already ordered it. */
+  newest?: (row: T) => string | null | undefined;
   rowId: (row: T) => string | null | undefined;
   columns: Column<Row<T>>[];
   emptyLabel: string;
@@ -88,6 +91,7 @@ export function ConsoleTable<T extends object>({
           <DataTable
             columns={columns}
             rows={withIds(rows ?? source.data ?? [], rowId)}
+            newest={newest}
             emptyLabel={emptyLabel}
             onRowClick={onRowClick}
             selectedId={selectedId}

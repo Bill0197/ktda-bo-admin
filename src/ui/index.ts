@@ -6,6 +6,7 @@ export * from "./components/Toast";
 export * from "./components/AppShell";
 export * from "./components/Timeline";
 export * from "./components/DataTable";
+export * from "./components/Pagination";
 export * from "./components/Charts";
 export * from "./components/PageTransition";
 export * from "./components/ErrorBoundary";

@@ -85,7 +85,7 @@ export default function BondLadder() {
         </ChartFrame>
       </div>
 
-      <DataTable columns={columns} rows={ladder} />
+      <DataTable paged={false} columns={columns} rows={ladder} />
     </div>
   );
 }

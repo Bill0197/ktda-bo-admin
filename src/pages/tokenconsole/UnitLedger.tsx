@@ -37,6 +37,7 @@ export default function TokenConsoleUnitLedger() {
 
       <ConsoleTable<UnitLedgerActivityView>
         what="unit movements"
+        newest={(r) => r.occurredAt}
         source={activity}
         rowId={() => undefined}
         title="Activity"

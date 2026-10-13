@@ -102,7 +102,7 @@ export default function Pipeline() {
       </StatRail>
 
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={all} onRowClick={setSelected} columnPicker />
+        <DataTable newest={(r) => r.openedAt} columns={columns} rows={all} onRowClick={setSelected} columnPicker />
       </GlassPanel>
 
       {selected && (

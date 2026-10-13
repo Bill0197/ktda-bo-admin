@@ -111,7 +111,7 @@ export default function Approvals() {
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} onRowClick={setActive} columnPicker emptyLabel="Nothing here" />
+        <DataTable newest={(r) => r.proposedAt} columns={columns} rows={rows} onRowClick={setActive} columnPicker emptyLabel="Nothing here" />
       )}
 
       <Modal open={!!active} onClose={() => setActive(null)} title={active ? APPROVAL_KIND_LABELS[active.kind] : ""} size="lg">

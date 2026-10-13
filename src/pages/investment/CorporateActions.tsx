@@ -108,7 +108,7 @@ export default function CorporateActions() {
         description="Infrastructure bond coupons show a genuine zero withholding tax — the exemption is real, not an unpopulated field. Events with no cash flow say so rather than showing KES 0."
       />
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} columnPicker emptyLabel="No corporate actions" />
+        <DataTable newest={(r) => r.exDate} columns={columns} rows={rows} columnPicker emptyLabel="No corporate actions" />
       </GlassPanel>
     </div>
   );

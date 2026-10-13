@@ -168,7 +168,7 @@ export default function Enquiries() {
       </FilterBar>
 
       <GlassPanel className="p-1" sheen={false}>
-        <DataTable columns={columns} rows={rows} onRowClick={setDetail} columnPicker emptyLabel="No enquiries match" />
+        <DataTable newest={(r) => r.receivedAt} columns={columns} rows={rows} onRowClick={setDetail} columnPicker emptyLabel="No enquiries match" />
       </GlassPanel>
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.subject} size="lg">

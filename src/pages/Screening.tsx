@@ -209,16 +209,16 @@ export default function Screening() {
       ) : (
         <>
           {tab === "onboarding" && (
-            <DataTable columns={resultColumns} rows={onboardingRows} columnPicker emptyLabel="No onboarding screenings match" />
+            <DataTable newest={(r) => r.runAt} columns={resultColumns} rows={onboardingRows} columnPicker emptyLabel="No onboarding screenings match" />
           )}
           {tab === "transactions" && (
-            <DataTable columns={txColumns} rows={txRows} columnPicker emptyLabel="No transactions match" />
+            <DataTable newest={(r) => r.createdAt} columns={txColumns} rows={txRows} columnPicker emptyLabel="No transactions match" />
           )}
           {tab === "eod" && (
             <DataTable columns={eodColumns} rows={eodRows} columnPicker emptyLabel="Portfolio fully screened — next batch runs at 05:00" />
           )}
           {tab === "results" && (
-            <DataTable columns={resultColumns} rows={allRows} columnPicker emptyLabel="No screening results match" />
+            <DataTable newest={(r) => r.runAt} columns={resultColumns} rows={allRows} columnPicker emptyLabel="No screening results match" />
           )}
           {tab === "kyc" && (
             <DataTable columns={kycColumns} rows={kycRows} columnPicker emptyLabel="No KYC refreshes due in the next 90 days" />

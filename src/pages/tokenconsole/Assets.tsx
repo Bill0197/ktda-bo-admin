@@ -41,6 +41,7 @@ export default function TokenConsoleAssets() {
       <ConsoleTable<AssetResponse>
         title="Register"
         what="assets"
+        newest={(r) => r.createdAt}
         source={assets}
         rowId={(r) => r.assetId}
         onRowClick={(r) => setOpen(r.assetId ?? null)}

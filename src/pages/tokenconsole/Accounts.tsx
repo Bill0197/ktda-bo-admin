@@ -22,6 +22,7 @@ export default function TokenConsoleAccounts() {
       />
       <ConsoleTable<InvestorContract>
         what="accounts"
+        newest={(r) => r.openedAt}
         source={contracts}
         rowId={(r) => r.contractId}
         emptyLabel="No accounts open"

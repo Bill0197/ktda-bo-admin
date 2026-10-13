@@ -132,13 +132,13 @@ export default function Campaigns() {
         />
       </StatRail>
 
-      <GlassPanel className="p-1 mb-6" sheen={false}><DataTable columns={columns} rows={rows} columnPicker /></GlassPanel>
+      <GlassPanel className="p-1 mb-6" sheen={false}><DataTable newest={(r) => r.startedAt} columns={columns} rows={rows} columnPicker /></GlassPanel>
 
       <SectionTitle
         title="Lead attribution"
         description="A lead with no campaign is not an error — walk-ins and word of mouth genuinely have no campaign. It is only a problem when a paid channel's leads land here unattributed, because that spend then looks like it produced nothing."
       />
-      <GlassPanel className="p-1" sheen={false}><DataTable columns={leadColumns} rows={leads ?? []} columnPicker /></GlassPanel>
+      <GlassPanel className="p-1" sheen={false}><DataTable newest={(r) => r.createdAt} columns={leadColumns} rows={leads ?? []} columnPicker /></GlassPanel>
     </div>
   );
 }

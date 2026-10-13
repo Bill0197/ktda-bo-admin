@@ -191,6 +191,7 @@ function CloseTab() {
             { key: "at", header: "Run at", render: (r) => <span className="tabular text-xs">{formatDateTime(r.runAt)}</span>, hideOnMobile: true, defaultHidden: true },
           ]}
           rows={closes ?? []}
+          newest={(r) => r.date}
         />
       </Card>
     </div>
@@ -281,7 +282,7 @@ function JournalsTab() {
         which is what stops a retried request or a duplicate webhook from posting a different shape than the first
         attempt did. Entries below <span className="tabular">posted</span> are excluded from every balance.
       </Card>
-      <Card className="p-1"><DataTable columns={columns} rows={entries ?? []} columnPicker /></Card>
+      <Card className="p-1"><DataTable newest={(r) => r.postedAt} columns={columns} rows={entries ?? []} columnPicker /></Card>
 
       <Modal open={!!correcting} onClose={() => setCorrecting(null)} title={`Post a correction to ${correcting?.id ?? ""}`}>
         <div className="flex flex-col gap-4">
@@ -421,6 +422,7 @@ function UnitsTab() {
             { key: "at", header: "Occurred", render: (r) => <span className="tabular text-xs">{formatDateTime(r.occurredAt)}</span>, hideOnMobile: true },
           ]}
           rows={entries ?? []}
+          newest={(r) => r.occurredAt}
           columnPicker
         />
       </Card>
@@ -524,6 +526,7 @@ IntFactor_i = delta_i × days_from_period_start_to_entry_i`}
               : <span className="text-text-faint">—</span>, hideOnMobile: true },
           ]}
           rows={runs ?? []}
+          newest={(r) => r.runDate}
           columnPicker
         />
       </Card>
@@ -541,6 +544,7 @@ IntFactor_i = delta_i × days_from_period_start_to_entry_i`}
               { key: "dayCount", header: "Day count", render: (r) => <span className="text-text-soft text-xs">{DAY_COUNT_LABELS[r.dayCount]}</span>, hideOnMobile: true },
             ]}
             rows={(accruals ?? []).map((a, i) => ({ ...a, id: `${a.runId}-${a.contractId}-${i}` }))}
+            newest={(r) => r.valueDated}
             emptyLabel="No accrual has been computed yet"
           />
         </Card>
