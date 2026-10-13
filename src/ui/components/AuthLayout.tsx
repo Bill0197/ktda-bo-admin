@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AmbientBackdrop } from "./Ambient";
+import { versionLabel, versionTitle } from "../../lib/version";
 
 /** Split-screen shell for every login/auth screen — a soft lavender brand
  * panel on desktop (hidden on mobile, where the form panel takes the full
@@ -51,6 +52,8 @@ export function AuthLayout({
 
       <div className="flex-1 flex items-center justify-center min-h-screen lg:min-h-0 relative overflow-hidden p-6">
         {children}
+        {/* Which build is live, for support and QA. */}
+        <p className="absolute inset-x-0 bottom-4 text-center font-mono text-[10px] text-text-faint" title={versionTitle()}>{versionLabel()}</p>
       </div>
     </div>
   );
