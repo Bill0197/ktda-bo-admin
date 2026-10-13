@@ -67,9 +67,12 @@ echo "==> Labelling the webroot for nginx (SELinux)"
 if ! command -v semanage >/dev/null 2>&1; then
     sudo dnf install -y policycoreutils-python-utils
 fi
-if ! sudo semanage fcontext -l | grep -qF "${WEBROOT}(/.*)?"; then
-    sudo semanage fcontext -a -t httpd_sys_content_t "${WEBROOT}(/.*)?"
-fi
+# Add the rule, or modify it when an earlier run already added it. Not a
+# "list | grep -q" guard: grep -q closes the pipe on the first match, semanage
+# dies with a broken pipe, and under pipefail the guard then wrongly adds again
+# ("File context ... already defined").
+sudo semanage fcontext -a -t httpd_sys_content_t "${WEBROOT}(/.*)?" 2>/dev/null \
+    || sudo semanage fcontext -m -t httpd_sys_content_t "${WEBROOT}(/.*)?"
 sudo restorecon -R "$WEBROOT"
 
 echo "==> Allowing nginx to make outbound connections (SELinux)"
