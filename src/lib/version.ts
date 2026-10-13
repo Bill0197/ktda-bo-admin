@@ -14,12 +14,31 @@ declare const __APP_VERSION__: {
 
 export const APP_VERSION = __APP_VERSION__;
 
-/** `2026-10-13 14:30` from an ISO string; "" when absent. */
+// The injected ISO strings carry mixed offsets (the commit keeps the
+// committer's, the build is UTC), so render both in the viewer's own timezone
+// with its abbreviation — one consistent, unambiguous reading of "when".
+const FMT = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZoneName: "short",
+});
+
+/** `2026-10-13 14:30 GMT+3` in the viewer's timezone; "" when absent. */
 function stamp(iso: string): string {
-  return iso ? iso.slice(0, 16).replace("T", " ") : "";
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16).replace("T", " ");
+  const parts = FMT.formatToParts(d);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+  const tz = get("timeZoneName");
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}${tz ? ` ${tz}` : ""}`;
 }
 
-/** Short, human-readable label, e.g. `a1b2c3d · deployed 2026-10-13 14:30`. */
+/** Short, human-readable label, e.g. `a1b2c3d · deployed 2026-10-13 14:30 GMT+3`. */
 export function versionLabel(): string {
   const deployed = stamp(APP_VERSION.builtAt);
   return deployed ? `${APP_VERSION.commit} · deployed ${deployed}` : APP_VERSION.commit;
