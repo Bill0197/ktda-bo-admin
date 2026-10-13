@@ -1,8 +1,32 @@
+import { execSync } from "node:child_process";
 import { Agent as HttpAgent } from "node:http";
 import { Agent as HttpsAgent } from "node:https";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+
+function git(cmd: string): string {
+  try {
+    return execSync(`git ${cmd}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "";
+  }
+}
+
+// A stamp of the commit this build carries, so the running app can report
+// which version is deployed. CI environment variables win over the local
+// checkout (a deploy runner knows the exact commit it is shipping); both fall
+// back to the working tree, and finally to "dev" when built outside git.
+function appVersion() {
+  const e = process.env;
+  const commit = (e.VITE_COMMIT_SHA || e.GITHUB_SHA || git("rev-parse HEAD")).slice(0, 7) || "dev";
+  const ref = e.VITE_COMMIT_REF || e.GITHUB_REF_NAME || git("rev-parse --abbrev-ref HEAD") || "";
+  const commitTime = git("show -s --format=%cI HEAD");
+  // When this build was produced — i.e. the deploy time, since the build runs
+  // as part of `npm run deploy`. Overridable so a reproducible build can pin it.
+  const builtAt = e.VITE_BUILD_TIME || new Date().toISOString();
+  return { commit, ref, commitTime, builtAt };
+}
 
 /* Local twins of functions/tok and functions/omni (the Cloudflare Pages proxies).
    Neither backend sends CORS headers, and the tokenization session is a cookie,
@@ -24,6 +48,9 @@ const pool = (target: string) =>
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion()),
+  },
   server: {
     port: 5174,
     proxy: {
