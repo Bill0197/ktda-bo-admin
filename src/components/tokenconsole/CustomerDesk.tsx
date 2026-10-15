@@ -13,15 +13,20 @@ import { ApplicationSection } from "./IdentityReview";
 import { Code } from "./ConsoleTable";
 import { DetailItem } from "./DetailItem";
 import { CustomerPhotos } from "./CustomerPhotos";
+import { AccountActions } from "./AccountActions";
+import { CustomerTickets } from "./CustomerTickets";
+import { useAuth } from "../../lib/auth";
+import { canDecideKyc } from "../../lib/tokenConsole/kyc";
 
 /* The Customer desk, from omnichannel (the customer channel): find someone by
    the number or email they use, or by an id, and answer "I paid but nothing
    happened" or "I never got the code" without a developer reading logs —
    their standing, their money (M-Pesa and the product's own movements as one
    list), what we sent them and whether it reached the phone, and what they
-   did in the app. Reads only; omnichannel audits every lookup against the
-   staff member signed in. KYC and photo standing are shown for context; the
-   decisions stay on the KYC desk. */
+   did in the app. Omnichannel audits every lookup against the staff member
+   signed in. KYC and photo standing are shown for context; the decisions
+   stay on the KYC desk. The one thing written here is the profile's
+   standing: suspend, reinstate, close (compliance and admins). */
 
 type Tone = "success" | "warning" | "danger" | "neutral";
 
@@ -139,6 +144,7 @@ function CustomerView({ profileId }: { profileId: string }) {
   const [summary, setSummary] = useState<CustomerSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState("timeline");
+  const { user } = useAuth();
 
   useEffect(() => {
     let stale = false;
@@ -160,6 +166,9 @@ function CustomerView({ profileId }: { profileId: string }) {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <h2 className="font-display text-lg font-semibold text-text">{s.legalName ?? s.displayName ?? "Unnamed"}</h2>
           <Badge tone={PROFILE_TONE[s.status] ?? "neutral"}>{label(s.status)}</Badge>
+          <div className="ml-auto">
+            <AccountActions summary={s} allowed={canDecideKyc(user?.tokRoles)} onChanged={setSummary} />
+          </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
           <DetailItem term="KYC">
@@ -203,12 +212,14 @@ function CustomerView({ profileId }: { profileId: string }) {
             { key: "messages", label: "Messages" },
             { key: "activity", label: "Activity" },
             { key: "compliance", label: "Compliance" },
+            { key: "support", label: "Support" },
           ]}
         />
         {tab === "timeline" && <TimelineList profileId={profileId} />}
         {tab === "messages" && <MessageList profileId={profileId} />}
         {tab === "activity" && <ActivityList profileId={profileId} />}
         {tab === "compliance" && <Compliance profileId={profileId} />}
+        {tab === "support" && <CustomerTickets profileId={profileId} />}
       </div>
     </div>
   );

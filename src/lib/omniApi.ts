@@ -134,7 +134,38 @@ export type CheckedApplication = {
   product: string;
   externalRef: string;
   submittedAt: string;
+  /** When they were last re-screened after onboarding; null until the first
+   *  refresh. */
+  rescreenedAt?: string | null;
+  /** What the last re-screen said; null until the first refresh. */
+  rescreenClear?: boolean | null;
+  rescreenReference?: string | null;
 };
+
+/** What one re-screening sweep did. */
+export type RescreenResult = { screened: number; hits: number };
+
+/** A support request on the desk: the customer's ticket with their name. */
+export type DeskTicket = {
+  id: string;
+  /** What the customer quotes: `SR-` and six characters. */
+  reference: string;
+  profileId: string;
+  customer: string | null;
+  category: string;
+  subject: string;
+  description: string;
+  status: "NEW" | "ACKNOWLEDGED" | "INVESTIGATING" | "RESOLVED" | "CLOSED" | string;
+  assignedTo: string | null;
+  submittedAt: string;
+  acknowledgedAt: string | null;
+  resolvedAt: string | null;
+  closedAt: string | null;
+  updatedAt: string | null;
+};
+
+/** The subject omnichannel gives a customer's own closure request. */
+export const CLOSURE_SUBJECT = "Account closure request";
 
 export type DocumentType = "SELFIE" | "ID_FRONT" | "ID_BACK";
 
@@ -323,6 +354,31 @@ export const omniApi = {
     if (!res.ok) throw await failure(res);
     return listOf<TransactionTotals>(res);
   },
+  /** Stops the profile acting; every money call answers 409 until it is
+   *  reinstated. 409 unless the profile is active. Audited. */
+  suspendCustomer: (profileId: string, note?: string) =>
+    post<CustomerSummary>(`${customerPath(profileId)}/suspend`, note ? { note } : {}),
+  /** Lifts a suspension; the customer is told. 409 unless suspended. */
+  reinstateCustomer: (profileId: string, note?: string) =>
+    post<CustomerSummary>(`${customerPath(profileId)}/reinstate`, note ? { note } : {}),
+  /** Closes the app profile for good, normally from the customer's own
+   *  closure request. The investor is offboarded on the engine separately.
+   *  409 when already closed. */
+  closeCustomer: (profileId: string, note?: string) =>
+    post<CustomerSummary>(`${customerPath(profileId)}/close`, note ? { note } : {}),
+  /** Customers a nightly re-screening referred, latest first; each is back
+   *  under review on the engine. 404 where omnichannel predates it. */
+  screeningHits: (page: number, size = 20) =>
+    getPage<CheckedApplication>("/onboarding/applications/screening-hits", page, size),
+  /** Runs the re-screening sweep now instead of at night. */
+  rescreen: () => post<RescreenResult>("/onboarding/applications/rescreen", {}),
+  /** One customer's support requests in every status, latest updated first. */
+  customerTickets: (profileId: string, page: number, size = 20) =>
+    getPage<DeskTicket>(`/support/tickets?profileId=${encodeURIComponent(profileId)}`, page, size),
+  /** The queue of requests: everything not closed, longest waiting first,
+   *  narrowed to what `q` finds in the reference and the subject. */
+  tickets: (q: string, page: number, size = 20) =>
+    getPage<DeskTicket>(`/support/tickets?q=${encodeURIComponent(q)}`, page, size),
   /** FAILED needs a note: the customer receives it as a message. 409 when it
    *  is no longer pending (someone else decided). */
   reviewDocument: (id: string, decision: "PASSED" | "FAILED", note?: string) =>

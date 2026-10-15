@@ -23,6 +23,7 @@ import { DetailItem } from "../../components/tokenconsole/DetailItem";
 import { ApplicantPhotos, ApplicationSection } from "../../components/tokenconsole/IdentityReview";
 import { CustomerPhotos } from "../../components/tokenconsole/CustomerPhotos";
 import { customerDeskLink } from "../../lib/tokenConsole/customerSearch";
+import { Rescreening } from "../../components/tokenconsole/Rescreening";
 
 /* The KYC desk: everything a reviewer needs to decide who someone is, on one
    page, one row per applicant.
@@ -127,6 +128,7 @@ function applicants(
 }
 
 export default function TokenConsoleKyc() {
+  const { user } = useAuth();
   const reviews = useAsyncData(allReviews);
   const investors = useAsyncData(tokenConsole.investors);
   // Omnichannel's half, each read on its own so one failing never hides the rest.
@@ -253,6 +255,8 @@ export default function TokenConsoleKyc() {
             : <span className="text-xs text-text-faint">No review</span> },
         ]}
       />
+
+      <Rescreening mayRun={canDecideKyc(user?.tokRoles)} />
 
       <Modal open={!!selectedRow} onClose={() => setSelected(null)} title={selectedRow?.name || "Applicant"} size="lg">
         {/* Keyed so one applicant's notes, images and errors never carry to the next. */}
