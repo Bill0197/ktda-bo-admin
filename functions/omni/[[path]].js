@@ -16,10 +16,12 @@ const UUID = "[0-9a-fA-F-]+";
 // What each method may reach: actions on an investor record, and compliance's
 // identity checks (the registry mismatches, the photo queue, one photo, a decision),
 // the Customer desk (and suspending, reinstating or closing a profile), re-screening
-// and the closure requests in Support, and the Transactions page.
+// and the closure requests in Support, the Transactions page and its payment issues
+// (retry, resolve, match, unmatched), and the Market page (the dealing settings and
+// their change log, a proposal, an approval or a rejection).
 const ALLOWED = {
-  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close))$`),
-  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/${UUID}(/(timeline|messages|activity))?|transactions|transactions/summary)$`),
+  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject))$`),
+  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/${UUID}(/(timeline|messages|activity))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.

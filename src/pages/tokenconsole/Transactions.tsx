@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ArrowDownLeft, ArrowUpRight, CircleAlert, Hourglass, RefreshCw } from "lucide-react";
 import {
   Badge, Button, DataTable, DateRangeFilter, DEFAULT_PAGE_SIZE, FilterBar, GlassPanel, NotePanel, PageHeader, Pagination, SearchInput,
-  SelectFilter, Skeleton, StatCard, inDateRange,
+  SelectFilter, Skeleton, StatCard, Tabs, inDateRange,
 } from "../../ui";
 import { dateTime, label, money, shortId } from "../../lib/tokenConsole/format";
 import {
@@ -15,6 +15,8 @@ import {
   type CustomerTransaction, type TransactionsLoad, type TransactionsProgress,
 } from "../../lib/tokenConsole/customerTransactions";
 import { Code, SourceError } from "../../components/tokenconsole/ConsoleTable";
+import { PaymentIssues } from "../../components/tokenconsole/PaymentIssues";
+import { useAsyncData } from "../../lib/useAsyncData";
 
 /* Customer transactions across everyone, from omnichannel, newest first: to
    answer "what failed today" or "who paid for this" without knowing whose it
@@ -123,7 +125,7 @@ const tile = (totals: TransactionTotals[], pick: (t: TransactionTotals) => Trans
 const notServed = (e: unknown) => e instanceof OmniApiError && (e.status === 404 || e.status === 405);
 
 /** Omnichannel's own list: filtered and paged there, totals from its summary. */
-function ServerTransactions({ onNotServed }: { onNotServed: () => void }) {
+function ServerTransactions({ onNotServed, tabs }: { onNotServed: () => void; tabs: ReactNode }) {
   const [q, setQ] = useState("");
   const [term, setTerm] = useState("");
   const [kind, setKind] = useState("all");
@@ -198,6 +200,7 @@ function ServerTransactions({ onNotServed }: { onNotServed: () => void }) {
         subtitle={`Every customer's M-Pesa payments, top-ups and payouts, newest first. ${SUBTITLE_TAIL}`}
         actions={<RefreshButton loading={loading} onClick={() => void fetchPage(1, true)} />}
       />
+      {tabs}
 
       {totals && (
         <StatTiles
@@ -256,14 +259,44 @@ function ServerTransactions({ onNotServed }: { onNotServed: () => void }) {
 export default function TokenConsoleTransactions() {
   const [served, setServed] = useState(true);
   const fallBack = useCallback(() => setServed(false), []);
-  return served ? <ServerTransactions onNotServed={fallBack} /> : <FanOutTransactions />;
+  // The tab lives in the address, so a refresh or a shared link keeps it.
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") === "issues" ? "issues" : "all";
+  // Read here, not in the tab, so the strip can say how many are waiting.
+  const issues = useAsyncData(omniApi.paymentIssues);
+  const tabs = (
+    <Tabs
+      className="mb-5"
+      active={tab}
+      onChange={(k) => setParams(k === "issues" ? { tab: "issues" } : {}, { replace: true })}
+      tabs={[
+        { key: "all", label: "All transactions" },
+        { key: "issues", label: "Issues", count: issues.data?.length },
+      ]}
+    />
+  );
+  if (tab === "issues") {
+    return (
+      <div>
+        <PageHeader
+          eyebrow="Baracel Unyt"
+          title="Transactions"
+          subtitle="Payments that need a person: payouts the provider refused and bank transfers still unmatched. Oldest first."
+          actions={<RefreshButton loading={issues.loading} onClick={() => void issues.reload()} />}
+        />
+        {tabs}
+        <PaymentIssues source={issues} />
+      </div>
+    );
+  }
+  return served ? <ServerTransactions onNotServed={fallBack} tabs={tabs} /> : <FanOutTransactions tabs={tabs} />;
 }
 
 /** The list built customer by customer, for an omnichannel that has no
  *  list of its own yet: who the customers are from the KYC desk's
  *  applications, then each one's timeline. Slower, and one audited lookup
  *  per customer; kept until every environment serves the list. */
-function FanOutTransactions() {
+function FanOutTransactions({ tabs }: { tabs: ReactNode }) {
   const [load, setLoad] = useState<TransactionsLoad | null>(null);
   const [progress, setProgress] = useState<TransactionsProgress | null>(null);
   const [loading, setLoading] = useState(true);
@@ -344,6 +377,7 @@ function FanOutTransactions() {
           <RefreshButton loading={loading} onClick={() => void reload()} />
         }
       />
+      {tabs}
 
       {error && <SourceError what="transactions" error={error} onRetry={reload} />}
 

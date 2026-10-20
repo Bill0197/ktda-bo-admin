@@ -54,6 +54,7 @@ const TokenConsoleInvestors = lazy(() => import("./pages/tokenconsole/Investors"
 const TokenConsoleAccounts = lazy(() => import("./pages/tokenconsole/Accounts"));
 const TokenConsoleOfferings = lazy(() => import("./pages/tokenconsole/Offerings"));
 const TokenConsoleProducts = lazy(() => import("./pages/tokenconsole/Products"));
+const TokenConsoleMarket = lazy(() => import("./pages/tokenconsole/Market"));
 const TokenConsoleJournals = lazy(() => import("./pages/tokenconsole/Journals"));
 const TokenConsoleTrialBalance = lazy(() => import("./pages/tokenconsole/TrialBalance"));
 const TokenConsoleUnitLedger = lazy(() => import("./pages/tokenconsole/UnitLedger"));
@@ -145,6 +146,7 @@ function AppRoutes() {
       <Route path="/token-console/accounts" element={<ProtectedRoute><TokenConsoleAccounts /></ProtectedRoute>} />
       <Route path="/token-console/offerings" element={<ProtectedRoute><TokenConsoleOfferings /></ProtectedRoute>} />
       <Route path="/token-console/products" element={<ProtectedRoute><TokenConsoleProducts /></ProtectedRoute>} />
+      <Route path="/token-console/market" element={<ProtectedRoute><TokenConsoleMarket /></ProtectedRoute>} />
       <Route path="/token-console/journals" element={<ProtectedRoute><TokenConsoleJournals /></ProtectedRoute>} />
       <Route path="/token-console/trial-balance" element={<ProtectedRoute><TokenConsoleTrialBalance /></ProtectedRoute>} />
       <Route path="/token-console/unit-ledger" element={<ProtectedRoute><TokenConsoleUnitLedger /></ProtectedRoute>} />
