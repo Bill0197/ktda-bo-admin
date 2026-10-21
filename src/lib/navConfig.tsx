@@ -8,7 +8,7 @@ import {
   BookOpenCheck, PackageSearch, Inbox, ListChecks, Contact, Megaphone, Target, Gauge,
   Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart,
   PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2,
-  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight,
+  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -42,6 +42,7 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Offerings", to: "/token-console/offerings", section: "Baracel Unyt", icon: ShoppingCart },
   { label: "Assets", to: "/token-console/assets", section: "Baracel Unyt", icon: Landmark },
   { label: "Products", to: "/token-console/products", section: "Baracel Unyt", icon: Boxes },
+  { label: "Market", to: "/token-console/market", section: "Baracel Unyt", icon: ChartCandlestick },
   { label: "Journals", to: "/token-console/journals", section: "Baracel Unyt", icon: BookOpenCheck },
   { label: "Trial balance", to: "/token-console/trial-balance", section: "Baracel Unyt", icon: Scale },
   { label: "Unit ledger", to: "/token-console/unit-ledger", section: "Baracel Unyt", icon: Layers },

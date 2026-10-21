@@ -11,11 +11,33 @@
 
 export class OmniApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** The request field omnichannel blamed (a 400 on `haltedOfferings`, say). */
+  readonly field: string | null;
+  /** Omnichannel's stable error code (`CHANGE_PENDING`, …), when it sent one. */
+  readonly code: string | null;
+  constructor(status: number, message: string, field: string | null = null, code: string | null = null) {
     super(message);
     this.name = "OmniApiError";
     this.status = status;
+    this.field = field;
+    this.code = code;
   }
+}
+
+/** A 401 from omnichannel or the proxy in front of it: the BO Admin session
+ *  has ended, or the call did not say who is acting (the market and payment
+ *  decisions refuse to act for nobody). Either way signing in again fixes it;
+ *  the raw message ("No authenticated subject") would not tell anyone that. */
+const SIGN_IN_AGAIN = "Omnichannel could not tell who you are, so nothing was done. Please sign out, sign in again and retry.";
+
+/** The error for a failed response, from omnichannel's envelope
+ *  ({message, code, field}) or the proxies' ({error}). */
+function errorFrom(status: number, data: unknown): OmniApiError {
+  const env = (data && typeof data === "object" ? data : {}) as {
+    error?: string; message?: string; detail?: string; field?: string; code?: string;
+  };
+  const message = status === 401 ? SIGN_IN_AGAIN : env.detail ?? env.message ?? env.error ?? `Request failed (${status}).`;
+  return new OmniApiError(status, message, env.field ?? null, env.code ?? null);
 }
 
 const BASE = `${import.meta.env.VITE_OMNI_BASE ?? "/omni"}/api/operator`;
@@ -26,7 +48,24 @@ const BASE = `${import.meta.env.VITE_OMNI_BASE ?? "/omni"}/api/operator`;
  *  passes on. */
 let actor: string | null = null;
 export function setOmniActor(email: string | null) {
-  actor = email ? `staff:${email}` : null;
+  actor = email ? omniSubjectFor(email) : null;
+}
+
+/** What omnichannel records when a call carries no X-Dev-Subject. */
+const NO_SUBJECT = "dev-operator";
+
+/** The subject omnichannel records for this staff member: the same value
+ *  sent as X-Dev-Subject here and set by functions/omni from the session.
+ *  Compare a record's `proposedBy` / `decidedBy` with this, never with the
+ *  bare email. */
+export function omniSubjectFor(email: string | null | undefined): string {
+  return email ? `staff:${email}` : NO_SUBJECT;
+}
+
+/** A recorded subject as a person reads it: the email without `staff:`. */
+export function staffName(subject: string | null | undefined): string {
+  if (!subject) return "—";
+  return subject.startsWith("staff:") ? subject.slice("staff:".length) : subject;
 }
 
 async function send(method: "GET" | "POST", path: string, body?: unknown): Promise<Response> {
@@ -53,8 +92,7 @@ async function failure(res: Response): Promise<OmniApiError> {
   } catch {
     data = text;
   }
-  const env = (data && typeof data === "object" ? data : {}) as { error?: string; message?: string; detail?: string };
-  return new OmniApiError(res.status, env.detail ?? env.message ?? env.error ?? `Request failed (${res.status}).`);
+  return errorFrom(res.status, data);
 }
 
 /* Every omnichannel list is paged: `page` from 1, `size` 20 by default and at
@@ -100,10 +138,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   } catch {
     data = text;
   }
-  if (!res.ok) {
-    const env = (data && typeof data === "object" ? data : {}) as { error?: string; message?: string; detail?: string };
-    throw new OmniApiError(res.status, env.detail ?? env.message ?? env.error ?? `Request failed (${res.status}).`);
-  }
+  if (!res.ok) throw errorFrom(res.status, data);
   return data as T;
 }
 
@@ -266,9 +301,94 @@ export type SentMessage = {
   createdAt: string;
 };
 
+/** What the relay deals by now (BRD FR-ADM-01). `source` "defaults" means no
+ *  change has been approved yet and the environment's values apply;
+ *  "change" means the approved change `changeId`, in force `since`, approved
+ *  by `decidedBy`. */
+export type MarketSettings = {
+  tradingOpen: string;
+  tradingClose: string;
+  zone: string;
+  weekendsOpen: boolean;
+  halted: boolean;
+  /** Offering ids halted on their own. */
+  haltedOfferings: string[];
+  source: "defaults" | "change" | string;
+  changeId: string | null;
+  since: string | null;
+  /** Who approved the change in force, and their note; null on the defaults. */
+  decidedBy?: string | null;
+  decisionNote?: string | null;
+};
+
+/** One proposed market-settings change: the whole setting as it would be
+ *  after it, and who proposed and decided it. */
+export type MarketChange = {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  tradingOpen: string;
+  tradingClose: string;
+  weekendsOpen: boolean;
+  halted: boolean;
+  haltedOfferings: string[];
+  note: string | null;
+  proposedBy: string;
+  proposedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+};
+
+export type MarketOverview = { settings: MarketSettings; pending: MarketChange | null };
+
+/** A proposal: a field left out keeps its current value. Times are HH:mm. */
+export type MarketProposal = {
+  tradingOpen?: string;
+  tradingClose?: string;
+  weekendsOpen?: boolean;
+  halted?: boolean;
+  haltedOfferings?: string[];
+  note?: string;
+};
+
+/** A payment as omnichannel holds it (M-Pesa, or a bank transfer). */
+export type PaymentView = {
+  id: string;
+  direction: "IN" | "OUT" | string;
+  status: "PENDING" | "PAID" | "SENT" | "FAILED" | string;
+  method: string;
+  phone: string | null;
+  amount: number;
+  currency: string;
+  reference: string | null;
+  providerRef: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+/** Something on the payments side that needs a person (BRD FR-STL-05):
+ *  a payout the provider refused, or a reported transfer still unmatched
+ *  after the wait. `why` is written to be read. */
+export type PaymentIssue = {
+  profileId: string;
+  payment: PaymentView;
+  kind: "PAYOUT_FAILED" | "TRANSFER_WAITING" | string;
+  why: string;
+};
+
 export type CustomerAction = { id: string; action: string; target: string | null; outcome: number | null; requestId: string | null; occurredAt: string };
 
 export type CustomerQuery = { phone: string } | { email: string } | { investorId: string } | { profileId: string };
+
+async function getOne<T>(path: string): Promise<T> {
+  const res = await send("GET", path);
+  if (!res.ok) throw await failure(res);
+  return (await res.json()) as T;
+}
+
+const marketChangePath = (id: string) => `/market/settings/changes/${encodeURIComponent(id)}`;
+const paymentPath = (id: string) => `/payments/${encodeURIComponent(id)}`;
 
 /** Omnichannel lists applications by registry result only, so this reads
  *  each result until one matches. */
@@ -379,6 +499,38 @@ export const omniApi = {
    *  narrowed to what `q` finds in the reference and the subject. */
   tickets: (q: string, page: number, size = 20) =>
     getPage<DeskTicket>(`/support/tickets?q=${encodeURIComponent(q)}`, page, size),
+  /** What the relay deals by now, and the change waiting for a decision. */
+  marketSettings: () => getOne<MarketOverview>("/market/settings"),
+  /** The market-settings change log, newest first; omnichannel caps `limit`
+   *  at 200 and does not page it. */
+  marketChanges: async (limit = 50): Promise<MarketChange[]> => {
+    const res = await send("GET", `/market/settings/changes?limit=${limit}`);
+    if (!res.ok) throw await failure(res);
+    return listOf<MarketChange>(res);
+  },
+  /** Waits as PENDING until someone else approves it. 409 CHANGE_PENDING while
+   *  another waits; 400 on a bad time or a close not after the open. */
+  proposeMarketChange: (proposal: MarketProposal) => post<MarketChange>("/market/settings/changes", proposal),
+  /** 409 SECOND_APPROVER_REQUIRED for the proposer; CHANGE_DECIDED when gone. */
+  approveMarketChange: (id: string, note?: string) =>
+    post<MarketChange>(`${marketChangePath(id)}/approve`, note ? { note } : {}),
+  /** Anyone may reject, the proposer included. */
+  rejectMarketChange: (id: string, note?: string) =>
+    post<MarketChange>(`${marketChangePath(id)}/reject`, note ? { note } : {}),
+  /** Refused payouts and transfers unmatched after the wait, oldest first,
+   *  every page. Omnichannel counts at most 500 of each kind, so a queue
+   *  longer than that is cut there. */
+  paymentIssues: () => getAll<PaymentIssue>("/payments/issues"),
+  /** A failed payout sent again to the same phone; 201 with the new payment.
+   *  409 for anything else or when already handled. */
+  retryPayout: (id: string) => post<PaymentView>(`${paymentPath(id)}/retry`, {}),
+  /** A failed payout paid another way; the note is required. 409 for a
+   *  transfer (match or mark it unmatched instead) or when already handled. */
+  resolvePayment: (id: string, note: string) => post<PaymentView>(`${paymentPath(id)}/resolve`, { note }),
+  /** The transfer arrived: PAID with the bank's reference, balance credited. */
+  matchTransfer: (id: string, bankReference: string) => post<PaymentView>(`${paymentPath(id)}/match`, { bankReference }),
+  /** The transfer never came: FAILED with the reason the customer reads. */
+  markTransferUnmatched: (id: string, reason: string) => post<PaymentView>(`${paymentPath(id)}/unmatched`, { reason }),
   /** FAILED needs a note: the customer receives it as a message. 409 when it
    *  is no longer pending (someone else decided). */
   reviewDocument: (id: string, decision: "PASSED" | "FAILED", note?: string) =>

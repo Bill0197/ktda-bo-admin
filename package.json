@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=brf-bo-admin --branch=main"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "motion": "^13.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
