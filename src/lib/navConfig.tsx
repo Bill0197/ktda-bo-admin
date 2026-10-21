@@ -8,7 +8,7 @@ import {
   BookOpenCheck, PackageSearch, Inbox, ListChecks, Contact, Megaphone, Target, Gauge,
   Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart,
   PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2,
-  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick,
+  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -53,6 +53,7 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Loans", to: "/token-console/loans", section: "Baracel Unyt", icon: HandCoins },
   { label: "KYC desk", to: "/token-console/kyc", section: "Baracel Unyt", icon: BadgeCheck },
   { label: "Customer desk", to: "/token-console/customers", section: "Baracel Unyt", icon: LifeBuoy },
+  { label: "Customer approvals", to: "/token-console/customer-approvals", section: "Baracel Unyt", icon: UserCheck },
   { label: "Transactions", to: "/token-console/transactions", section: "Baracel Unyt", icon: ArrowLeftRight },
   { label: "Review queue", to: "/token-console/compliance", section: "Baracel Unyt", icon: ShieldCheck },
   { label: "Funds", to: "/token-console/funds", section: "Baracel Unyt", icon: Landmark },
