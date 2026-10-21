@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Badge, Button, DataTable, Field, GlassPanel, Input, Skeleton, Textarea, useToast } from "../../ui";
-import { omniApi, type PaymentIssue } from "../../lib/omniApi";
+import { Badge, Button, DataTable, Field, GlassPanel, Input, NotePanel, Skeleton, Textarea, useToast } from "../../ui";
+import { omniApi, type PaymentIssue, type PaymentIssueList } from "../../lib/omniApi";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import { dateTime, money, shortId } from "../../lib/tokenConsole/format";
 import { Code, SourceError } from "./ConsoleTable";
@@ -14,7 +14,7 @@ import { ActionModal } from "./ActionModal";
    someone else got there first, and that message is shown as it came. */
 
 export type IssuesSource = {
-  data: PaymentIssue[] | null;
+  data: PaymentIssueList | null;
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
@@ -115,7 +115,7 @@ export function PaymentIssues({ source }: { source: IssuesSource }) {
   const [text, setText] = useState("");
   const act = useAction((p: Pending, t: string) => run(p, t));
 
-  const rows = useMemo<Row[]>(() => (source.data ?? []).map((i) => ({ ...i, id: i.payment.id })), [source.data]);
+  const rows = useMemo<Row[]>(() => (source.data?.items ?? []).map((i) => ({ ...i, id: i.payment.id })), [source.data]);
   const names = useCustomerNames(rows.map((r) => r.profileId));
 
   const start = (p: Pending) => {
@@ -143,8 +143,14 @@ export function PaymentIssues({ source }: { source: IssuesSource }) {
 
       {source.data && (
         <>
+          {source.data.truncated && (
+            <NotePanel tone="warning" className="mb-3" title="This list is cut short">
+              Omnichannel lists at most 500 of each kind and there are more waiting, so {rows.length} is a minimum. Work through
+              these (oldest first) and refresh to see the rest.
+            </NotePanel>
+          )}
           <p className="mb-2 text-[12.5px] text-text-faint" role="status">
-            {rows.length === 0 ? "Nothing needs a person right now." : `${rows.length} ${rows.length === 1 ? "payment needs" : "payments need"} a person, oldest first.`}
+            {rows.length === 0 ? "Nothing needs a person right now." : `${source.data.truncated ? "At least " : ""}${rows.length} ${rows.length === 1 ? "payment needs" : "payments need"} a person, oldest first.`}
           </p>
           <GlassPanel className="p-1" sheen={false}>
             <DataTable<Row>

@@ -23,7 +23,7 @@ type Write = { path: string; body: unknown; subject?: string };
 
 /** The queue over `issues`; `answer` decides each write (default: handled, leaves the queue). */
 async function stubIssues(page: Page, answer?: (req: Request) => { status: number; body: unknown } | null) {
-  const state = { issues: [...ISSUES], reads: 0, pages: new Set<string>(), writes: [] as Write[] };
+  const state = { issues: [...ISSUES], reads: 0, pages: new Set<string>(), writes: [] as Write[], truncated: false };
   // Paged as omnichannel pages it: `page` from 1, `size`, totals in headers.
   await page.route(/\/omni\/api\/operator\/payments\/issues(\?.*)?$/, (route) => {
     state.reads++;
@@ -38,6 +38,7 @@ async function stubIssues(page: Page, answer?: (req: Request) => { status: numbe
       headers: {
         "X-Total-Count": String(state.issues.length), "X-Page": String(pageNo), "X-Size": String(size),
         "X-Total-Pages": String(Math.ceil(state.issues.length / size)),
+        ...(state.truncated ? { "X-Truncated": "true" } : {}),
       },
       body: JSON.stringify(items),
     });
@@ -144,6 +145,8 @@ test("every page of the queue is read, and the tab counts them all", async ({ pa
   await openIssues(page);
   await expect(page.getByText("130 payments need a person")).toBeVisible();
   await expect(page.getByRole("tab", { name: /Issues/ })).toContainText("130");
+  // No X-Truncated header: the list is whole.
+  await expect(page.getByText("This list is cut short")).toHaveCount(0);
   // Two pages of 100; React's development double-mount may read them twice.
   expect([...state.pages].sort()).toEqual(["1/100", "2/100"]);
 });
@@ -159,4 +162,13 @@ test("a 401 says to sign in again instead of the raw error", async ({ page }) =>
   await expect(dialog).toContainText("sign in again");
   await expect(dialog).not.toContainText("No authenticated subject");
   expect(state.writes).toHaveLength(1);
+});
+
+test("a queue cut at omnichannel's cap says the count is a minimum", async ({ page }) => {
+  const state = await stubIssues(page);
+  state.truncated = true;
+  await openIssues(page);
+  await expect(page.getByText("This list is cut short")).toBeVisible();
+  await expect(page.getByText("At least 2 payments need a person")).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Issues/ })).toContainText("cut");
 });

@@ -25,7 +25,8 @@ const ALLOWED = {
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.
-const PASSED_BACK = ["content-type", "x-total-count", "x-page", "x-size", "x-total-pages"];
+// x-truncated: the payment issues queue was cut at omnichannel's cap.
+const PASSED_BACK = ["content-type", "x-total-count", "x-page", "x-size", "x-total-pages", "x-truncated"];
 
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);

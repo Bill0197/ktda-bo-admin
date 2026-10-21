@@ -101,11 +101,12 @@ async function failure(res: Response): Promise<OmniApiError> {
  * this walks the pages. */
 const PAGE_SIZE = 100;
 
-async function getAll<T>(path: string): Promise<T[]> {
+async function getAll<T>(path: string, onPage?: (res: Response) => void): Promise<T[]> {
   const all: T[] = [];
   for (let page = 1; ; page++) {
     const res = await send("GET", `${path}${path.includes("?") ? "&" : "?"}page=${page}&size=${PAGE_SIZE}`);
     if (!res.ok) throw await failure(res);
+    onPage?.(res);
     const items = (await res.json()) as T[];
     all.push(...items);
     // No header means a service (or proxy) that does not page: it sent the whole list.
@@ -377,6 +378,10 @@ export type PaymentIssue = {
   why: string;
 };
 
+/** The whole queue; `truncated` when omnichannel cut a kind at its cap, so
+ *  the queue holds more than `items`. */
+export type PaymentIssueList = { items: PaymentIssue[]; truncated: boolean };
+
 export type CustomerAction = { id: string; action: string; target: string | null; outcome: number | null; requestId: string | null; occurredAt: string };
 
 export type CustomerQuery = { phone: string } | { email: string } | { investorId: string } | { profileId: string };
@@ -518,9 +523,16 @@ export const omniApi = {
   rejectMarketChange: (id: string, note?: string) =>
     post<MarketChange>(`${marketChangePath(id)}/reject`, note ? { note } : {}),
   /** Refused payouts and transfers unmatched after the wait, oldest first,
-   *  every page. Omnichannel counts at most 500 of each kind, so a queue
-   *  longer than that is cut there. */
-  paymentIssues: () => getAll<PaymentIssue>("/payments/issues"),
+   *  every page. Omnichannel lists at most 500 of each kind and says so with
+   *  `X-Truncated: true`; without the header (older omnichannel too) the
+   *  list is taken as whole. */
+  paymentIssues: async (): Promise<PaymentIssueList> => {
+    let truncated = false;
+    const items = await getAll<PaymentIssue>("/payments/issues", (res) => {
+      if (res.headers.get("X-Truncated")?.trim().toLowerCase() === "true") truncated = true;
+    });
+    return { items, truncated };
+  },
   /** A failed payout sent again to the same phone; 201 with the new payment.
    *  409 for anything else or when already handled. */
   retryPayout: (id: string) => post<PaymentView>(`${paymentPath(id)}/retry`, {}),
