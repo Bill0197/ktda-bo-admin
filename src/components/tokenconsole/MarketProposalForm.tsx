@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react";
 import { Button, Checkbox, Field, GlassPanel, Input, NotePanel, SectionTitle, Skeleton, Textarea, Toggle } from "../../ui";
-import { omniApi, type MarketChange, type MarketSettings } from "../../lib/omniApi";
+import { OmniApiError, omniApi, type MarketChange, type MarketProposal, type MarketSettings } from "../../lib/omniApi";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import { changesSomething, hhmm, hoursProblem, proposalFrom, valuesOf } from "../../lib/tokenConsole/market";
 import type { OfferingOption } from "../../lib/tokenConsole/offeringNames";
 
 const NOTE_MAX = 300;
+/** Omnichannel refuses a longer per-bond halt list (halt the market instead). */
+const MAX_HALTED = 25;
+/** The fields a refusal is shown on; anything else goes in the panel under the form. */
+type FieldError = { field: "tradingOpen" | "tradingClose" | "haltedOfferings"; message: string };
+const ON_FIELD = new Set(["tradingOpen", "tradingClose", "haltedOfferings"]);
 
 /** The setting as it should be, prefilled from the current one. Only what
  *  differs is sent, so a field left alone keeps its value. The page remounts
@@ -27,11 +32,23 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
   const [halted, setHalted] = useState(current.halted);
   const [haltedOfferings, setHaltedOfferings] = useState<string[]>(current.haltedOfferings);
   const [note, setNote] = useState("");
-  const propose = useAction(omniApi.proposeMarketChange);
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
+  const propose = useAction(async (p: MarketProposal) => {
+    try {
+      return await omniApi.proposeMarketChange(p);
+    } catch (e) {
+      if (e instanceof OmniApiError && e.field && ON_FIELD.has(e.field)) setFieldError({ field: e.field as FieldError["field"], message: e.message });
+      throw e;
+    }
+  });
+  // Under its field when the service named one; otherwise in the panel.
+  const panelError = propose.error && !fieldError ? propose.error : null;
+  const shownOn = (field: FieldError["field"]) => (fieldError?.field === field ? fieldError.message : undefined);
 
   const proposal = proposalFrom(current, { tradingOpen: open, tradingClose: close, weekendsOpen, halted, haltedOfferings }, note);
   const hours = hoursProblem(open, close);
-  const problem = blocked ?? hours?.message ?? (changesSomething(proposal) ? null : "Change at least one value to propose it.");
+  const tooMany = haltedOfferings.length > MAX_HALTED ? `At most ${MAX_HALTED} bonds can be halted on their own; halt the whole market instead.` : null;
+  const problem = blocked ?? hours?.message ?? tooMany ?? (changesSomething(proposal) ? null : "Change at least one value to propose it.");
 
   // Bonds halted now that the offerings list does not hold (removed, or the
   // list failed) stay listed, so their halt can still be lifted.
@@ -41,8 +58,11 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
     return [...offerings, ...unknown];
   }, [offerings, current.haltedOfferings]);
 
-  const toggleOffering = (id: string, on: boolean) =>
+  const toggleOffering = (id: string, on: boolean) => {
+    setFieldError(null);
     setHaltedOfferings((ids) => (on ? [...new Set([...ids, id])] : ids.filter((x) => x !== id)));
+  };
+  const atCap = haltedOfferings.length >= MAX_HALTED;
 
   const reset = () => {
     setOpen(hhmm(current.tradingOpen));
@@ -51,11 +71,13 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
     setHalted(current.halted);
     setHaltedOfferings(current.haltedOfferings);
     setNote("");
+    setFieldError(null);
     propose.reset();
   };
 
   const submit = async () => {
     if (problem || propose.pending) return;
+    setFieldError(null);
     const change = await propose.run(proposal);
     if (change) onProposed(change);
   };
@@ -75,11 +97,11 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
         }}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Dealing opens" hint={`24-hour, ${settings.zone}`} error={hours?.field === "tradingOpen" ? hours.message : undefined}>
-            <Input type="time" value={open} onChange={(e) => setOpen(e.target.value)} aria-label="Dealing opens" invalid={hours?.field === "tradingOpen"} required />
+          <Field label="Dealing opens" hint={`24-hour, ${settings.zone}`} error={hours?.field === "tradingOpen" ? hours.message : shownOn("tradingOpen")}>
+            <Input type="time" value={open} onChange={(e) => { setOpen(e.target.value); setFieldError(null); }} aria-label="Dealing opens" invalid={hours?.field === "tradingOpen"} required />
           </Field>
-          <Field label="Dealing closes" hint={`24-hour, ${settings.zone}`} error={hours?.field === "tradingClose" ? hours.message : undefined}>
-            <Input type="time" value={close} onChange={(e) => setClose(e.target.value)} aria-label="Dealing closes" invalid={hours?.field === "tradingClose"} required />
+          <Field label="Dealing closes" hint={`24-hour, ${settings.zone}`} error={hours?.field === "tradingClose" ? hours.message : shownOn("tradingClose")}>
+            <Input type="time" value={close} onChange={(e) => { setClose(e.target.value); setFieldError(null); }} aria-label="Dealing closes" invalid={hours?.field === "tradingClose"} required />
           </Field>
           <Field label="Weekends" group>
             <div className="flex h-11 items-center gap-3">
@@ -96,7 +118,12 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
         </div>
 
         <div className="mt-5">
-          <Field label="Bonds halted on their own" group hint="Each ticked bond shows HALTED and refuses orders, whatever the market does.">
+          <Field
+            label="Bonds halted on their own"
+            group
+            hint={`Each ticked bond shows HALTED and refuses orders, whatever the market does. ${haltedOfferings.length} of at most ${MAX_HALTED} ticked.`}
+            error={shownOn("haltedOfferings") ?? tooMany ?? undefined}
+          >
             {offeringsLoading && choices.length === 0 ? (
               <Skeleton className="h-20" />
             ) : (
@@ -109,7 +136,13 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
                 ) : (
                   <div className="grid max-h-64 gap-2 overflow-y-auto rounded-md border border-border bg-surface-sunken p-3 sm:grid-cols-2" data-testid="halted-offerings">
                     {choices.map((o) => (
-                      <Checkbox key={o.id} checked={haltedOfferings.includes(o.id)} onChange={(on) => toggleOffering(o.id, on)}>
+                      <Checkbox
+                        key={o.id}
+                        checked={haltedOfferings.includes(o.id)}
+                        // At the cap only unticking is possible.
+                        disabled={atCap && !haltedOfferings.includes(o.id)}
+                        onChange={(on) => toggleOffering(o.id, on)}
+                      >
                         <span className="text-text">{o.name}</span>
                         <span className="block text-xs text-text-faint">{o.meta}</span>
                       </Checkbox>
@@ -127,7 +160,7 @@ export function MarketProposalForm({ settings, offerings, offeringsLoading, offe
           </Field>
         </div>
 
-        {propose.error && <NotePanel tone="danger" className="mt-4">{propose.error}</NotePanel>}
+        {panelError && <NotePanel tone="danger" className="mt-4">{panelError}</NotePanel>}
 
         <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
           {problem && <p className="mr-auto text-[12.5px] text-text-soft" role="status">{problem}</p>}

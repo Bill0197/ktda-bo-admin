@@ -11,11 +11,33 @@
 
 export class OmniApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** The request field omnichannel blamed (a 400 on `haltedOfferings`, say). */
+  readonly field: string | null;
+  /** Omnichannel's stable error code (`CHANGE_PENDING`, …), when it sent one. */
+  readonly code: string | null;
+  constructor(status: number, message: string, field: string | null = null, code: string | null = null) {
     super(message);
     this.name = "OmniApiError";
     this.status = status;
+    this.field = field;
+    this.code = code;
   }
+}
+
+/** A 401 from omnichannel or the proxy in front of it: the BO Admin session
+ *  has ended, or the call did not say who is acting (the market and payment
+ *  decisions refuse to act for nobody). Either way signing in again fixes it;
+ *  the raw message ("No authenticated subject") would not tell anyone that. */
+const SIGN_IN_AGAIN = "Omnichannel could not tell who you are, so nothing was done. Please sign out, sign in again and retry.";
+
+/** The error for a failed response, from omnichannel's envelope
+ *  ({message, code, field}) or the proxies' ({error}). */
+function errorFrom(status: number, data: unknown): OmniApiError {
+  const env = (data && typeof data === "object" ? data : {}) as {
+    error?: string; message?: string; detail?: string; field?: string; code?: string;
+  };
+  const message = status === 401 ? SIGN_IN_AGAIN : env.detail ?? env.message ?? env.error ?? `Request failed (${status}).`;
+  return new OmniApiError(status, message, env.field ?? null, env.code ?? null);
 }
 
 const BASE = `${import.meta.env.VITE_OMNI_BASE ?? "/omni"}/api/operator`;
@@ -70,8 +92,7 @@ async function failure(res: Response): Promise<OmniApiError> {
   } catch {
     data = text;
   }
-  const env = (data && typeof data === "object" ? data : {}) as { error?: string; message?: string; detail?: string };
-  return new OmniApiError(res.status, env.detail ?? env.message ?? env.error ?? `Request failed (${res.status}).`);
+  return errorFrom(res.status, data);
 }
 
 /* Every omnichannel list is paged: `page` from 1, `size` 20 by default and at
@@ -117,10 +138,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   } catch {
     data = text;
   }
-  if (!res.ok) {
-    const env = (data && typeof data === "object" ? data : {}) as { error?: string; message?: string; detail?: string };
-    throw new OmniApiError(res.status, env.detail ?? env.message ?? env.error ?? `Request failed (${res.status}).`);
-  }
+  if (!res.ok) throw errorFrom(res.status, data);
   return data as T;
 }
 
@@ -285,8 +303,8 @@ export type SentMessage = {
 
 /** What the relay deals by now (BRD FR-ADM-01). `source` "defaults" means no
  *  change has been approved yet and the environment's values apply;
- *  "change" means the approved change `changeId`, in force `since`. It does
- *  not say who approved it: that is on the change in the log. */
+ *  "change" means the approved change `changeId`, in force `since`, approved
+ *  by `decidedBy`. */
 export type MarketSettings = {
   tradingOpen: string;
   tradingClose: string;
@@ -298,6 +316,9 @@ export type MarketSettings = {
   source: "defaults" | "change" | string;
   changeId: string | null;
   since: string | null;
+  /** Who approved the change in force, and their note; null on the defaults. */
+  decidedBy?: string | null;
+  decisionNote?: string | null;
 };
 
 /** One proposed market-settings change: the whole setting as it would be
@@ -496,17 +517,15 @@ export const omniApi = {
   /** Anyone may reject, the proposer included. */
   rejectMarketChange: (id: string, note?: string) =>
     post<MarketChange>(`${marketChangePath(id)}/reject`, note ? { note } : {}),
-  /** Refused payouts and transfers unmatched after the wait, oldest first.
-   *  A plain list: omnichannel does not page it. */
-  paymentIssues: async (): Promise<PaymentIssue[]> => {
-    const res = await send("GET", "/payments/issues");
-    if (!res.ok) throw await failure(res);
-    return listOf<PaymentIssue>(res);
-  },
+  /** Refused payouts and transfers unmatched after the wait, oldest first,
+   *  every page. Omnichannel counts at most 500 of each kind, so a queue
+   *  longer than that is cut there. */
+  paymentIssues: () => getAll<PaymentIssue>("/payments/issues"),
   /** A failed payout sent again to the same phone; 201 with the new payment.
    *  409 for anything else or when already handled. */
   retryPayout: (id: string) => post<PaymentView>(`${paymentPath(id)}/retry`, {}),
-  /** Dealt with another way; the note is required. 409 when already handled. */
+  /** A failed payout paid another way; the note is required. 409 for a
+   *  transfer (match or mark it unmatched instead) or when already handled. */
   resolvePayment: (id: string, note: string) => post<PaymentView>(`${paymentPath(id)}/resolve`, { note }),
   /** The transfer arrived: PAID with the bank's reference, balance credited. */
   matchTransfer: (id: string, bankReference: string) => post<PaymentView>(`${paymentPath(id)}/match`, { bankReference }),

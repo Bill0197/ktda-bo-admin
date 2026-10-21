@@ -23,10 +23,24 @@ type Write = { path: string; body: unknown; subject?: string };
 
 /** The queue over `issues`; `answer` decides each write (default: handled, leaves the queue). */
 async function stubIssues(page: Page, answer?: (req: Request) => { status: number; body: unknown } | null) {
-  const state = { issues: [...ISSUES], reads: 0, writes: [] as Write[] };
-  await page.route(/\/omni\/api\/operator\/payments\/issues$/, (route) => {
+  const state = { issues: [...ISSUES], reads: 0, pages: new Set<string>(), writes: [] as Write[] };
+  // Paged as omnichannel pages it: `page` from 1, `size`, totals in headers.
+  await page.route(/\/omni\/api\/operator\/payments\/issues(\?.*)?$/, (route) => {
     state.reads++;
-    return json(route, state.issues);
+    const url = new URL(route.request().url());
+    const pageNo = Number(url.searchParams.get("page") ?? "1");
+    state.pages.add(`${pageNo}/${url.searchParams.get("size")}`);
+    const size = Number(url.searchParams.get("size") ?? "20");
+    const items = state.issues.slice((pageNo - 1) * size, pageNo * size);
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "X-Total-Count": String(state.issues.length), "X-Page": String(pageNo), "X-Size": String(size),
+        "X-Total-Pages": String(Math.ceil(state.issues.length / size)),
+      },
+      body: JSON.stringify(items),
+    });
   });
   await page.route(/\/omni\/api\/operator\/payments\/[^/]+\/(retry|resolve|match|unmatched)$/, (route) => {
     const req = route.request();
@@ -61,7 +75,8 @@ test("each row offers the actions for its kind, with the customer's name", async
   const payout = page.getByTestId(`issue-actions-${PAYOUT}`);
   await expect(payout.getByRole("button")).toHaveText(["Retry", "Resolve"]);
   const transfer = page.getByTestId(`issue-actions-${TRANSFER}`);
-  await expect(transfer.getByRole("button")).toHaveText(["Match", "Unmatched", "Resolve"]);
+  // A transfer is matched or marked unmatched; omnichannel refuses to resolve one.
+  await expect(transfer.getByRole("button")).toHaveText(["Match", "Unmatched"]);
 
   await expect(page.getByRole("link", { name: "Alice Wanjiru" })).toBeVisible();
   // A lookup that fails leaves the id rather than a blank.
@@ -118,4 +133,30 @@ test("an empty queue says so", async ({ page }) => {
   state.issues = [];
   await openIssues(page);
   await expect(page.getByText("Nothing needs a person right now.")).toBeVisible();
+});
+
+test("every page of the queue is read, and the tab counts them all", async ({ page }) => {
+  const state = await stubIssues(page);
+  state.issues = Array.from({ length: 130 }, (_, i) => ({
+    ...ISSUES[0],
+    payment: payment(`eeeeeeee-eeee-4eee-8eee-${String(i).padStart(12, "0")}`, { createdAt: `2026-10-18T08:${String(i % 60).padStart(2, "0")}:00Z` }),
+  }));
+  await openIssues(page);
+  await expect(page.getByText("130 payments need a person")).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Issues/ })).toContainText("130");
+  // Two pages of 100; React's development double-mount may read them twice.
+  expect([...state.pages].sort()).toEqual(["1/100", "2/100"]);
+});
+
+test("a 401 says to sign in again instead of the raw error", async ({ page }) => {
+  const state = await stubIssues(page, () => ({ status: 401, body: envelope(401, "No authenticated subject") }));
+  await openIssues(page);
+
+  await page.getByTestId(`issue-actions-${PAYOUT}`).getByRole("button", { name: "Resolve" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel(/Note/).fill("Paid by hand");
+  await dialog.getByRole("button", { name: "Resolve" }).click();
+  await expect(dialog).toContainText("sign in again");
+  await expect(dialog).not.toContainText("No authenticated subject");
+  expect(state.writes).toHaveLength(1);
 });

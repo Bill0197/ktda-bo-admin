@@ -133,17 +133,57 @@ test("a close before the open is caught before it is sent", async ({ page }) => 
   expect(posted).toBe(false);
 });
 
-test("the setting in force names who approved it, and halted bonds by name", async ({ page }) => {
-  const approved = change({
-    id: "22222222-2222-4222-8222-222222222222", status: "APPROVED", halted: false, haltedOfferings: ["OF-A"],
-    decidedBy: OTHER, decidedAt: "2026-10-20T09:30:00Z",
-  });
-  const settings = { ...DEFAULTS, haltedOfferings: ["OF-A"], source: "change", changeId: approved.id, since: approved.decidedAt };
-  await stubMarket(page, { settings, pending: null, log: [approved] }, () => ({ status: 500, body: {} }));
+test("the setting in force names who approved it, from the settings, and halted bonds by name", async ({ page }) => {
+  const settings = {
+    ...DEFAULTS, haltedOfferings: ["OF-A"], source: "change", changeId: "22222222-2222-4222-8222-222222222222",
+    since: "2026-10-20T09:30:00Z", decidedBy: OTHER, decisionNote: "Agreed with the dealer",
+  };
+  // The log is empty: the approver comes from the settings, not a log lookup.
+  await stubMarket(page, { settings, pending: null, log: [] }, () => ({ status: 500, body: {} }));
   await open(page);
 
   const current = page.getByTestId("market-current");
   await expect(current).toContainText("Approved by brian@baracel.ae");
+  await expect(current).toContainText("Agreed with the dealer");
   await expect(current).toContainText("IFB1/2023/17");
   await expect(page.getByTestId("market-pending")).toContainText("Nothing is waiting");
+});
+
+test("a 400 on the halt list is shown on the bonds field", async ({ page }) => {
+  const message = "Not an offering the engine knows: OF-B";
+  await stubMarket(page, { settings: DEFAULTS, pending: null, log: [] },
+    () => ({ status: 400, body: envelope(400, message, undefined, "haltedOfferings") }));
+  await open(page);
+
+  const form = page.getByTestId("market-proposal");
+  await form.getByTestId("halted-offerings").getByText("FXD1/2024/10").click();
+  await form.getByRole("button", { name: "Propose change" }).click();
+  await expect(form.getByRole("group", { name: "Bonds halted on their own" })).toContainText(message);
+});
+
+test("a 401 on a decision says to sign in again", async ({ page }) => {
+  const theirs = change({});
+  await stubMarket(page, { settings: DEFAULTS, pending: theirs, log: [theirs] },
+    () => ({ status: 401, body: envelope(401, "No authenticated subject") }));
+  await open(page);
+
+  await page.getByTestId("market-pending").getByRole("button", { name: "Reject" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Reject" }).click();
+  await expect(dialog).toContainText("sign in again");
+});
+
+test("no more than 25 bonds can be ticked", async ({ page }) => {
+  const many = Array.from({ length: 26 }, (_, i) => ({ offeringId: `OF-${i}`, productId: `BOND-${String(i).padStart(2, "0")}`, status: "OPEN", currency: "KES" }));
+  await page.route(/\/tok\/accounting\/offerings$/, (route) => json(route, many));
+  await stubMarket(page, { settings: DEFAULTS, pending: null, log: [] }, () => ({ status: 500, body: {} }));
+  await open(page);
+
+  const list = page.getByTestId("halted-offerings");
+  const boxes = list.getByRole("checkbox");
+  await expect(boxes).toHaveCount(26);
+  for (let i = 0; i < 25; i++) await boxes.nth(i).check();
+  await expect(boxes.nth(25)).toBeDisabled();
+  await boxes.nth(0).uncheck();
+  await expect(boxes.nth(25)).toBeEnabled();
 });

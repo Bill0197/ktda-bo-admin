@@ -25,7 +25,9 @@ type Pending = { action: Action; issue: PaymentIssue };
 
 const ACTIONS_FOR: Record<string, Action[]> = {
   PAYOUT_FAILED: ["retry", "resolve"],
-  TRANSFER_WAITING: ["match", "unmatched", "resolve"],
+  // A transfer is never resolved: it is credited (match) or failed (unmatched),
+  // so it cannot leave the queue while the money could still arrive.
+  TRANSFER_WAITING: ["match", "unmatched"],
 };
 
 const KIND_LABEL: Record<string, string> = { PAYOUT_FAILED: "Payout failed", TRANSFER_WAITING: "Transfer waiting" };
@@ -34,7 +36,7 @@ const ACTION_LABEL: Record<Action, string> = { retry: "Retry", resolve: "Resolve
 
 /** Required text per action, and its limit (the service's). Retry takes none. */
 const TEXT: Record<Exclude<Action, "retry">, { label: string; hint: string; max: number; missing: string }> = {
-  resolve: { label: "Note", hint: "Required. How it was dealt with: paid by hand, what the bank said.", max: 300, missing: "Say how it was dealt with." },
+  resolve: { label: "Note", hint: "Required. How the customer was paid instead.", max: 300, missing: "Say how it was dealt with." },
   match: { label: "Bank reference", hint: "Required. From the bank statement line the money arrived on.", max: 64, missing: "Enter the bank's reference." },
   unmatched: { label: "Reason", hint: "Required. The customer reads it.", max: 200, missing: "Say why it is marked as never received." },
 };
@@ -51,7 +53,7 @@ function describe(p: Pending): { title: string; body: string; submit: string; do
     case "resolve":
       return {
         title: "Resolve this issue?",
-        body: "It leaves the queue with your note, and nothing is sent or credited. Use it when it was dealt with another way.",
+        body: "It leaves the queue with your note, and nothing is sent. Use it when the customer was paid another way.",
         submit: "Resolve", done: "Resolved. It has left the queue.", tone: "primary",
       };
     case "match":
@@ -180,7 +182,8 @@ export function PaymentIssues({ source }: { source: IssuesSource }) {
           <p className="mt-6 max-w-3xl text-xs leading-relaxed text-text-faint">
             A refused payout means the money has left the product and the customer has not received it. Retry sends it again to the
             same phone; Resolve takes it off the queue when it was paid another way. A transfer waits here once it has gone unmatched
-            past omnichannel's wait. Every action is recorded against you.
+            past omnichannel's wait, until it is matched or marked as never received. Omnichannel lists at most 500 of each kind.
+            Every action is recorded against you.
           </p>
         </>
       )}

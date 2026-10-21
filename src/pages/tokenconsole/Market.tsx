@@ -105,7 +105,7 @@ export default function TokenConsoleMarket() {
       {settings && (
         <>
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
-            <CurrentSetting settings={settings} log={changes} logLoaded={!!log.data} nameOf={names.nameOf} who={who} />
+            <CurrentSetting settings={settings} nameOf={names.nameOf} who={who} />
             <PendingChange
               settings={settings}
               pending={pending}
@@ -218,26 +218,27 @@ function SettingFacts({ values, zone, nameOf }: { values: MarketValues; zone: st
   );
 }
 
-function CurrentSetting({ settings, log, logLoaded, nameOf, who }: {
+function CurrentSetting({ settings, nameOf, who }: {
   settings: MarketSettings;
-  log: MarketChange[];
-  logLoaded: boolean;
   nameOf: (id: string) => string;
   who: (subject: string | null | undefined) => string;
 }) {
-  // The setting does not say who approved it; the change it came from does.
-  const approved = settings.changeId ? log.find((c) => c.id === settings.changeId) : undefined;
   let source: string;
   if (settings.source === "defaults") source = "Set by defaults: no change has been approved yet.";
-  else if (approved?.decidedBy) source = `Approved by ${who(approved.decidedBy)} on ${dateTime(approved.decidedAt)}.`;
-  else if (!logLoaded) source = `In force since ${dateTime(settings.since)}.`;
+  else if (settings.decidedBy) source = `Approved by ${who(settings.decidedBy)} on ${dateTime(settings.since)}.`;
+  // An omnichannel older than the approver on the settings.
   else source = `Approved change ${shortId(settings.changeId)}, in force since ${dateTime(settings.since)}.`;
 
   return (
     <GlassPanel className="p-5" data-testid="market-current">
       <SectionTitle title="In force now" description="What the quotes and the order check follow." />
       <SettingFacts values={valuesOf(settings)} zone={settings.zone} nameOf={nameOf} />
-      <p className="mt-4 border-t border-border pt-3 text-[12.5px] text-text-soft">{source}</p>
+      <div className="mt-4 border-t border-border pt-3 text-[12.5px] text-text-soft">
+        <p>{source}</p>
+        {settings.source !== "defaults" && settings.decisionNote && (
+          <p className="mt-1"><span className="text-text-faint">Approval note: </span>{settings.decisionNote}</p>
+        )}
+      </div>
     </GlassPanel>
   );
 }
