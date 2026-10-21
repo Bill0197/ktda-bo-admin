@@ -244,6 +244,24 @@ export type CustomerSummary = {
   pushEnabled: boolean;
 };
 
+/** A reinstatement or closure proposed under dual control (BRD FR-ADM-03).
+ *  `customer` is the profile's display name; `profileStatus` its standing
+ *  now, so a decided row shows whether it took effect. */
+export type Intervention = {
+  id: string;
+  profileId: string;
+  customer: string | null;
+  action: "REINSTATE" | "CLOSE" | string;
+  note: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  proposedBy: string;
+  proposedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  profileStatus: CustomerSummary["status"] | null;
+};
+
 /** M-Pesa payments and payouts (`MPESA`) merged with the product's own
  *  movements (`PRODUCT`), newest first. `direction` is from the customer's
  *  side: OUT is money leaving them. */
@@ -389,6 +407,7 @@ async function getOne<T>(path: string): Promise<T> {
 
 const marketChangePath = (id: string) => `/market/settings/changes/${encodeURIComponent(id)}`;
 const paymentPath = (id: string) => `/payments/${encodeURIComponent(id)}`;
+const interventionPath = (id: string) => `/customers/interventions/${encodeURIComponent(id)}`;
 
 /** Omnichannel lists applications by registry result only, so this reads
  *  each result until one matches. */
@@ -478,14 +497,34 @@ export const omniApi = {
    *  reinstated. 409 unless the profile is active. Audited. */
   suspendCustomer: (profileId: string, note?: string) =>
     post<CustomerSummary>(`${customerPath(profileId)}/suspend`, note ? { note } : {}),
-  /** Lifts a suspension; the customer is told. 409 unless suspended. */
-  reinstateCustomer: (profileId: string, note?: string) =>
-    post<CustomerSummary>(`${customerPath(profileId)}/reinstate`, note ? { note } : {}),
-  /** Closes the app profile for good, normally from the customer's own
-   *  closure request. The investor is offboarded on the engine separately.
-   *  409 when already closed. */
-  closeCustomer: (profileId: string, note?: string) =>
-    post<CustomerSummary>(`${customerPath(profileId)}/close`, note ? { note } : {}),
+  /** Proposes lifting a suspension (BRD FR-ADM-03): 202 with the proposal,
+   *  PENDING; the profile is unchanged until someone else approves. 409
+   *  unless suspended, or CHANGE_PENDING while another proposal waits. */
+  proposeReinstate: (profileId: string, note?: string) =>
+    post<Intervention>(`${customerPath(profileId)}/reinstate`, note ? { note } : {}),
+  /** Proposes closing the app profile for good, normally from the
+   *  customer's own closure request: 202 PENDING until someone else
+   *  approves. The investor is offboarded on the engine separately. 409 when
+   *  already closed, or CHANGE_PENDING while another proposal waits. */
+  proposeClose: (profileId: string, note?: string) =>
+    post<Intervention>(`${customerPath(profileId)}/close`, note ? { note } : {}),
+  /** One customer's proposals, newest first; not paged. */
+  customerInterventions: async (profileId: string): Promise<Intervention[]> => {
+    const res = await send("GET", `${customerPath(profileId)}/interventions`);
+    if (!res.ok) throw await failure(res);
+    return listOf<Intervention>(res);
+  },
+  /** The queue waiting for a second person (oldest first), or the whole
+   *  log (`ALL`, newest first), a page at a time. */
+  interventions: (status: "PENDING" | "ALL", page: number, size = 20) =>
+    getPage<Intervention>(`/customers/interventions?status=${status}`, page, size),
+  /** Carried out now: the profile moves and the customer is told. 409
+   *  SECOND_APPROVER_REQUIRED for the proposer, CHANGE_DECIDED once decided. */
+  approveIntervention: (id: string, note?: string) =>
+    post<Intervention>(`${interventionPath(id)}/approve`, note ? { note } : {}),
+  /** Turned down by anyone, the proposer included; nothing changes. */
+  rejectIntervention: (id: string, note?: string) =>
+    post<Intervention>(`${interventionPath(id)}/reject`, note ? { note } : {}),
   /** Customers a nightly re-screening referred, latest first; each is back
    *  under review on the engine. 404 where omnichannel predates it. */
   screeningHits: (page: number, size = 20) =>

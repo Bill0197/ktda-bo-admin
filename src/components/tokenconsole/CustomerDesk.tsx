@@ -5,7 +5,7 @@ import {
   Badge, Button, Card, DataTable, DEFAULT_PAGE_SIZE, Input, NotePanel, Pagination, SectionTitle, Tabs,
 } from "../../ui";
 import {
-  omniApi, type CheckedApplication, type CustomerSummary, type Page, type TimelineEntry,
+  omniApi, omniSubjectFor, type CheckedApplication, type CustomerSummary, type Intervention, type Page, type TimelineEntry,
 } from "../../lib/omniApi";
 import { dateOf, dateTime, label, money, shortId } from "../../lib/tokenConsole/format";
 import { queriesFor } from "../../lib/tokenConsole/customerSearch";
@@ -15,6 +15,7 @@ import { DetailItem } from "./DetailItem";
 import { CustomerPhotos } from "./CustomerPhotos";
 import { AccountActions } from "./AccountActions";
 import { CustomerTickets } from "./CustomerTickets";
+import { CustomerInterventions } from "./CustomerInterventions";
 import { useAuth } from "../../lib/auth";
 import { canDecideKyc } from "../../lib/tokenConsole/kyc";
 
@@ -26,7 +27,8 @@ import { canDecideKyc } from "../../lib/tokenConsole/kyc";
    did in the app. Omnichannel audits every lookup against the staff member
    signed in. KYC and photo standing are shown for context; the decisions
    stay on the KYC desk. The one thing written here is the profile's
-   standing: suspend, reinstate, close (compliance and admins). */
+   standing: suspend at once, or propose a reinstatement or a closure that a
+   different person approves (compliance and admins). */
 
 type Tone = "success" | "warning" | "danger" | "neutral";
 
@@ -145,15 +147,54 @@ function CustomerView({ profileId }: { profileId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState("timeline");
   const { user } = useAuth();
+  const me = omniSubjectFor(user?.email);
+  // The reinstate and close proposals on this customer; null until read.
+  const [interventions, setInterventions] = useState<Intervention[] | null>(null);
+  const [interventionsError, setInterventionsError] = useState<string | null>(null);
+  const reads = useRef(0);
 
-  useEffect(() => {
-    let stale = false;
+  // A failed re-read after a decision keeps the profile on screen and says so;
+  // only the first read failing replaces the view.
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const loaded = useRef(false);
+  const loadSummary = useCallback(() => {
+    const mine = ++reads.current;
+    setRefreshError(null);
     omniApi.customer(profileId).then(
-      (s) => { if (!stale) setSummary(s); },
-      (e: unknown) => { if (!stale) setError(e instanceof Error ? e.message : "The customer could not be loaded."); },
+      (s) => { if (reads.current === mine) { loaded.current = true; setSummary(s); } },
+      (e: unknown) => {
+        if (reads.current !== mine) return;
+        const message = e instanceof Error ? e.message : "The customer could not be loaded.";
+        if (loaded.current) setRefreshError(message);
+        else setError(message);
+      },
     );
-    return () => { stale = true; };
   }, [profileId]);
+
+  const interventionReads = useRef(0);
+  const loadInterventions = useCallback(() => {
+    const mine = ++interventionReads.current;
+    setInterventionsError(null);
+    omniApi.customerInterventions(profileId).then(
+      (list) => { if (interventionReads.current === mine) setInterventions(list); },
+      (e: unknown) => { if (interventionReads.current === mine) setInterventionsError(e instanceof Error ? e.message : "They could not be loaded."); },
+    );
+  }, [profileId]);
+
+  // Leaving (or opening another customer) drops answers still on their way.
+  const cancel = useCallback(() => { reads.current++; interventionReads.current++; }, []);
+  useEffect(() => {
+    loadSummary();
+    loadInterventions();
+    return cancel;
+  }, [loadSummary, loadInterventions, cancel]);
+
+  // After a decision, approved or refused: the proposal list, and the
+  // profile's standing, which an approval has just moved.
+  const settled = useCallback(() => {
+    loadInterventions();
+    loadSummary();
+  }, [loadInterventions, loadSummary]);
 
   if (error) return <NotePanel tone="danger">{error}</NotePanel>;
   if (!summary) return <p className="text-sm text-text-soft">Loading…</p>;
@@ -167,7 +208,14 @@ function CustomerView({ profileId }: { profileId: string }) {
           <h2 className="font-display text-lg font-semibold text-text">{s.legalName ?? s.displayName ?? "Unnamed"}</h2>
           <Badge tone={PROFILE_TONE[s.status] ?? "neutral"}>{label(s.status)}</Badge>
           <div className="ml-auto">
-            <AccountActions summary={s} allowed={canDecideKyc(user?.tokRoles)} onChanged={setSummary} />
+            <AccountActions
+              summary={s}
+              allowed={canDecideKyc(user?.tokRoles)}
+              // Unknown (loading or failed) holds the proposals back rather than risk a second one.
+              pending={interventions === null || interventionsError ? undefined : interventions.find((i) => i.status === "PENDING") ?? null}
+              onChanged={setSummary}
+              onProposed={loadInterventions}
+            />
           </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
@@ -200,6 +248,21 @@ function CustomerView({ profileId }: { profileId: string }) {
         {!s.pushEnabled && s.activeDevices > 0 && (
           <p className="mt-3 text-[12.5px] text-text-faint">Push is off, so messages wait in their in-app inbox until they open the app.</p>
         )}
+        <div className="mt-5">
+          {refreshError && (
+            <NotePanel tone="warning" className="mb-3" title="The profile could not be refreshed">
+              {refreshError} The standing above may be out of date; open the customer again.
+            </NotePanel>
+          )}
+          <CustomerInterventions
+            items={interventions}
+            error={interventionsError}
+            onRetry={loadInterventions}
+            me={me}
+            allowed={canDecideKyc(user?.tokRoles)}
+            onSettled={settled}
+          />
+        </div>
       </Card>
 
       <div>
