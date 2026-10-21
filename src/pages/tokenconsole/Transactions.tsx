@@ -271,7 +271,8 @@ export default function TokenConsoleTransactions() {
       onChange={(k) => setParams(k === "issues" ? { tab: "issues" } : {}, { replace: true })}
       tabs={[
         { key: "all", label: "All transactions" },
-        { key: "issues", label: "Issues", count: issues.data?.length },
+        // A cut list is a minimum; the tab's count is a number, so the Issues tab itself says so.
+        { key: "issues", label: issues.data?.truncated ? "Issues (cut)" : "Issues", count: issues.data?.items.length },
       ]}
     />
   );
