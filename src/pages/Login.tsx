@@ -34,7 +34,6 @@ export default function Login() {
 
   return (
     <AuthLayout
-      mark="II"
       eyebrow="Investcent Investment Bank"
       title="BO Admin"
       description="Run the bank's day-to-day investment operations: approvals, client onboarding, NAV publication, and liquidity monitoring — scoped precisely to what your role owns."

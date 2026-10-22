@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { PageTransition } from "./PageTransition";
 import { Modal } from "./Modal";
 import { Button } from "./Primitives";
+import { InvestcentLockup, InvestcentLogo, InvestcentMark } from "./Brand";
 
 export type NavItem = {
   label: string;
@@ -38,7 +39,6 @@ function writeStored(key: string, value: unknown) {
 export function AppShell({
   appName,
   appTag,
-  appMark,
   nav,
   user,
   footerNote,
@@ -50,8 +50,6 @@ export function AppShell({
 }: {
   appName: string;
   appTag: string;
-  /** Two letters in the brand square. */
-  appMark: string;
   nav: NavItem[];
   user?: { name: string; role: string; avatarInitials: string };
   footerNote?: ReactNode;
@@ -410,10 +408,8 @@ export function AppShell({
         <div className={clsx("h-16 flex items-center border-b border-border shrink-0", showRail ? "justify-center px-2" : "gap-2.5 pl-5 pr-2.5")}>
           {!showRail && (
             <>
-              <div className="h-9 w-9 rounded-lg brand-mark text-white flex items-center justify-center font-display font-bold text-sm shrink-0">{appMark}</div>
-              <div className="leading-tight min-w-0 flex-1">
-                <div className="text-sm font-display font-semibold text-text truncate">{appName}</div>
-                <div className="text-[10.5px] uppercase tracking-wide text-text-faint truncate">{appTag}</div>
+              <div className="min-w-0 flex-1" title={`${appName} ${appTag}`}>
+                <InvestcentLockup size={30} />
               </div>
             </>
           )}
@@ -430,7 +426,7 @@ export function AppShell({
             </button>
           ) : (
             showRail && (
-              <div className="h-9 w-9 rounded-lg brand-mark text-white flex items-center justify-center font-display font-bold text-sm shrink-0">{appMark}</div>
+              <InvestcentMark size={28} />
             )
           )}
         </div>
@@ -448,8 +444,7 @@ export function AppShell({
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-surface border-r border-border flex flex-col animate-fade-in">
             <div className="h-16 flex items-center justify-between px-5 border-b border-border shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-lg brand-mark text-white flex items-center justify-center font-display font-bold text-sm">{appMark}</div>
-                <div className="text-sm font-display font-semibold text-text">{appName}</div>
+                <InvestcentLockup size={30} />
               </div>
               <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Close menu" className="text-text-faint hover:text-text cursor-pointer">
                 <X size={20} />
@@ -467,7 +462,7 @@ export function AppShell({
           <button type="button" className="lg:hidden text-text-soft cursor-pointer" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
             <Menu size={22} />
           </button>
-          <div className="lg:hidden font-display font-semibold text-sm text-text">{appName}</div>
+          <InvestcentLogo size={22} className="lg:hidden" />
           <div className="ml-auto flex items-center gap-3">
             {user && (
               <div className="hidden lg:flex items-center gap-1.5 text-sm text-text-soft">

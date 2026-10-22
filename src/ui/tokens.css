@@ -4,32 +4,45 @@
    sparingly for primary actions and active states, green/amber/red only
    for deltas and status. Modeled on docs/UI designs reference set. */
 
+/* Fonts per the IIB guidelines: Open Sauce Sans headlines, Roboto body and
+   numerals. Self-hosted from public/fonts (OFL licensed). */
+@font-face { font-family: "Roboto"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/Roboto-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Roboto"; font-style: normal; font-weight: 500 600; font-display: swap; src: url("/fonts/Roboto-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Roboto"; font-style: normal; font-weight: 700 800; font-display: swap; src: url("/fonts/Roboto-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Open Sauce Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/OpenSauceSans-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Open Sauce Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/OpenSauceSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Open Sauce Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/OpenSauceSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Open Sauce Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/OpenSauceSans-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Open Sauce Sans"; font-style: normal; font-weight: 800; font-display: swap; src: url("/fonts/OpenSauceSans-ExtraBold.woff2") format("woff2"); }
+
 :root {
   /* surfaces */
-  --bg: #F6F7FB;
+  --bg: #F3F7FA;
   --surface: #FFFFFF;
   --surface-raised: #FFFFFF;
-  --surface-sunken: #F1F2F7;
-  --border: #E7E8F0;
-  --border-strong: #D6D8E4;
+  --surface-sunken: #E8EFF4;
+  --border: #DCE5EC;
+  --border-strong: #BFCDD8;
   --glass: rgba(255, 255, 255, 0.85);
-  --grid-line: rgba(15, 23, 42, 0.06);
+  --grid-line: rgba(0, 58, 93, 0.06);
   --noise-opacity: 0.02;
 
   /* text */
-  --text: #14161F;
-  --text-soft: #5B5F6F;
-  --text-faint: #8D91A0;
+  --text: #00233A;
+  --text-soft: #3F5A6E;
+  --text-faint: #5A7487;
   --text-on-primary: #FFFFFF;
 
-  /* brand: indigo (primary actions, active state) + amber (secondary/chart accent) */
-  --primary-50:  #EEF0FF;
-  --primary-100: #E0E3FF;
-  --primary-300: #ABB2FC;
-  --primary-500: #6366F1;
-  --primary-600: #4F46E5;
-  --primary-700: #4338CA;
-  --primary-900: #312E81;
+  /* brand: IIB guidelines — IC Slate Blue / IC Blue family for primary actions and
+     active state (IC Blue #00A7E1 itself fails AA under white text, so the fill
+     steps are its darker siblings), amber for secondary/chart accent */
+  --primary-50:  #E5F5FB;
+  --primary-100: #C9EBF8;
+  --primary-300: #5CC5EC;
+  --primary-500: #0079AC;
+  --primary-600: #006A99;
+  --primary-700: #004C73;
+  --primary-900: #00263D;
 
   --accent-300: #FCD9A0;
   --accent-500: #F59E0B;
@@ -42,26 +55,26 @@
   --warning-bg: #FEF3E1;
   --danger: #DC2626;
   --danger-bg: #FDECEC;
-  --info: #2563EB;
-  --info-bg: #EAF1FE;
+  --info: #006A99;
+  --info-bg: #E1F3FA;
 
   /* chart series — a fixed categorical order, never cycled or regenerated.
      Validated for colour-vision deficiency separation and >=3:1 contrast
      against the card surface, so identity never rests on hue alone. */
-  --chart-1: #4F46E5;
+  --chart-1: #0079AC;
   --chart-2: #C2740A;
-  --chart-3: #0891B2;
+  --chart-3: #003A5D;
   --chart-4: #15803D;
-  --chart-5: #DB2777;
-  --chart-6: #7C3AED;
-  --chart-grid: rgba(15, 23, 42, 0.07);
-  --chart-axis: #8D91A0;
+  --chart-5: #6F8DA3;
+  --chart-6: #5A6B7A;
+  --chart-grid: rgba(0, 58, 93, 0.08);
+  --chart-axis: #5A7487;
 
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.07);
-  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.10);
+  --shadow-sm: 0 1px 2px rgba(0, 35, 58, 0.05);
+  --shadow-md: 0 6px 20px rgba(0, 35, 58, 0.07);
+  --shadow-lg: 0 16px 40px rgba(0, 35, 58, 0.10);
   --shadow-glow: var(--shadow-md);
-  --glow-primary: rgba(99, 102, 241, 0.16);
+  --glow-primary: rgba(0, 167, 225, 0.16);
   --glow-accent: rgba(245, 158, 11, 0.14);
 
   --radius-sm: 8px;
@@ -69,9 +82,9 @@
   --radius-lg: 18px;
   --radius-xl: 26px;
 
-  --font-sans: "Inter", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
-  --font-display: "Space Grotesk", "Inter", ui-sans-serif, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Roboto", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Open Sauce Sans", "Roboto", ui-sans-serif, sans-serif;
+  --font-mono: "Roboto", ui-sans-serif, system-ui, sans-serif;
 
   color-scheme: light;
 }
@@ -79,28 +92,28 @@
 /* Kept for the rare deliberately-dark accent (none in the default flows
    today) — no app applies this to <html> anymore; every app is light. */
 .dark {
-  --bg: #0B0D14;
-  --surface: #12141F;
-  --surface-raised: #181B29;
-  --surface-sunken: #07080D;
-  --border: #232636;
-  --border-strong: #333750;
-  --glass: rgba(18, 20, 31, 0.8);
-  --grid-line: rgba(171, 178, 252, 0.10);
+  --bg: #002238;
+  --surface: #002F4B;
+  --surface-raised: #003A5D;
+  --surface-sunken: #001A2B;
+  --border: #0A4468;
+  --border-strong: #1A5A82;
+  --glass: rgba(0, 47, 75, 0.8);
+  --grid-line: rgba(0, 167, 225, 0.10);
   --noise-opacity: 0.035;
 
-  --text: #EEF0FA;
-  --text-soft: #9C9FBD;
-  --text-faint: #5E6180;
+  --text: #F4F9FC;
+  --text-soft: #B9D0E0;
+  --text-faint: #8FB0C6;
   --text-on-primary: #FFFFFF;
 
-  --primary-50:  #1D2050;
-  --primary-100: #262A63;
-  --primary-300: #6266D1;
-  --primary-500: #7B7FF5;
-  --primary-600: #8C90F7;
-  --primary-700: #A5A8FA;
-  --primary-900: #E6E7FE;
+  --primary-50:  #00304F;
+  --primary-100: #004068;
+  --primary-300: #0083B3;
+  --primary-500: #00A7E1;
+  --primary-600: #38BFEA;
+  --primary-700: #7AD6F4;
+  --primary-900: #D6F2FC;
 
   --success: #34D399;
   --success-bg: #0E2A20;
@@ -113,20 +126,20 @@
 
   /* Re-stepped for the dark surface rather than reused from light — the same
      hues at light steps lose contrast and CVD separation on a dark card. */
-  --chart-1: #6E72F0;
+  --chart-1: #38BFEA;
   --chart-2: #BE7810;
-  --chart-3: #1191B5;
+  --chart-3: #7AD6F4;
   --chart-4: #158A4C;
-  --chart-5: #E85685;
-  --chart-6: #9B5FDE;
-  --chart-grid: rgba(171, 178, 252, 0.12);
-  --chart-axis: #7E82A3;
+  --chart-5: #8CA9BD;
+  --chart-6: #5F86A3;
+  --chart-grid: rgba(0, 167, 225, 0.14);
+  --chart-axis: #8FB0C6;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 0 0 1px rgba(123, 127, 245, 0.4), 0 0 40px -6px rgba(123, 127, 245, 0.35), 0 20px 60px -15px rgba(0, 0, 0, 0.6);
-  --glow-primary: rgba(123, 127, 245, 0.45);
+  --shadow-glow: 0 0 0 1px rgba(0, 167, 225, 0.4), 0 0 40px -6px rgba(0, 167, 225, 0.35), 0 20px 60px -15px rgba(0, 0, 0, 0.6);
+  --glow-primary: rgba(0, 167, 225, 0.45);
   --glow-accent: rgba(245, 158, 11, 0.35);
 
   color-scheme: dark;

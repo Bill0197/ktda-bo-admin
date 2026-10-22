@@ -19,7 +19,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     <AppShell
       appName="Investcent"
       appTag="Investment Bank"
-      appMark="II"
       nav={navForRole(ALL_PAGES)}
       user={{ name: user.name, role: user.tokRoles.join(", ") || "Staff", avatarInitials: user.initials }}
       footerNote={
