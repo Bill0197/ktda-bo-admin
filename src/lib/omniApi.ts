@@ -513,12 +513,9 @@ export const omniApi = {
    *  already closed, or CHANGE_PENDING while another proposal waits. */
   proposeClose: (profileId: string, note?: string) =>
     post<Intervention>(`${customerPath(profileId)}/close`, note ? { note } : {}),
-  /** One customer's proposals, newest first; not paged. */
-  customerInterventions: async (profileId: string): Promise<Intervention[]> => {
-    const res = await send("GET", `${customerPath(profileId)}/interventions`);
-    if (!res.ok) throw await failure(res);
-    return listOf<Intervention>(res);
-  },
+  /** One customer's proposals, newest first, every page (the service pages
+   *  this list; an older one that does not sends it whole). */
+  customerInterventions: (profileId: string) => getAll<Intervention>(`${customerPath(profileId)}/interventions`),
   /** The queue waiting for a second person (oldest first), or the whole
    *  log (`ALL`, newest first), a page at a time. */
   interventions: (status: "PENDING" | "ALL", page: number, size = 20) =>

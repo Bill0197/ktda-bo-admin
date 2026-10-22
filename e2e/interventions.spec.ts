@@ -27,9 +27,17 @@ async function stubCustomer(page: Page, state: State, answer?: (req: Request) =>
     reads.summary++;
     return json(route, summary(state.status));
   });
-  await page.route(new RegExp(`/omni/api/operator/customers/${CUSTOMER}/interventions$`), (route) => {
+  await page.route(new RegExp(`/omni/api/operator/customers/${CUSTOMER}/interventions(\\?.*)?$`), (route) => {
     reads.interventions++;
-    return json(route, state.interventions);
+    // Paged like the service: page and size from the query, the totals in headers.
+    const q = new URL(route.request().url()).searchParams;
+    const size = Number(q.get("size") ?? 20);
+    const at = Number(q.get("page") ?? 1);
+    const all = state.interventions;
+    return route.fulfill({
+      status: 200, contentType: "application/json", body: JSON.stringify(all.slice((at - 1) * size, at * size)),
+      headers: { "X-Total-Count": String(all.length), "X-Total-Pages": String(Math.ceil(all.length / size)), "X-Page": String(at), "X-Size": String(size) },
+    });
   });
   await page.route(/\/omni\/api\/operator\/customers\/[^/]+\/(reinstate|close)$|\/customers\/interventions\/[^/]+\/(approve|reject)$/, (route) => {
     const req = route.request();
@@ -82,6 +90,25 @@ test("proposing a reinstatement shows it pending; the proposer cannot approve it
   await expect(pending.getByRole("button", { name: "Reject" })).toBeVisible();
   // The profile is unchanged, and no second proposal is offered while this one waits.
   await expect(view(page).getByText("Suspended", { exact: true })).toBeVisible();
+  await expect(view(page).getByRole("button", { name: /Propose/ })).toHaveCount(0);
+});
+
+test("a customer's proposals are read from every page, so a waiting one on a later page is still found", async ({ page }) => {
+  // 130 proposals newest first: 129 decided ones, then an old one still waiting on page 2.
+  const decided = Array.from({ length: 129 }, (_, n) =>
+    intervention({ id: `d${n}`, status: "REJECTED", decidedBy: OTHER, decidedAt: "2026-10-21T07:00:00Z", proposedAt: "2026-10-20T08:00:00Z" }));
+  const state: State = { status: "SUSPENDED", interventions: [...decided.slice(0, 100), intervention({}), ...decided.slice(100)], writes: [] };
+  const reads = await stubCustomer(page, state);
+  const asked: string[] = [];
+  page.on("request", (r) => { if (/\/interventions\?/.test(r.url()) && r.url().includes(CUSTOMER)) asked.push(new URL(r.url()).searchParams.get("page") ?? ""); });
+  await openCustomer(page);
+
+  await expect(page.getByTestId("pending-intervention")).toContainText(OTHER.replace("staff:", ""));
+  // Both pages were read (the page may load twice in development).
+  expect(asked).toContain("1");
+  expect(asked).toContain("2");
+  expect(reads.interventions).toBeGreaterThanOrEqual(2);
+  // Something is already waiting, so no second proposal is offered.
   await expect(view(page).getByRole("button", { name: /Propose/ })).toHaveCount(0);
 });
 
