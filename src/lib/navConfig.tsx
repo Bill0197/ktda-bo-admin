@@ -44,6 +44,7 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Products", to: "/token-console/products", section: "Baracel Unyt", icon: Boxes },
   { label: "Market", to: "/token-console/market", section: "Baracel Unyt", icon: ChartCandlestick },
   { label: "Bond prices", to: "/token-console/prices", section: "Baracel Unyt", icon: Tag },
+  { label: "FX rates", to: "/token-console/fx", section: "Baracel Unyt", icon: ArrowLeftRight },
   { label: "Journals", to: "/token-console/journals", section: "Baracel Unyt", icon: BookOpenCheck },
   { label: "Trial balance", to: "/token-console/trial-balance", section: "Baracel Unyt", icon: Scale },
   { label: "Unit ledger", to: "/token-console/unit-ledger", section: "Baracel Unyt", icon: Layers },
