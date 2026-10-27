@@ -15,6 +15,7 @@ import { qs, tokApi } from "./tokApi";
 import type * as T from "./tokenConsole/types.gen";
 import type { AssetBackingRowActual, CreateAccrualPolicyBody, CreateDistributionPolicyBody } from "./tokenConsole/spec-deviations";
 import type { ChangePayload, ChangeStatus, ChangeType, ConfigChange } from "./tokenConsole/configChanges";
+import type { BondTerms, MarketQuote } from "./tokenConsole/prices";
 
 const A = "/accounting";
 const get = <R>(path: string) => tokApi.get<R>(`${A}${path}`);
@@ -28,6 +29,10 @@ export type JournalFilter = { account?: string; product?: string; offering?: str
 export const tokenConsole = {
   // The books
   trialBalance: () => get<T.TrialBalanceLine[]>("/trial-balance"),
+  /** Every bond's terms, with the desk's price where one is set. */
+  bondTerms: () => get<BondTerms[]>("/bond-terms"),
+  /** The live two-way quote of every open priced bond. */
+  quotes: () => get<MarketQuote[]>("/quotes"),
   glBalances: () => get<T.GlBalanceRow[]>("/gl-balances"),
   journals: (filter: JournalFilter = {}) => get<T.LedgerEntryView[]>(`/journals${qs(filter)}`),
   reconciliation: () => get<T.ReconciliationResult[]>("/reconciliation"),

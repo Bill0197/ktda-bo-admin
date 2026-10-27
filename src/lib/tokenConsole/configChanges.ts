@@ -36,7 +36,8 @@ export type ChangeType =
   | "SERVICE_PACKAGE_ITEM_CREATE"
   | "SCHEME_CREATE"
   | "ACCOUNT_TEMPLATE_CREATE"
-  | "INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET";
+  | "INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET"
+  | "BOND_PRICE_SET";
 
 /** Only PENDING moves; every other status is final. FAILED means the checker
  *  approved but the engine refused the replay (a stale payload): nothing applied. */
@@ -59,6 +60,8 @@ export type ChangePayload = {
   /** The direct endpoint takes the institution in its path; staged, it moves
    *  into the payload, as activate's productId does. */
   INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET: { institutionId: string; tariffDomainId: string };
+  /** The desk's price for a bond: clean mid per unit, and the whole bid-offer width as a fraction of mid. */
+  BOND_PRICE_SET: { productId: string; midPrice: number; quoteSpread: number };
 };
 
 /** ConfigChangeController.ChangeView. `targetId` is what the change is aimed
@@ -94,6 +97,7 @@ export const CHANGE_TYPE_LABEL: Record<ChangeType, string> = {
   SCHEME_CREATE: "New scheme",
   ACCOUNT_TEMPLATE_CREATE: "New account template",
   INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET: "Default tariff domain",
+  BOND_PRICE_SET: "Bond price",
 };
 
 /** `accounting.maker-checker.checker-roles` on the engine. The engine is the
@@ -126,6 +130,7 @@ const SUBJECT_KEY: Record<ChangeType, string> = {
   SCHEME_CREATE: "schemeId",
   ACCOUNT_TEMPLATE_CREATE: "schemeId",
   INSTITUTION_DEFAULT_TARIFF_DOMAIN_SET: "institutionId",
+  BOND_PRICE_SET: "productId",
 };
 
 /** What a change is about, for display and matching. Read from the payload,
