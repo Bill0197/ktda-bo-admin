@@ -360,6 +360,93 @@ export type MarketChange = {
 
 export type MarketOverview = { settings: MarketSettings; pending: MarketChange | null };
 
+/** What customers' conversions are priced by now (BRD FR-WAL-04). Rates are KES
+ *  per USD; `marginPct` is the whole spread, half of it either side of the mid;
+ *  amounts are in KES whichever way a customer converts; a null cap is none.
+ *  `source` "defaults" means no change has been approved yet. */
+export type FxSettings = {
+  base: string;
+  quote: string;
+  midRate: number | null;
+  rateAsOf: string | null;
+  rateValidUntil: string | null;
+  rateSource: string | null;
+  marginPct: number;
+  marginFloorPct: number;
+  quoteTtlSeconds: number;
+  minAmount: number | null;
+  perConversion: number | null;
+  perDay: number | null;
+  suspended: boolean;
+  source: "defaults" | "change" | string;
+  changeId: string | null;
+  since: string | null;
+  decidedBy?: string | null;
+  decisionNote?: string | null;
+};
+
+/** One proposed FX change: the whole setting as it would be after it. */
+export type FxChange = {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  midRate: number | null;
+  rateAsOf: string | null;
+  rateValidUntil: string | null;
+  marginPct: number;
+  marginFloorPct: number;
+  quoteTtlSeconds: number;
+  minAmount: number | null;
+  perConversion: number | null;
+  perDay: number | null;
+  suspended: boolean;
+  note: string | null;
+  proposedBy: string;
+  proposedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+};
+
+export type FxOverview = { settings: FxSettings; pending: FxChange | null };
+
+/** A proposal: a field left out keeps its current value. A new `midRate`
+ *  without `rateValidUntil` is good until the end of the market's day. */
+export type FxProposal = {
+  midRate?: number;
+  rateValidUntil?: string;
+  marginPct?: number;
+  marginFloorPct?: number;
+  quoteTtlSeconds?: number;
+  minAmount?: number;
+  perConversion?: number;
+  perDay?: number;
+  suspended?: boolean;
+  note?: string;
+};
+
+/** One customer quote or conversion in the book (ConversionService.Entry). */
+export type FxBookEntry = {
+  profileId: string;
+  investorId: string | null;
+  quote: {
+    id: string;
+    from: string;
+    to: string;
+    sellAmount: number;
+    buyAmount: number;
+    rate: number;
+    midRate: number | null;
+    spreadPct: number | null;
+    expiresAt: string | null;
+    /** QUOTED, EXPIRED, CONVERTING, CONVERTED or FAILED. */
+    status: string;
+    createdAt: string | null;
+    convertedAt: string | null;
+    reference: string | null;
+    failureReason: string | null;
+  };
+};
+
 /** A proposal: a field left out keeps its current value. Times are HH:mm. */
 export type MarketProposal = {
   tradingOpen?: string;
@@ -411,6 +498,7 @@ async function getOne<T>(path: string): Promise<T> {
 }
 
 const marketChangePath = (id: string) => `/market/settings/changes/${encodeURIComponent(id)}`;
+const fxChangePath = (id: string) => `/fx/settings/changes/${encodeURIComponent(id)}`;
 const paymentPath = (id: string) => `/payments/${encodeURIComponent(id)}`;
 const interventionPath = (id: string) => `/customers/interventions/${encodeURIComponent(id)}`;
 
@@ -558,6 +646,24 @@ export const omniApi = {
   /** Anyone may reject, the proposer included. */
   rejectMarketChange: (id: string, note?: string) =>
     post<MarketChange>(`${marketChangePath(id)}/reject`, note ? { note } : {}),
+  /** The FX rate and limits customers convert by now, and the change waiting for a decision. */
+  fxSettings: () => getOne<FxOverview>("/fx/settings"),
+  /** The FX change log, newest first; not paged. */
+  fxChanges: async (limit = 50): Promise<FxChange[]> => {
+    const res = await send("GET", `/fx/settings/changes?limit=${limit}`);
+    if (!res.ok) throw await failure(res);
+    return listOf<FxChange>(res);
+  },
+  /** Waits as PENDING until someone else approves it. 409 CHANGE_PENDING while
+   *  another waits; 400 with a `field` on a value the service refuses. */
+  proposeFxChange: (proposal: FxProposal) => post<FxChange>("/fx/settings/changes", proposal),
+  /** 409 SECOND_APPROVER_REQUIRED for the proposer; CHANGE_DECIDED when gone. */
+  approveFxChange: (id: string, note?: string) => post<FxChange>(`${fxChangePath(id)}/approve`, note ? { note } : {}),
+  /** Anyone may reject, the proposer included. */
+  rejectFxChange: (id: string, note?: string) => post<FxChange>(`${fxChangePath(id)}/reject`, note ? { note } : {}),
+  /** One page of the book of quotes and conversions, newest first; `status` narrows it. */
+  fxBook: (page: number, size = 25, status?: string) =>
+    getPage<FxBookEntry>(`/fx/conversions${status ? `?status=${encodeURIComponent(status)}` : ""}`, page, size),
   /** Refused payouts and transfers unmatched after the wait, oldest first,
    *  every page. Omnichannel lists at most 500 of each kind and says so with
    *  `X-Truncated: true`; without the header (older omnichannel too) the
