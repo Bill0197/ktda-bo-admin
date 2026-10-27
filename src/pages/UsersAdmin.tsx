@@ -355,7 +355,7 @@ export default function UsersAdmin() {
     <div>
       <PageHeader
         title="Users & roles"
-        subtitle="Page-level RBAC — each role's Admin Panel access is scoped to exactly what their SOP responsibilities require."
+        subtitle="Each role and the access its SOP responsibilities call for. Page access is not enforced in this console yet: anyone signed in can open every page, and the services' own roles decide what each action may do."
         actions={
           <Button size="sm" onClick={() => setInviteOpen(true)}>
             <UserPlus size={14} />
