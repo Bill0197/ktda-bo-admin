@@ -13,6 +13,13 @@ export function money(amount: number | null | undefined, currency?: string | nul
   return currency ? `${currency} ${n}` : n;
 }
 
+/** A NAV per unit: struck to 6 decimals, so shown to up to 6 (at least 2). */
+export function navPrice(amount: number | null | undefined, currency?: string | null): string {
+  if (amount === null || amount === undefined) return "—";
+  const n = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(amount);
+  return currency ? `${currency} ${n}` : n;
+}
+
 /** Token quantities are whole numbers. */
 export function units(quantity: number | null | undefined): string {
   if (quantity === null || quantity === undefined) return "—";

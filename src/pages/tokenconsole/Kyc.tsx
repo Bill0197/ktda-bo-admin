@@ -324,7 +324,8 @@ function ApplicantPanel({ row, onDone, onPhotoDecided }: { row: Row; onDone: () 
   const jurisdiction = currentClassifier(v, "JURISDICTION");
   const review = row.review;
   const isOpen = review?.status === "OPEN";
-  const outstanding = classifierOutstanding(v);
+  // A rejected review offboarded the investor: a register still saying PENDING is not theirs to approve.
+  const outstanding = classifierOutstanding(v) && review?.status !== "REJECTED";
   const name = v?.displayName ?? row.name;
   // Rejected just now: kept on show until the panel closes. After that they are in "Every photo sent".
   const [rejected, setRejected] = useState<QueuedDocument[]>([]);

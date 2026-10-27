@@ -14,9 +14,11 @@ export function booksByCurrency(lines: TrialBalanceLine[]): CurrencyBook[] {
     b.accounts += 1;
     b.debit += l.totalDebit ?? 0;
     b.credit += l.totalCredit ?? 0;
-    b.balance += l.balance ?? 0;
     books.set(currency, b);
   }
+  // The check is total debits against total credits. Each account's own balance is signed by its
+  // normal side (debit-normal as Dr − Cr, credit-normal as Cr − Dr), so those do not add up to zero.
+  for (const b of books.values()) b.balance = Math.round((b.debit - b.credit) * 100) / 100;
   return [...books.values()].sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
