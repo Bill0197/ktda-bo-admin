@@ -3,7 +3,7 @@ import { Play } from "lucide-react";
 import { Button, Field, GlassPanel, Input, PageHeader, useToast } from "../../ui";
 import { tokenConsole } from "../../lib/api";
 import { useAsyncData } from "../../lib/useAsyncData";
-import { calendarDate, label, money, units } from "../../lib/tokenConsole/format";
+import { calendarDate, label, money, navPrice, units } from "../../lib/tokenConsole/format";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import type { NavSnapshotView, Product } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
@@ -53,7 +53,7 @@ export default function TokenConsoleNav() {
               </div>
             ) },
             { key: "nav", header: "NAV / unit", className: "tabular text-right whitespace-nowrap", render: (r) =>
-              r.navPerUnit == null ? <span className="text-xs text-text-faint">Not struck</span> : money(r.navPerUnit, r.currency) },
+              r.navPerUnit == null ? <span className="text-xs text-text-faint">Not struck</span> : navPrice(r.navPerUnit, r.currency) },
           ]}
         />
         <GlassPanel className="p-4" sheen={false}>
@@ -91,7 +91,7 @@ function History({ productId, currency }: { productId: string; currency?: string
       emptyLabel="No NAV struck for this product yet — run NAV to strike one"
       columns={[
         { key: "asOf", header: "As of", render: (r) => <span className="tabular text-xs">{calendarDate(r.asOf)}</span> },
-        { key: "nav", header: "NAV / unit", className: "tabular text-right", render: (r) => money(r.navPerUnit, currency) },
+        { key: "nav", header: "NAV / unit", className: "tabular text-right", render: (r) => navPrice(r.navPerUnit, currency) },
         { key: "units", header: "Units", className: "tabular text-right", render: (r) => units(r.unitsOutstanding), hideOnMobile: true },
         { key: "net", header: "Net assets", className: "tabular text-right", render: (r) => money(r.netAssets, currency), hideOnMobile: true },
         { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },

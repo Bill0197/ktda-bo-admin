@@ -99,8 +99,13 @@ function AccountPanel({ contractId, onChanged }: { contractId: string; onChanged
   };
 
   const runWithdraw = async () => {
-    // Blank withdraws everything withdrawable — the service's own default.
-    const done = await withdraw.run(contractId, amount.trim() === "" ? {} : { amount: Number(amount) });
+    // Blank withdraws everything withdrawable: the service needs the amount, so it is sent as that figure.
+    const all = w?.total ?? 0;
+    if (amount.trim() === "" && !(all > 0)) {
+      toast.push("There is nothing withdrawable on this account.");
+      return;
+    }
+    const done = await withdraw.run(contractId, { amount: amount.trim() === "" ? all : Number(amount) });
     if (!done) return;
     toast.push(`Withdrew ${money(done.total, ccy)}.`);
     setWithdrawing(false);
