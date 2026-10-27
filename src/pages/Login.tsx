@@ -7,7 +7,7 @@ import { TokApiError } from "../lib/tokApi";
 import { PENDING_APPROVAL_HINT, type SelfServiceRole } from "../lib/tokenConsole/spec-deviations";
 
 const BULLETS = [
-  { label: "Page-level RBAC — not just hidden nav", icon: <Lock size={15} /> },
+  { label: "Two-person approval on prices, rates and configuration", icon: <Lock size={15} /> },
   { label: "Maker-checker on every payment release", icon: <ClipboardCheck size={15} /> },
   { label: "Every action auditable end to end", icon: <ShieldCheck size={15} /> },
 ];
