@@ -13,7 +13,7 @@
  * api.ts must not end up with two different getProducts. */
 import { qs, tokApi } from "./tokApi";
 import type * as T from "./tokenConsole/types.gen";
-import type { AssetBackingRowActual, CreateAccrualPolicyBody, CreateDistributionPolicyBody } from "./tokenConsole/spec-deviations";
+import type { AssetBackingRowActual, CreateAccrualPolicyBody, CreateDistributionPolicyBody, LoanViewActual, RepayResultActual } from "./tokenConsole/spec-deviations";
 import type { ChangePayload, ChangeStatus, ChangeType, ConfigChange } from "./tokenConsole/configChanges";
 import type { BondTerms, MarketQuote } from "./tokenConsole/prices";
 
@@ -71,11 +71,11 @@ export const tokenConsole = {
   freezeAccount: (contractId: string) => post<T.AccountView>(`/accounts/${seg(contractId)}/freeze`),
   unfreezeAccount: (contractId: string) => post<T.AccountView>(`/accounts/${seg(contractId)}/unfreeze`),
   closeAccount: (contractId: string) => post<T.AccountView>(`/accounts/${seg(contractId)}/close`),
-  loan: (contractId: string) => get<T.LoanView>(`/loans/${seg(contractId)}`),
-  disburseLoan: (contractId: string, amount: number) => post<T.LoanView>(`/loans/${seg(contractId)}/disburse`, { amount }),
-  accrueLoan: (contractId: string, days: number) => post<T.LoanView>(`/loans/${seg(contractId)}/accrue`, { days }),
-  repayLoan: (contractId: string, amount: number) => post<T.RepayResult>(`/loans/${seg(contractId)}/repay`, { amount }),
-  closeLoan: (contractId: string) => post<T.LoanView>(`/loans/${seg(contractId)}/close`),
+  loan: (contractId: string) => get<LoanViewActual>(`/loans/${seg(contractId)}`),
+  disburseLoan: (contractId: string, amount: number) => post<LoanViewActual>(`/loans/${seg(contractId)}/disburse`, { amount }),
+  accrueLoan: (contractId: string, days: number) => post<LoanViewActual>(`/loans/${seg(contractId)}/accrue`, { days }),
+  repayLoan: (contractId: string, amount: number) => post<RepayResultActual>(`/loans/${seg(contractId)}/repay`, { amount }),
+  closeLoan: (contractId: string) => post<LoanViewActual>(`/loans/${seg(contractId)}/close`),
 
   // Offerings and their order books
   offerings: () => get<T.OfferingResponse[]>("/offerings"),
@@ -187,7 +187,6 @@ export const tokenConsole = {
   ladders: () => get<T.BondLadderView[]>("/ladders"),
   ladder: (subFundId: string) => get<T.BondLadderView>(`/sub-funds/${seg(subFundId)}/ladder`),
   addRung: (subFundId: string, body: T.AddRungRequest) => post<T.BondLadderRung>(`/sub-funds/${seg(subFundId)}/ladder`, body),
-  sampleLadder: (subFundId: string) => post<T.BondLadderView>(`/sub-funds/${seg(subFundId)}/ladder/sample`),
   clearLadder: (subFundId: string) => del<void>(`/sub-funds/${seg(subFundId)}/ladder`),
   institutions: () => get<T.Institution[]>("/institutions"),
   createInstitution: (body: T.CreateInstitutionRequest) => post<T.Institution>("/institutions", body),

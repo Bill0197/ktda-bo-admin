@@ -4,7 +4,7 @@ import { Button, Field, GlassStat, Input, Modal, NotePanel, PageHeader, Select, 
 import { tokenConsole } from "../../lib/api";
 import { TokApiError } from "../../lib/tokApi";
 import { useAsyncData } from "../../lib/useAsyncData";
-import { label, money } from "../../lib/tokenConsole/format";
+import { label, money, percent } from "../../lib/tokenConsole/format";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import type { InvestorContract } from "../../lib/tokenConsole/types.gen";
 import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
@@ -13,10 +13,11 @@ import { Code, ConsoleTable, StatusBadge } from "../../components/tokenconsole/C
 const positive = (s: string) => s.trim() !== "" && Number.isFinite(Number(s)) && Number(s) > 0;
 const positiveInt = (s: string) => positive(s) && Number.isInteger(Number(s));
 
-/* The loan endpoints (/accounting/loans/*) exist in the service's source but
-   are not deployed on every environment — UAT answered Spring's own 404 for
-   them on 2026-09-23. Say that, rather than "Not found" next to a real loan. */
-const LOANS_MISSING = "Loan servicing isn't available on this tokenization backend yet — its loan endpoints aren't deployed.";
+/* The engine serves /accounting/loans/* from the release that added loan
+   servicing (2026-10-29). An older engine answers Spring's own 404 for the
+   whole family; say that, rather than "Not found" next to a real loan. A
+   business 404 (an unknown account) carries {error} and is shown as is. */
+const LOANS_MISSING = "Loan servicing isn't available on this tokenization backend — it predates the loan endpoints.";
 function explainMissing<A extends unknown[], R>(fn: (...args: A) => Promise<R>) {
   return async (...args: A) => {
     try {
@@ -181,7 +182,8 @@ function LoanPanel({ contractId, onChanged }: { contractId: string; onChanged: (
   const err = disburse.error ?? accrue.error ?? repay.error ?? close.error;
   // No actions until the position has loaded, and none on a closed loan.
   const locked = busy || !v || v.status === "CLOSED";
-  const settled = v?.totalOutstanding === 0;
+  // Nothing owed, and nothing held for approval that would change that.
+  const settled = v?.totalOutstanding === 0 && !v.pendingApproval;
   const invalid = (s: string, ok: (s: string) => boolean, msg: string) => (s.trim() !== "" && !ok(s) ? msg : undefined);
 
   // Every action moves the position; re-read it rather than trusting a partial response.
@@ -200,12 +202,25 @@ function LoanPanel({ contractId, onChanged }: { contractId: string; onChanged: (
   return (
     <>
       {loan.error && <NotePanel tone="danger" className="mb-4">{loan.error}</NotePanel>}
-      <div className="grid gap-3 sm:grid-cols-4 mb-5">
+      <div className="grid gap-3 sm:grid-cols-4 mb-3">
         <Figure label="Principal due" value={money(v?.outstandingPrincipal, ccy)} />
         <Figure label="Interest due" value={money(v?.outstandingInterest, ccy)} />
         <Figure label="Total outstanding" value={money(v?.totalOutstanding, ccy)} strong />
         <Figure label="Status" value={v?.status ? label(v.status) : "—"} />
       </div>
+      {/* An engine older than the rate fields sends none: say nothing rather than "no rate". */}
+      {v && v.annualRate !== undefined && (
+        <p className="mb-5 text-[12.5px] text-text-soft">
+          {v.annualRate != null
+            ? <>Rate {percent(v.annualRate)} a year{v.dayCount ? `, ${label(v.dayCount)}` : ""} — from tariff domain <Code>{v.rateSource ?? "—"}</Code>.</>
+            : "No loan rate is in force for this loan, so interest can't be accrued. Set a TT-LOAN-RATE value on its product's, package's or institution's tariff domain."}
+        </p>
+      )}
+      {v?.pendingApproval && (
+        <NotePanel tone="warning" className="mb-4" title="Held for approval">
+          A posting on this loan is at or above the approval threshold and is waiting on Journals. The figures above change once it is approved, and the loan can't be closed until then.
+        </NotePanel>
+      )}
 
       {/* Each button sits at the bottom of its column, so a hint or error
           under one field doesn't stagger them. */}
@@ -254,7 +269,7 @@ function LoanPanel({ contractId, onChanged }: { contractId: string; onChanged: (
           Close loan
         </Button>
         {v && v.status !== "CLOSED" && !settled && (
-          <span className="text-[12.5px] text-text-soft">A loan can be closed once nothing is outstanding.</span>
+          <span className="text-[12.5px] text-text-soft">A loan can be closed once nothing is outstanding or held for approval.</span>
         )}
       </div>
       {err && <NotePanel tone="danger" className="mt-3">{err}</NotePanel>}
