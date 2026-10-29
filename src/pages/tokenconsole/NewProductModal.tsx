@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Button, Field, Input, Modal, NotePanel, Select } from "../../ui";
 import { tokenConsole } from "../../lib/api";
-import { ASSET_CLASSES } from "../../lib/tokenConsole/entityRegistry";
+import { PRODUCT_ASSET_CLASSES } from "../../lib/tokenConsole/entityRegistry";
 import { invalidateList } from "../../lib/tokenConsole/sharedList";
 import { PENDING_CHANGES_KEY, usePendingChanges } from "../../lib/tokenConsole/usePendingChanges";
 import type { ConfigChange } from "../../lib/tokenConsole/configChanges";
@@ -139,9 +139,15 @@ export function NewProductModal({ onClose, onStaged }: { onClose: () => void; on
           <Field label="Currency" required>
             <Input value={f.currency} maxLength={3} className="uppercase" onChange={(e) => set("currency", e.target.value)} placeholder="KES" />
           </Field>
-          <Field label="Asset class" required>
+          <Field
+            label="Asset class"
+            required
+            hint={f.assetClass === "LOAN"
+              ? "A loan is serviced on Loans and never offered to investors. Bind it to the loan scheme and a package whose tariff domain carries TT-LOAN-RATE (SCH-LOAN-STD / PKG-LOAN-STD), with no sub-fund."
+              : undefined}
+          >
             <Select value={f.assetClass} onChange={(e) => set("assetClass", e.target.value as Draft["assetClass"])}>
-              {ASSET_CLASSES.map((v) => <option key={v} value={v}>{label(v)}</option>)}
+              {PRODUCT_ASSET_CLASSES.map((v) => <option key={v} value={v}>{label(v)}</option>)}
             </Select>
           </Field>
           <Field label="Structure" required>

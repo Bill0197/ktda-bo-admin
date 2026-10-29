@@ -164,12 +164,11 @@ function LadderPanel({ subFundId, onChanged }: { subFundId: string; onChanged: (
   const ladder = useAsyncData(() => tokenConsole.ladder(subFundId));
   // Clearing answers with no body, so success is an explicit `true` — useAction
   // resolves a failure to undefined, and the two must not look alike.
-  const act = useAction(async (kind: "sample" | "clear") => {
-    if (kind === "sample") await tokenConsole.sampleLadder(subFundId);
-    else await tokenConsole.clearLadder(subFundId);
+  const clear = useAction(async () => {
+    await tokenConsole.clearLadder(subFundId);
     return true;
   });
-  const [confirm, setConfirm] = useState<"sample" | "clear" | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [adding, setAdding] = useState(false);
   const l = ladder.data;
   const rungs = (l?.rungs ?? []).map((r, i) => ({ ...r, id: `${r.ladderSlot ?? i}-${r.isin ?? i}` }));
@@ -179,11 +178,10 @@ function LadderPanel({ subFundId, onChanged }: { subFundId: string; onChanged: (
     onChanged();
   };
   const run = async () => {
-    if (!confirm) return;
-    const done = await act.run(confirm);
+    const done = await clear.run();
     if (!done) return;
-    toast.push(confirm === "sample" ? "Sample ladder loaded." : "Ladder cleared.");
-    setConfirm(null);
+    toast.push("Ladder cleared.");
+    setConfirming(false);
     refresh();
   };
 
@@ -199,7 +197,7 @@ function LadderPanel({ subFundId, onChanged }: { subFundId: string; onChanged: (
       <DataTable
         paged={false}
         rows={rungs}
-        emptyLabel={ladder.loading ? "Loading…" : "No rungs — add one, or load the sample ladder"}
+        emptyLabel={ladder.loading ? "Loading…" : "No rungs yet — add the bonds this sub-fund holds"}
         columns={[
           { key: "slot", header: "Slot", className: "tabular", render: (r) => r.ladderSlot ?? "—" },
           { key: "isin", header: "ISIN", render: (r) => <Code>{r.isin ?? "—"}</Code> },
@@ -212,20 +210,19 @@ function LadderPanel({ subFundId, onChanged }: { subFundId: string; onChanged: (
       />
       <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
         <Button size="sm" onClick={() => setAdding(true)}>Add rung</Button>
-        <Button size="sm" variant="outline" onClick={() => { act.reset(); setConfirm("sample"); }}>Load sample ladder</Button>
-        <Button size="sm" variant="ghost" disabled={!rungs.length} onClick={() => { act.reset(); setConfirm("clear"); }}>Clear ladder</Button>
+        <Button size="sm" variant="ghost" disabled={!rungs.length} onClick={() => { clear.reset(); setConfirming(true); }}>Clear ladder</Button>
       </div>
-      {confirm && (
+      {confirming && (
         <ActionModal
           size="sm"
-          title={confirm === "sample" ? "Load the sample ladder?" : "Clear this ladder?"}
-          description={confirm === "sample" ? "Adds the demo six-rung ladder for this sub-fund's currency." : "Removes every rung. The sub-fund then has no coupon cover or capacity until rungs are added back."}
-          submitLabel={confirm === "sample" ? "Load sample" : "Clear ladder"}
-          tone={confirm === "sample" ? "primary" : "danger"}
-          pending={act.pending}
-          error={act.error}
+          title="Clear this ladder?"
+          description="Removes every rung. The sub-fund then has no coupon cover or capacity until rungs are added back."
+          submitLabel="Clear ladder"
+          tone="danger"
+          pending={clear.pending}
+          error={clear.error}
           onSubmit={() => void run()}
-          onClose={() => setConfirm(null)}
+          onClose={() => setConfirming(false)}
         />
       )}
       {adding && (

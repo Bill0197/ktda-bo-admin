@@ -81,6 +81,9 @@ export type FormValue = string | boolean | FormState[];
 export type FormState = Record<string, FormValue>;
 
 export const ASSET_CLASSES = ["BOND", "SUKUK", "MUTUAL_FUND", "EQUITY", "ETF", "FX", "DERIVATIVE", "MONEY_MARKET", "INDEX", "BALANCED"] as const;
+/** A product can also be a loan (serviced on Loans, never offered to investors); an asset cannot —
+ *  the engine refuses to register a LOAN asset. */
+export const PRODUCT_ASSET_CLASSES = [...ASSET_CLASSES, "LOAN"] as const;
 const ACCOUNT_ROLES: readonly NonNullable<AccountTemplate["accountRole"]>[] = [
   "PRINCIPAL", "ACCRUED_INTEREST", "TAX_WITHHELD", "SETTLEMENT_CASH", "BANK_CASH", "UNALLOCATED",
   "FEE_INCOME", "LIQUIDITY_EXPENSE", "INVESTOR_EXPENSE", "REALIZED_GAIN_LOSS",

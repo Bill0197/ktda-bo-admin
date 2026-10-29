@@ -9,7 +9,7 @@
    Verified 2026-09-02 against the UAT load balancer.
    ===================================================================== */
 
-import type { MeResponse, SignupRequest } from "./types.gen";
+import type { LoanView, MeResponse, RepayResult, SignupRequest } from "./types.gen";
 
 /* 1. POST /api/auth/signup
       Spec says: no response content (the generator therefore emitted `void`).
@@ -116,3 +116,33 @@ export type CreateDistributionPolicyBody = Required_<
   import("./types.gen").CreateDistributionPolicyRequest,
   "approved"
 >;
+
+/* 6. The loan endpoints answer more than types.gen.ts knows.
+      ------------------------------------------------------------------
+      types.gen.ts carries LoanView / RepayResult from an earlier engine
+      branch that never shipped. The engine's /api/accounting/loans/* (added
+      2026-10-29, package A of the no-mocks work) answers the same fields plus:
+
+        productId        the loan product
+        pendingApproval  a posting on this loan is held for approval (at or
+                         above the engine's approval threshold); it moves the
+                         position only once approved on Journals
+        annualRate, dayCount, rateSource
+                         the TT-LOAN-RATE tariff in force today and the
+                         tariff domain it resolved from; all null when no
+                         rate resolves (an accrual is then refused)
+
+      status is PENDING (nothing disbursed) · ACTIVE · SETTLED (nothing owed)
+      · FROZEN · CLOSED. Drop this once the types are regenerated. */
+export interface LoanViewActual extends LoanView {
+  productId?: string;
+  pendingApproval?: boolean;
+  /** BigDecimal — a JSON number; a fraction (0.15 = 15%). */
+  annualRate?: number | null;
+  dayCount?: string | null;
+  rateSource?: string | null;
+}
+
+export interface RepayResultActual extends Omit<RepayResult, "loan"> {
+  loan?: LoanViewActual;
+}
