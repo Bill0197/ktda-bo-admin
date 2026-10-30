@@ -8,7 +8,7 @@ import {
   BookOpenCheck, PackageSearch, Inbox, ListChecks, Contact, Megaphone, Target, Gauge,
   Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart,
   PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2,
-  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag,
+  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -58,6 +58,8 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Customer approvals", to: "/token-console/customer-approvals", section: "Baracel Unyt", icon: UserCheck },
   { label: "Transactions", to: "/token-console/transactions", section: "Baracel Unyt", icon: ArrowLeftRight },
   { label: "Review queue", to: "/token-console/compliance", section: "Baracel Unyt", icon: ShieldCheck },
+  { label: "Surveillance", to: "/token-console/surveillance", section: "Baracel Unyt", icon: Siren },
+  { label: "Reports", to: "/token-console/reports", section: "Baracel Unyt", icon: FileSpreadsheet },
   { label: "Funds", to: "/token-console/funds", section: "Baracel Unyt", icon: Landmark },
   { label: "Tariffs", to: "/token-console/tariffs", section: "Baracel Unyt", icon: Percent },
   { label: "Configuration", to: "/token-console/configuration", section: "Baracel Unyt", icon: SlidersHorizontal },

@@ -19,15 +19,18 @@ const UUID = "[0-9a-fA-F-]+";
 // and the approvals of those proposals), re-screening
 // and the closure requests in Support, the Transactions page and its payment issues
 // (retry, resolve, match, unmatched), and the Market page (the dealing settings and
-// their change log, a proposal, an approval or a rejection).
+// their change log, a proposal, an approval or a rejection), and Reports and
+// Surveillance (the CSV reports, the alert queue with assign and close, and the
+// snapshot and rule runs).
 const ALLOWED = {
-  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject)|fx/settings/changes|fx/settings/changes/${UUID}/(approve|reject))$`),
-  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions)$`),
+  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject)|fx/settings/changes|fx/settings/changes/${UUID}/(approve|reject)|reporting/alerts/${UUID}/(assign|close)|reporting/runs/(snapshot|surveillance))$`),
+  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.
 // x-truncated: the payment issues queue was cut at omnichannel's cap.
-const PASSED_BACK = ["content-type", "x-total-count", "x-page", "x-size", "x-total-pages", "x-truncated"];
+// content-disposition: a report's file name.
+const PASSED_BACK = ["content-type", "content-disposition", "x-total-count", "x-page", "x-size", "x-total-pages", "x-truncated"];
 
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);
