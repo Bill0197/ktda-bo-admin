@@ -100,7 +100,9 @@ export default function TokenConsoleOverview() {
 
       <StatRail columns={4} className="mb-5">
         <GlassStat label="Books" value={booksValue} icon={<Scale size={17} />} tone={booksTone}
-          hint={books.length === 0 ? "nothing has been posted yet"
+          hint={tb.error ? "the trial balance could not be read"
+            : tb.loading ? undefined
+            : books.length === 0 ? "nothing has been posted yet"
             : books.length > 1 ? `checked per currency (${books.map((b) => b.currency).join(", ")})`
             : "trial balance sums to zero"} />
         {/* No reconciliation rows means nothing was checked, not that

@@ -197,7 +197,7 @@ export default function TokenConsoleKyc() {
         <GlassStat label="Photos waiting" value={waiting.data ? photosWaiting : "—"} icon={<Camera size={16} />} tone={photosWaiting ? "warning" : "neutral"} emphasis={false} />
         <GlassStat label="Registry mismatches" value={mismatched.data ? mismatches : "—"} icon={<Fingerprint size={16} />} tone={mismatches ? "danger" : "neutral"} emphasis={false}
           hint="To decide, with a name or date of birth the registry does not hold." />
-        <GlassStat label="Oldest waiting" value={oldest ? dateOf(oldest) : "—"} hint={oldest ? "Decide this one first." : "Nothing is waiting."} />
+        <GlassStat label="Oldest waiting" value={oldest ? dateOf(oldest) : "—"} hint={oldest ? "Decide this one first." : loaded && !partial.length ? "Nothing is waiting." : undefined} />
       </StatRail>
 
       {partial.length > 0 && (
