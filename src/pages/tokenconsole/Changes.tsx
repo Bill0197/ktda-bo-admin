@@ -86,7 +86,7 @@ export default function TokenConsoleChanges() {
           emphasis={false}
           hint={checker ? (mine.length ? `${mine.length} of the waiting ones are yours, so someone else decides those.` : undefined) : `Approving needs ${CHECKER_ROLES.join(" or ")}.`}
         />
-        <GlassStat label="Oldest waiting" value={oldest ? dateOf(oldest) : "—"} icon={<ClipboardCheck size={16} />} hint={pending.length ? "Decide this one first." : "Nothing is waiting."} />
+        <GlassStat label="Oldest waiting" value={oldest ? dateOf(oldest) : "—"} icon={<ClipboardCheck size={16} />} hint={!loaded ? undefined : pending.length ? "Decide this one first." : "Nothing is waiting."} />
         <GlassStat label="Failed on apply" value={loaded ? failed : "—"} icon={<CircleAlert size={16} />} tone={failed ? "danger" : "neutral"} emphasis={false} hint="Approved, but the engine refused it. Nothing was applied." />
       </StatRail>
 

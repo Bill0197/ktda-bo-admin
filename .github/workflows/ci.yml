@@ -1,0 +1,48 @@
+name: CI
+
+# Type check, lint and the stubbed browser tests on every pull request and on
+# main. The browser tests answer every service call themselves (e2e/stubs.ts),
+# so nothing here reaches UAT and no secret is needed. Deploying stays manual
+# (deploy-ec2.yml).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Type check (app)
+        run: npx tsc -b
+      - name: Type check (tests and fixtures)
+        run: npx tsc -p tsconfig.e2e.json
+      - name: Lint
+        run: npx oxlint
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests (stubbed services)
+        run: npx playwright test
+      - name: Keep the failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
