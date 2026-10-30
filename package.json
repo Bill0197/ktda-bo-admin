@@ -9,6 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test -c playwright.live.config.ts",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=brf-bo-admin --branch=main"
   },
   "dependencies": {
