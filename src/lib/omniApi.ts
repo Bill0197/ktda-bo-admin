@@ -487,6 +487,54 @@ export type PaymentIssue = {
  *  the queue holds more than `items`. */
 export type PaymentIssueList = { items: PaymentIssue[]; truncated: boolean };
 
+/** A surveillance alert as the reporting service keeps it; omnichannel passes
+ *  it through unchanged, so the fields are snake_case. `subject_id` is the
+ *  customer's profile id; `offering_id` is set for wash trading only. */
+export type SurveillanceAlert = {
+  id: string;
+  rule: "CAP_STRUCTURING" | "ABNORMAL_VOLUME" | "WASH_TRADING" | string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | string;
+  subject_type: "PROFILE" | string;
+  subject_id: string;
+  offering_id: string | null;
+  period_date: string;
+  status: "OPEN" | "ASSIGNED" | "CLOSED" | string;
+  summary: string;
+  /** The thresholds that tripped, written to be read. */
+  details: string | null;
+  assigned_to: string | null;
+  closed_by: string | null;
+  close_note: string | null;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+};
+
+export type AlertStatus = "OPEN" | "ASSIGNED" | "CLOSED";
+
+/** One snapshot, rule run or report the reporting service did. */
+export type ReportingRun = {
+  id: string;
+  kind: "SNAPSHOT" | "RULES" | "REPORT" | string;
+  /** The day it ran over, or the report's name. */
+  subject: string | null;
+  started_at: string;
+  finished_at: string | null;
+  status: "RUNNING" | "DONE" | "FAILED" | string;
+  detail: string | null;
+};
+
+export type ReportName = "transactions" | "holdings" | "token-supply" | "suspicious-activity";
+
+/** A report as the service produced it, ready to save. */
+export type CsvDownload = { filename: string; blob: Blob };
+
+/** The file name in a Content-Disposition header, or null without one. */
+function filenameOf(disposition: string | null): string | null {
+  const m = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  return m ? decodeURIComponent(m[1].trim()) : null;
+}
+
 export type CustomerAction = { id: string; action: string; target: string | null; outcome: number | null; requestId: string | null; occurredAt: string };
 
 export type CustomerQuery = { phone: string } | { email: string } | { investorId: string } | { profileId: string };
@@ -501,6 +549,8 @@ const marketChangePath = (id: string) => `/market/settings/changes/${encodeURICo
 const fxChangePath = (id: string) => `/fx/settings/changes/${encodeURIComponent(id)}`;
 const paymentPath = (id: string) => `/payments/${encodeURIComponent(id)}`;
 const interventionPath = (id: string) => `/customers/interventions/${encodeURIComponent(id)}`;
+const reportingPath = "/reporting";
+const alertPath = (id: string) => `${reportingPath}/alerts/${encodeURIComponent(id)}`;
 
 /** Omnichannel lists applications by registry result only, so this reads
  *  each result until one matches. */
@@ -689,4 +739,43 @@ export const omniApi = {
    *  is no longer pending (someone else decided). */
   reviewDocument: (id: string, decision: "PASSED" | "FAILED", note?: string) =>
     post<QueuedDocument>(`/onboarding/documents/${encodeURIComponent(id)}/review`, { decision, note }),
+
+  /* Reports and surveillance, from the reporting service through omnichannel
+   * (/reporting). Until the service is switched on every call is a 503 saying
+   * so; an unreachable service or a refused key is a 503 too. Audited. */
+
+  /** A report as CSV. Dates are days (YYYY-MM-DD), inclusive, at most 400
+   *  days apart (else 400); 404 for holdings on a day with no snapshot. */
+  report: async (name: ReportName, params: Record<string, string | undefined> = {}): Promise<CsvDownload> => {
+    const qs = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1])).toString();
+    const res = await send("GET", `${reportingPath}/reports/${name}.csv${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw await failure(res);
+    return { filename: filenameOf(res.headers.get("Content-Disposition")) ?? `${name}.csv`, blob: await res.blob() };
+  },
+  /** The alert queue, newest first; every status when none is given. The
+   *  service returns at most `limit` (it caps it at 500) and does not page. */
+  alerts: async (status?: AlertStatus, limit = 100): Promise<SurveillanceAlert[]> => {
+    const res = await send("GET", `${reportingPath}/alerts?${status ? `status=${status}&` : ""}limit=${limit}`);
+    if (!res.ok) throw await failure(res);
+    return listOf<SurveillanceAlert>(res);
+  },
+  alert: (id: string) => getOne<SurveillanceAlert>(alertPath(id)),
+  /** Assigned to the staff member calling, taking it from anyone holding it.
+   *  409 once closed. */
+  assignAlert: (id: string) => post<SurveillanceAlert>(`${alertPath(id)}/assign`, {}),
+  /** Closed by the staff member calling, with what was found (at most 500
+   *  characters). 409 when already closed. */
+  closeAlert: (id: string, note?: string) => post<SurveillanceAlert>(`${alertPath(id)}/close`, note ? { note } : {}),
+  /** What ran lately, newest first; the service caps `limit` at 500. */
+  reportingRuns: async (limit = 50): Promise<ReportingRun[]> => {
+    const res = await send("GET", `${reportingPath}/runs?limit=${limit}`);
+    if (!res.ok) throw await failure(res);
+    return listOf<ReportingRun>(res);
+  },
+  /** Takes (or retakes) the end-of-day holdings snapshot for a day. */
+  runSnapshot: (asOf: string) =>
+    post<{ asOf: string; rows: number }>(`${reportingPath}/runs/snapshot?asOf=${encodeURIComponent(asOf)}`, undefined),
+  /** Runs the three surveillance rules over a day; an alert is never raised twice. */
+  runSurveillance: (day: string) =>
+    post<{ day: string; newAlerts: number }>(`${reportingPath}/runs/surveillance?day=${encodeURIComponent(day)}`, undefined),
 };

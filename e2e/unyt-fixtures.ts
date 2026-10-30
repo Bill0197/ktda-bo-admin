@@ -5,7 +5,7 @@ import type { ConfigChange } from "../src/lib/tokenConsole/configChanges";
 import type { BondTerms, MarketQuote } from "../src/lib/tokenConsole/prices";
 import type {
   CheckedApplication, CustomerSummary, CustomerTransactionEntry, FxBookEntry, FxChange, FxOverview, Intervention, MarketChange,
-  MarketOverview, PaymentIssue, QueuedDocument, TransactionTotals,
+  MarketOverview, PaymentIssue, QueuedDocument, ReportingRun, SurveillanceAlert, TransactionTotals,
 } from "../src/lib/omniApi";
 import { OTHER, json, signIn } from "./stubs";
 
@@ -227,6 +227,18 @@ const interventions: Intervention[] = [
   { id: "99999999-9999-4999-8999-999999999999", profileId: IDS.profile, customer: "Alice Wanjiru", action: "REINSTATE", note: "False alarm", status: "PENDING", proposedBy: OTHER, proposedAt: AT, decidedBy: null, decidedAt: null, decisionNote: null, profileStatus: "SUSPENDED" },
 ];
 
+export const surveillanceAlerts: SurveillanceAlert[] = [
+  {
+    id: "abababab-abab-4bab-8bab-abababababab", rule: "CAP_STRUCTURING", severity: "HIGH", subject_type: "PROFILE", subject_id: IDS.profile,
+    offering_id: null, period_date: "2026-10-28", status: "OPEN", summary: "4 payments in totalling 39,600 KES on 2026-10-28, each under 10,000",
+    details: "threshold 10000, min count 3", assigned_to: null, closed_by: null, close_note: null, created_at: AT, updated_at: AT, closed_at: null,
+  },
+];
+export const reportingRuns: ReportingRun[] = [
+  { id: "cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd", kind: "REPORT", subject: "transactions-2026-10-01-to-2026-10-28", started_at: AT, finished_at: AT, status: "DONE", detail: "12 rows" },
+  { id: "efefefef-efef-4fef-8fef-efefefefefef", kind: "SNAPSHOT", subject: "2026-10-28", started_at: AT, finished_at: AT, status: "DONE", detail: "47 holdings" },
+];
+
 export const customerSummary: CustomerSummary = {
   profileId: IDS.profile, displayName: "Alice", legalName: "Alice Wanjiru", status: "ACTIVE", registeredAt: AT, contacts: [], links: [], account: null, activeDevices: 1, pushEnabled: true,
 };
@@ -298,6 +310,8 @@ const OMNI: [RegExp, Answer][] = [
   [/^\/customers\/interventions$/, { body: interventions, paged: true }],
   [/^\/customers$/, { body: [customerSummary], paged: true }],
   [new RegExp(`^/customers/${IDS.profile}$`), { body: customerSummary }],
+  [/^\/reporting\/alerts$/, { body: surveillanceAlerts }],
+  [/^\/reporting\/runs$/, { body: reportingRuns }],
 ];
 
 /** What an object endpoint answers when there is nothing to show; every list answers []. */

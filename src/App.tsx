@@ -73,6 +73,8 @@ const TokenConsoleKyc = lazy(() => import("./pages/tokenconsole/Kyc"));
 const TokenConsoleCustomers = lazy(() => import("./pages/tokenconsole/Customers"));
 const TokenConsoleCustomerApprovals = lazy(() => import("./pages/tokenconsole/CustomerApprovals"));
 const TokenConsoleTransactions = lazy(() => import("./pages/tokenconsole/Transactions"));
+const TokenConsoleReports = lazy(() => import("./pages/tokenconsole/Reports"));
+const TokenConsoleSurveillance = lazy(() => import("./pages/tokenconsole/Surveillance"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
 const TokenConsoleNav = lazy(() => import("./pages/tokenconsole/Nav"));
 const TokenConsoleAssets = lazy(() => import("./pages/tokenconsole/Assets"));
@@ -168,6 +170,8 @@ function AppRoutes() {
       <Route path="/token-console/customers" element={<ProtectedRoute><TokenConsoleCustomers /></ProtectedRoute>} />
       <Route path="/token-console/customer-approvals" element={<ProtectedRoute><TokenConsoleCustomerApprovals /></ProtectedRoute>} />
       <Route path="/token-console/transactions" element={<ProtectedRoute><TokenConsoleTransactions /></ProtectedRoute>} />
+      <Route path="/token-console/surveillance" element={<ProtectedRoute><TokenConsoleSurveillance /></ProtectedRoute>} />
+      <Route path="/token-console/reports" element={<ProtectedRoute><TokenConsoleReports /></ProtectedRoute>} />
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />

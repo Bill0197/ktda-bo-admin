@@ -46,6 +46,8 @@ const PAGES: PageCase[] = [
   { path: "customers", heading: "Customer desk", empty: "No customer found.", data: ["Alice Wanjiru"], fails: "omni", search: "alice@example.com" },
   { path: "customer-approvals", heading: "Customer approvals", empty: "Nothing is waiting for a second person", data: ["False alarm", "Alice Wanjiru"], fails: "omni" },
   { path: "transactions", heading: "Transactions", empty: "No customer has paid yet", data: ["QWE123RTY", "+KES 5,000.00"], fails: "omni" },
+  { path: "surveillance", heading: "Surveillance", empty: "No open alerts", data: ["4 payments in totalling 39,600 KES", "47 holdings"], fails: "omni" },
+  { path: "reports", heading: "Reports", empty: "No report has been produced yet", data: ["transactions-2026-10-01-to-2026-10-28"], fails: "omni" },
   { path: "users", heading: "Tokenization users", empty: "No accounts", data: ["peter@baracel.ae", "10.0.0.7"], fails: "tok" },
   { path: "nav", heading: "NAV", empty: "No products", data: ["101.2345", "253,086.25"], fails: "tok" },
   { path: "assets", heading: "Assets", empty: "No assets registered", data: [IDS.assetName, "KES 9,750,000.00"], fails: "tok" },
