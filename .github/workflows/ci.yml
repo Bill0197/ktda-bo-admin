@@ -2,8 +2,8 @@ name: CI
 
 # Type check, lint and the stubbed browser tests on every pull request and on
 # main. The browser tests answer every service call themselves (e2e/stubs.ts),
-# so nothing here reaches UAT and no secret is needed. Deploying stays manual
-# (deploy-ec2.yml).
+# so nothing here reaches UAT and no secret is needed. Deploying is disabled
+# (deploy-ec2.yml.disabled).
 
 on:
   pull_request:

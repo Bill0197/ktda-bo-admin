@@ -1,3 +1,8 @@
+> **Disabled for the KTDA back office.** Everything in this folder, and the
+> `deploy-ec2.yml.disabled` workflow, still targets Investcent's UAT box. The scripts
+> exit at once, `npm run deploy` refuses and the workflow is renamed so GitHub does
+> not load it. Retarget them to a KTDA host, then remove the guards.
+
 # Deploying BO Admin to the UAT EC2 box
 
 BO Admin replaces tokenization-web on the UAT box (3.226.168.177, the only target behind the

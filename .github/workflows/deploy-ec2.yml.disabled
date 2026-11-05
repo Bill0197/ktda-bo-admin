@@ -1,3 +1,7 @@
+# DISABLED for the KTDA back office: this deploys onto Investcent's UAT box.
+# GitHub only loads .yml and .yaml files, so this one never runs. Retarget the
+# host, key and paths to a KTDA box before renaming it back.
+
 name: Deploy to EC2
 
 # Builds BO Admin, then ships it to the UAT EC2 box behind the tokenization-web

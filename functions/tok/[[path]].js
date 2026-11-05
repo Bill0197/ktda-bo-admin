@@ -8,17 +8,16 @@
 // pages.dev would be blocked before authentication is even considered. The
 // browser's Origin is dropped for the same reason.
 //
-// UAT serves a self-signed certificate, which Cloudflare refuses (526) and a
-// Worker cannot override. Until the load balancer has a trusted certificate
-// (or TOK_TARGET points at a host that has one) this answers 503 with a message
-// the app shows as it stands; no redeploy is needed once that is fixed.
-const UPSTREAM = "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
+// The engine is the Pages environment variable TOK_TARGET. There is no
+// default: until it is set every call answers 503 saying so. A target with a
+// self-signed certificate is refused by Cloudflare (526) and answers 503 too.
 
 const FORWARDED = ["accept", "content-type", "cookie"];
 
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);
-  const target = (env.TOK_TARGET || UPSTREAM) + url.pathname.replace(/^\/tok/, "/api") + url.search;
+  if (!env.TOK_TARGET) return notConfigured();
+  const target = env.TOK_TARGET + url.pathname.replace(/^\/tok/, "/api") + url.search;
 
   const headers = new Headers();
   for (const name of FORWARDED) {
@@ -68,6 +67,13 @@ function rewriteCookie(cookie) {
     .filter((p) => p && !/^domain=/i.test(p) && !/^secure$/i.test(p));
   parts.push("Secure");
   return parts.join("; ");
+}
+
+function notConfigured() {
+  return new Response(JSON.stringify({ error: "This site has no engine configured yet (TOK_TARGET)." }), {
+    status: 503,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
 }
 
 function unavailable() {
