@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { FAIL, IDS, stubUnyt, type Mode } from "./unyt-fixtures";
+import { HIDDEN_PAGES } from "../src/lib/hiddenPages";
 
-/* Every Baracel Unyt page (/token-console/*) against stubbed services, three ways:
+/* Every Baracel Unyt page (/token-console/*) the KTDA back office shows (the
+ * investment-only ones are hidden, see src/lib/hiddenPages.ts) against stubbed
+ * services, three ways:
  *   empty  every list answers [] — the page shows its empty state, not a crash;
  *   data   representative rows in the services' own shapes — the page shows them;
  *   fail   every read answers 500 — the page shows its error, not a blank or sample data.
@@ -25,20 +28,12 @@ const PAGES: PageCase[] = [
   { path: "overview", heading: "Overview", empty: "Nothing posted yet", data: ["Subscription by Wanjiru Kamau", "Balanced"], fails: "tok" },
   { path: "investors", heading: "Investors", empty: "No investors on the register yet", data: [IDS.investorName, "Otieno Ochieng"], fails: "tok" },
   { path: "accounts", heading: "Accounts", empty: "No accounts open", data: [IDS.fundContract, IDS.loanContract], fails: "tok" },
-  { path: "offerings", heading: "Offerings", empty: "No offerings", data: [IDS.offering, "TR-9"], fails: "tok" },
-  { path: "products", heading: "Products", empty: "No products defined", data: [IDS.fundProductName, "KES Term Loan"], fails: "tok" },
-  { path: "market", heading: "Market", empty: "No change has been proposed", data: ["Earlier open for the auction"], fails: "omni" },
-  { path: "prices", heading: "Bond prices", empty: "No open bond is priced yet.", data: ["KES 101.75", "KES 100.75"], fails: "tok" },
-  { path: "fx", heading: "FX rates", empty: "No rate has been proposed yet", data: ["FX-5555", "131.1889"], fails: "omni" },
   { path: "journals", heading: "Journals", empty: "Nothing posted yet", data: ["Subscription by Wanjiru Kamau"], fails: "tok" },
   { path: "trial-balance", heading: "Trial balance", empty: "No balances", data: ["Investor principal", "-250,000.00"], fails: "tok" },
-  { path: "unit-ledger", heading: "Unit ledger", empty: "No units outstanding", data: ["SUB-1", "KES 250,000.00"], fails: "tok" },
   { path: "reconciliation", heading: "Reconciliation", empty: "Nothing to reconcile", data: ["Agrees"], fails: "tok" },
   { path: "runs", heading: "Batch runs", empty: "No runs yet", data: ["RUN-ACC-1", "95.89"], fails: "tok" },
-  { path: "policies", heading: "Accrual & distribution policies", empty: "No accrual policies", data: ["Daily NAV strike", "withholding 15%"], fails: "tok" },
   { path: "compliance", heading: "Review queue", empty: "Queue is clear", data: ["Name partially matches a sanctions list"], fails: "tok" },
   { path: "changes", heading: "Change approvals", empty: "Nothing is waiting.", data: ["Price BRF-KES-INC at 101.25", "Management fee 2%"], fails: "tok" },
-  { path: "funds", heading: "Funds", empty: "No ladders built", data: ["CMA/CIS/2026/01", "KES 19,750,000.00"], fails: "tok" },
   { path: "tariffs", heading: "Tariffs", empty: "No values", data: ["Retail default", "1.5%"], fails: "tok" },
   { path: "configuration", heading: "Configuration", empty: /No schemes yet/, data: ["Bond fund scheme"], fails: "tok" },
   { path: "loans", heading: "Loans", empty: "No loan accounts yet", data: [IDS.loanContract], fails: "tok" },
@@ -49,16 +44,17 @@ const PAGES: PageCase[] = [
   { path: "surveillance", heading: "Surveillance", empty: "No open alerts", data: ["4 payments in totalling 39,600 KES", "47 holdings"], fails: "omni" },
   { path: "reports", heading: "Reports", empty: "No report has been produced yet", data: ["transactions-2026-10-01-to-2026-10-28"], fails: "omni" },
   { path: "users", heading: "Tokenization users", empty: "No accounts", data: ["peter@baracel.ae", "10.0.0.7"], fails: "tok" },
-  { path: "nav", heading: "NAV", empty: "No products", data: ["101.2345", "253,086.25"], fails: "tok" },
-  { path: "assets", heading: "Assets", empty: "No assets registered", data: [IDS.assetName, "KES 9,750,000.00"], fails: "tok" },
 ];
 
-/** Every route App.tsx serves under /token-console (bar the redirects) has a case above. */
-test("every Unyt route is covered", async () => {
+/** Every route App.tsx serves under /token-console (bar the redirects and the
+ *  hidden pages) has a case above. */
+test("every shown Unyt route is covered", async () => {
   const fs = await import("node:fs");
   const app = fs.readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-  const routes = [...app.matchAll(/path="\/token-console\/([\w-]+)" element=\{<ProtectedRoute>/g)].map((m) => m[1]);
-  expect(routes.length).toBeGreaterThanOrEqual(27);
+  const routes = [...app.matchAll(/path="\/token-console\/([\w-]+)" element=\{<ProtectedRoute>/g)]
+    .map((m) => m[1])
+    .filter((r) => !HIDDEN_PAGES.has(`/token-console/${r}`));
+  expect(routes.length).toBeGreaterThanOrEqual(17);
   expect(PAGES.map((p) => p.path).sort()).toEqual([...routes].sort());
 });
 

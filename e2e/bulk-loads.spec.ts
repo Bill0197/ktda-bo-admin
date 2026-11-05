@@ -41,7 +41,7 @@ async function stubBulk(page: Page, opts: {
   const sent: Sent[] = [];
   let poll = 0;
   await page.route(/\/tok\/accounting\/institutions$/, (route) => json(route, [
-    { institutionId: OTHER, name: "Investcent Kenya", localCurrency: "KES" },
+    { institutionId: OTHER, name: "Other Institution", localCurrency: "KES" },
     { institutionId: KTDA, name: "KTDA Holdings", localCurrency: "KES" },
   ]));
   await page.route(R, (route) => {
