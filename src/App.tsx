@@ -31,7 +31,6 @@ const PlatformSettings = lazy(() => import("./pages/PlatformSettings"));
 const FeatureFlags = lazy(() => import("./pages/FeatureFlags"));
 const AuditLog = lazy(() => import("./pages/AuditLog"));
 const System = lazy(() => import("./pages/System"));
-const Catalogue = lazy(() => import("./pages/Catalogue"));
 const Ledger = lazy(() => import("./pages/Ledger"));
 const Enquiries = lazy(() => import("./pages/Enquiries"));
 const Tasks = lazy(() => import("./pages/Tasks"));
@@ -83,7 +82,6 @@ function AppRoutes() {
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/reconciliation" element={<ProtectedRoute><Reconciliation /></ProtectedRoute>} />
       <Route path="/unallocated-funds" element={<ProtectedRoute><UnallocatedFunds /></ProtectedRoute>} />
-      <Route path="/catalogue" element={<ProtectedRoute><Catalogue /></ProtectedRoute>} />
       <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
       <Route path="/enquiries" element={<ProtectedRoute><Enquiries /></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />

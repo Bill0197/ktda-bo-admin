@@ -1,5 +1,10 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, CalendarClock, FileSignature, Percent, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows,
+  Wallet, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog,
+  MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale,
+  Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch,
+  Fingerprint, BookOpenCheck, Inbox, ListChecks, Megaphone, Blocks, CalendarClock, FileSignature, Percent,
+  BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -53,7 +58,6 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Unallocated funds", to: "/unallocated-funds", section: "Operations", icon: Wallet },
   { label: "General ledger", to: "/ledger", section: "Finance", icon: BookOpenCheck },
   { label: "Reports", to: "/reports", section: "Reporting", icon: FileBarChart2 },
-  { label: "Product catalogue", to: "/catalogue", section: "Platform", icon: PackageSearch },
   { label: "Platform settings", to: "/settings", section: "Platform", icon: SlidersHorizontal },
   { label: "Feature flags", to: "/feature-flags", section: "Platform", icon: ToggleLeft },
   { label: "Users & roles", to: "/users", section: "Admin", icon: UserCog },
