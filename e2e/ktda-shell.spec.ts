@@ -135,6 +135,13 @@ test.describe("signed in", () => {
     await expect(html).not.toHaveClass(/\bdark\b/);
   });
 
+  test("the app opens light even when the system theme is dark", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Light theme" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+  });
+
   test("the top bar shows the signed-in user's name and role", async ({ page }) => {
     const chip = page.getByTestId("user-chip");
     await expect(chip).toContainText(STAFF.fullName);

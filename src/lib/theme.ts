@@ -6,15 +6,17 @@ import { useEffect, useState } from "react";
 
 export type ThemeChoice = "light" | "dark" | "system";
 
-const KEY = "ktda-bo.theme";
+/* Light unless the user picks otherwise: the app never turns dark on its own.
+   A new key, so a choice saved while "system" was the default starts light. */
+const KEY = "ktda-bo.theme.v2";
 const media = () => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null);
 
 export function storedTheme(): ThemeChoice {
   try {
     const v = window.localStorage.getItem(KEY);
-    return v === "light" || v === "dark" ? v : "system";
+    return v === "dark" || v === "system" ? v : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 
@@ -31,7 +33,7 @@ export function useTheme(): [ThemeChoice, (c: ThemeChoice) => void] {
   useEffect(() => {
     applyTheme(choice);
     try {
-      if (choice === "system") window.localStorage.removeItem(KEY);
+      if (choice === "light") window.localStorage.removeItem(KEY);
       else window.localStorage.setItem(KEY, choice);
     } catch {
       /* storage unavailable: the choice lasts for this tab only */
