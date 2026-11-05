@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -26,9 +26,6 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Fraud alerts", to: "/fraud-alerts", section: "Fraud Reporting", icon: TriangleAlert },
   { label: "Fraud cases", to: "/fraud-cases", section: "Fraud Reporting", icon: FileSearch },
   { label: "Screening", to: "/screening", section: "Compliance", icon: Radar },
-  { label: "Token issuance", to: "/tokenization/issuance", section: "Tokenization Compliance", icon: Coins },
-  { label: "Token lifecycle", to: "/tokenization/lifecycle", section: "Tokenization Compliance", icon: Blocks },
-  { label: "Smart contract management", to: "/tokenization/smart-contracts", section: "Tokenization Compliance", icon: FileCode2 },
   { label: "Overview", to: "/token-console/overview", section: "Baracel Unyt", icon: LayoutDashboard },
   { label: "Investors", to: "/token-console/investors", section: "Baracel Unyt", icon: Users },
   { label: "Accounts", to: "/token-console/accounts", section: "Baracel Unyt", icon: Wallet },
@@ -133,7 +130,6 @@ export const SECTION_ICONS: Record<string, ReactNode> = {
   "Transaction Monitoring": <Siren size={16} />,
   "Fraud Reporting": <Fingerprint size={16} />,
   Compliance: <Scale size={16} />,
-  "Tokenization Compliance": <Coins size={16} />,
   "Farmer Payments": <HandCoins size={16} />,
   "Baracel Unyt": <Blocks size={16} />,
   "Market Conduct": <Gavel size={16} />,

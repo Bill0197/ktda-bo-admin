@@ -40,9 +40,6 @@ const Ledger = lazy(() => import("./pages/Ledger"));
 const Enquiries = lazy(() => import("./pages/Enquiries"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
-const TokenIssuance = lazy(() => import("./pages/tokenization/TokenIssuance"));
-const TokenLifecycle = lazy(() => import("./pages/tokenization/TokenLifecycle"));
-const SmartContracts = lazy(() => import("./pages/tokenization/SmartContracts"));
 const TokenConsoleOverview = lazy(() => import("./pages/tokenconsole/Overview"));
 const TokenConsoleInvestors = lazy(() => import("./pages/tokenconsole/Investors"));
 const TokenConsoleAccounts = lazy(() => import("./pages/tokenconsole/Accounts"));
@@ -128,9 +125,6 @@ function AppRoutes() {
       <Route path="/enquiries" element={<ProtectedRoute><Enquiries /></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
       <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
-      <Route path="/tokenization/issuance" element={<ProtectedRoute><TokenIssuance /></ProtectedRoute>} />
-      <Route path="/tokenization/lifecycle" element={<ProtectedRoute><TokenLifecycle /></ProtectedRoute>} />
-      <Route path="/tokenization/smart-contracts" element={<ProtectedRoute><SmartContracts /></ProtectedRoute>} />
       {/* Baracel Unyt, the merged tokenization console. The bare prefix is not a page: its
           overview lives one level down so a grant on it cannot cover the
           console's other pages (see canAccess in lib/auth.tsx). */}
