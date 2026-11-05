@@ -17,6 +17,7 @@ import { ClipboardCheck, Users, TrendingUp, Droplets, ScrollText, ArrowUpRight, 
 import { useAuth, ROLE_LABELS } from "../lib/auth";
 import { Link } from "react-router-dom";
 import { useAsyncData } from "../lib/useAsyncData";
+import { isHiddenPage } from "../lib/hiddenPages";
 
 /* The dashboard is role-aware by construction: every panel is gated on the same
  * `canAccess` check the router uses, so a role that cannot open Approvals never
@@ -139,7 +140,8 @@ export default function Dashboard() {
   const showFund = canAccess("/nav") || canAccess("/liquidity");
   const showFlows = canAccess("/transactions") || canAccess("/nav");
   const showCompliance = canAccess("/kyc-queue") || canAccess("/aml-alerts") || canAccess("/cases");
-  const showClients = canAccess("/clients");
+  // The demo farmer register is hidden (lib/hiddenPages.ts), so no tile leads to it.
+  const showClients = canAccess("/clients") && !isHiddenPage("/clients");
   const showLeads = canAccess("/leads");
   const showSuitability = canAccess("/suitability");
 

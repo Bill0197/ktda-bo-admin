@@ -29,14 +29,14 @@ test.describe("signed in", () => {
     await expect(page.locator("body")).not.toContainText(/Investcent|Capital Markets Authority/);
   });
 
-  test("Farmer Payments and Farmers are in the menu", async ({ page }) => {
+  test("Farmer Payments and the live Farmers list are in the menu", async ({ page }) => {
     const menu = nav(page);
     await menu.getByRole("button", { name: "Farmer Payments" }).click();
     await expect(menu.getByRole("link", { name: "Bulk onboarding" })).toBeVisible();
     await expect(menu.getByRole("link", { name: "Bulk payments" })).toBeVisible();
-    await menu.getByRole("button", { name: "Farmer Services" }).click();
-    await expect(menu.getByRole("link", { name: "Farmers", exact: true })).toHaveAttribute("href", "/clients");
-    await expect(menu.getByRole("link", { name: "Clients", exact: true })).toHaveCount(0);
+    await menu.getByRole("button", { name: "Baracel Unyt" }).click();
+    await expect(menu.getByRole("link", { name: "Farmers", exact: true })).toHaveAttribute("href", "/token-console/investors");
+    await expect(menu.getByRole("link", { name: "Investors", exact: true })).toHaveCount(0);
   });
 
   test("no hidden page has a menu link, and no investment section is left", async ({ page }) => {
@@ -53,9 +53,20 @@ test.describe("signed in", () => {
     await expect(page.locator("main h1").first()).toBeVisible();
   });
 
-  test("the Farmers page and its record say farmers", async ({ page }) => {
-    await page.goto("/clients");
+  test("only one menu item is called Farmers: the demo register is hidden", async ({ page }) => {
+    const farmers = page.locator("aside a", { hasText: /^Farmers$/ });
+    await expect(farmers).toHaveCount(1);
+    await expect(farmers).toHaveAttribute("href", "/token-console/investors");
+    const hrefs = await page.locator("aside a[href]").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    expect(hrefs).not.toContain("/clients");
+    await expect(page.getByRole("link", { name: "Client files" })).toHaveCount(0);
+  });
+
+  test("the live Farmers page says farmers", async ({ page }) => {
+    await page.route(/\/tok\/accounting\/investors$/, (route) => json(route, []));
+    await page.goto("/token-console/investors");
     await expect(page.getByRole("heading", { name: "Farmers", level: 1 })).toBeVisible();
-    await expect(page.getByText(/of \d+ farmers/)).toBeVisible();
+    await expect(page.getByText("No farmers on the register yet")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Onboard farmer" })).toBeVisible();
   });
 });

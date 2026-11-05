@@ -6,6 +6,9 @@
    once that is agreed, then drop it from here. */
 
 export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
+  // Farmer Services: the demo farmer register. The live one is the engine's,
+  // under Baracel Unyt (/token-console/investors, labelled Farmers).
+  "/clients",
   // Client Services and Business Development: investment sales
   "/leads", "/suitability", "/coverage", "/pipeline", "/bd-performance",
   // Tokenization Compliance
