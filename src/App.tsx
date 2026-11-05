@@ -58,15 +58,6 @@ const TokenConsoleTransactions = lazy(() => import("./pages/tokenconsole/Transac
 const TokenConsoleReports = lazy(() => import("./pages/tokenconsole/Reports"));
 const TokenConsoleSurveillance = lazy(() => import("./pages/tokenconsole/Surveillance"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
-const InvProducts = lazy(() => import("./pages/investment/Products"));
-const InvOrders = lazy(() => import("./pages/investment/Orders"));
-const InvPortfolio = lazy(() => import("./pages/investment/PortfolioManagement"));
-const InvHoldings = lazy(() => import("./pages/investment/Holdings"));
-const InvValuations = lazy(() => import("./pages/investment/Valuations"));
-const InvRedemptions = lazy(() => import("./pages/investment/Redemptions"));
-const InvCorporateActions = lazy(() => import("./pages/investment/CorporateActions"));
-const InvIcApprovals = lazy(() => import("./pages/investment/IcApprovals"));
-const InvMandates = lazy(() => import("./pages/investment/Mandates"));
 const InstClients = lazy(() => import("./pages/institutional/Clients"));
 const InstMandates = lazy(() => import("./pages/institutional/Mandates"));
 const InstPortfolios = lazy(() => import("./pages/institutional/Portfolios"));
@@ -131,15 +122,6 @@ function AppRoutes() {
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />
-      <Route path="/investment/products" element={<ProtectedRoute><InvProducts /></ProtectedRoute>} />
-      <Route path="/investment/orders" element={<ProtectedRoute><InvOrders /></ProtectedRoute>} />
-      <Route path="/investment/portfolio" element={<ProtectedRoute><InvPortfolio /></ProtectedRoute>} />
-      <Route path="/investment/holdings" element={<ProtectedRoute><InvHoldings /></ProtectedRoute>} />
-      <Route path="/investment/valuations" element={<ProtectedRoute><InvValuations /></ProtectedRoute>} />
-      <Route path="/investment/redemptions" element={<ProtectedRoute><InvRedemptions /></ProtectedRoute>} />
-      <Route path="/investment/corporate-actions" element={<ProtectedRoute><InvCorporateActions /></ProtectedRoute>} />
-      <Route path="/investment/ic-approvals" element={<ProtectedRoute><InvIcApprovals /></ProtectedRoute>} />
-      <Route path="/investment/mandates" element={<ProtectedRoute><InvMandates /></ProtectedRoute>} />
       <Route path="/institutional/clients" element={<ProtectedRoute><InstClients /></ProtectedRoute>} />
       <Route path="/institutional/mandates" element={<ProtectedRoute><InstMandates /></ProtectedRoute>} />
       <Route path="/institutional/portfolios" element={<ProtectedRoute><InstPortfolios /></ProtectedRoute>} />
