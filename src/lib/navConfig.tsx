@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, Gavel, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, Gavel, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -51,9 +51,6 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Transactions", to: "/transactions", section: "Operations", icon: Receipt },
   { label: "Reconciliation", to: "/reconciliation", section: "Operations", icon: GitCompareArrows },
   { label: "Unallocated funds", to: "/unallocated-funds", section: "Operations", icon: Wallet },
-  { label: "NAV", to: "/nav", section: "Finance", icon: TrendingUp },
-  { label: "Distributions", to: "/distributions", section: "Finance", icon: Banknote },
-  { label: "Liquidity & gate", to: "/liquidity", section: "Finance", icon: Droplets },
   { label: "General ledger", to: "/ledger", section: "Finance", icon: BookOpenCheck },
   { label: "Bond ladder", to: "/bond-ladder", section: "Investments", icon: Landmark },
   { label: "Products & funds", to: "/investment/products", section: "Investment Management", icon: Boxes },

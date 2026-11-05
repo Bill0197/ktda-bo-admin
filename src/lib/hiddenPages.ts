@@ -15,9 +15,8 @@ export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   "/token-console/policies", "/token-console/funds",
   // Market Conduct
   // Institutional Investment Compliance
-  
   // Finance and Investments: fund accounting
-  "/nav", "/distributions", "/liquidity", "/bond-ladder",
+  "/bond-ladder",
   // Investment Management
   "/investment/products", "/investment/orders", "/investment/portfolio", "/investment/holdings",
   "/investment/valuations", "/investment/redemptions", "/investment/corporate-actions",

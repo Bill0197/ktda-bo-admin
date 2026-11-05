@@ -25,9 +25,6 @@ const Approvals = lazy(() => import("./pages/Approvals"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 const UnallocatedFunds = lazy(() => import("./pages/UnallocatedFunds"));
-const Nav = lazy(() => import("./pages/Nav"));
-const Distributions = lazy(() => import("./pages/Distributions"));
-const Liquidity = lazy(() => import("./pages/Liquidity"));
 const BondLadder = lazy(() => import("./pages/BondLadder"));
 const UsersAdmin = lazy(() => import("./pages/UsersAdmin"));
 const Reports = lazy(() => import("./pages/Reports"));
@@ -101,9 +98,6 @@ function AppRoutes() {
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/reconciliation" element={<ProtectedRoute><Reconciliation /></ProtectedRoute>} />
       <Route path="/unallocated-funds" element={<ProtectedRoute><UnallocatedFunds /></ProtectedRoute>} />
-      <Route path="/nav" element={<ProtectedRoute><Nav /></ProtectedRoute>} />
-      <Route path="/distributions" element={<ProtectedRoute><Distributions /></ProtectedRoute>} />
-      <Route path="/liquidity" element={<ProtectedRoute><Liquidity /></ProtectedRoute>} />
       <Route path="/bond-ladder" element={<ProtectedRoute><BondLadder /></ProtectedRoute>} />
       <Route path="/catalogue" element={<ProtectedRoute><Catalogue /></ProtectedRoute>} />
       <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />

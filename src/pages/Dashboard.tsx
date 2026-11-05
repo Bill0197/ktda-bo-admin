@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import {
-  getFacilityState, useContentField,
+  useContentField,
   AUDIT_CATEGORY_LABELS, LIFECYCLE_LABELS, CASE_STATUS_LABELS, APPROVAL_KIND_LABELS,
-  INDICATIVE_USD_KES, type FacilityState, type SubFund,
+  INDICATIVE_USD_KES, type SubFund,
 } from "../mock";
 import {
   getApprovalQueue, getClients, getSubFunds, getAuditLog, getFundFlows, getAumTrend,
@@ -10,10 +10,10 @@ import {
 } from "../lib/api";
 import {
   PageHeader, StatCard, Card, Badge, Skeleton, formatDateTime, formatDate,
-  TimeSeriesChart, ColumnChart, DonutChart, GaugeArc, TrendSpark, BulletBar, ChartFrame,
+  TimeSeriesChart, ColumnChart, DonutChart, TrendSpark, BulletBar, ChartFrame,
   compactNumber,
 } from "../ui";
-import { ClipboardCheck, Users, TrendingUp, Droplets, ScrollText, ArrowUpRight, ArrowDownRight, ShieldAlert } from "lucide-react";
+import { ClipboardCheck, Users, ScrollText, ArrowUpRight, ArrowDownRight, ShieldAlert } from "lucide-react";
 import { useAuth, ROLE_LABELS } from "../lib/auth";
 import { Link } from "react-router-dom";
 import { useAsyncData } from "../lib/useAsyncData";
@@ -145,18 +145,8 @@ export default function Dashboard() {
   const { data: coupons, loading: couponsLoading } = useAsyncData(() => (showFund ? getCouponCalendar(12) : Promise.resolve([])));
   const { data: snapshot, loading: snapshotLoading } = useAsyncData(() => (role ? getOpsSnapshot(role) : Promise.resolve(null)));
   const { data: audit, loading: auditLoading } = useAsyncData(() => (showAudit ? getAuditLog() : Promise.resolve([])));
-  const { data: facilities } = useAsyncData(async () => {
-    if (!canAccess("/liquidity")) return {} as Record<string, FacilityState>;
-    const fs = await getSubFunds();
-    const rows = await Promise.all(fs.map(async (f) => [f.code, await getFacilityState(f.code)] as const));
-    return Object.fromEntries(rows) as Record<string, FacilityState>;
-  });
 
   const pending = useMemo(() => (approvals ?? []).filter((a) => a.status === "pending"), [approvals]);
-  const totalAum = (funds ?? []).reduce((sum, f) => sum + f.aum, 0);
-  const avgUtilisation = funds && funds.length
-    ? funds.reduce((s, f) => s + f.liquidityUsed / (f.aum * 0.1), 0) / funds.length
-    : 0;
 
   const windowed = useMemo(() => (flows ?? []).slice(-flowRange), [flows, flowRange]);
   const netFlow = windowed.reduce((s, d) => s + d.subscriptions - d.redemptions, 0);
@@ -172,7 +162,6 @@ export default function Dashboard() {
      never be shown with the wrong span — or shown at all without a role check. */
   const panelDefs: PanelDef[] = [
     { key: "flows", span: 2, show: showFlows, grow: true },
-    { key: "gate", span: 1, show: canAccess("/liquidity") },
     { key: "aum", span: 2, show: showFund, grow: true },
     { key: "coupons", span: 1, show: showFund, grow: true },
     { key: "files", span: 1, show: showCompliance, grow: true },
@@ -187,18 +176,6 @@ export default function Dashboard() {
   const span = panelSpans(panelDefs);
 
   const tiles = [
-    showFund && (
-      <StatCard
-        key="aum"
-        label="Total AUM"
-        value={`KES ${(totalAum / 1_000_000).toFixed(1)}M`}
-        icon={<TrendingUp size={18} />}
-        trend={{ value: "+11.3% YTD", positive: true }}
-        tooltip="AUM = Assets Under Management, the total value of client money currently invested in the fund. YTD = year to date."
-        chart={aum && aum.length > 1 ? <TrendSpark points={aum.map((p) => p.kes + p.usd * INDICATIVE_USD_KES)} colorIndex={0} /> : undefined}
-        to={canAccess("/nav") ? "/nav" : undefined}
-      />
-    ),
     showFlows && (
       <StatCard
         key="flow"
@@ -221,17 +198,6 @@ export default function Dashboard() {
         trend={snapshot && snapshot.oldestApprovalDays >= 3 ? { value: "ageing queue", positive: false } : undefined}
         tooltip="Maker-checker: actions here need approval from someone other than the person who proposed them."
         to="/approvals"
-      />
-    ),
-    canAccess("/liquidity") && (
-      <StatCard
-        key="liquidity"
-        label="Liquidity utilisation"
-        value={`${(avgUtilisation * 100).toFixed(1)}%`}
-        icon={<Droplets size={18} />}
-        hint="of 10% gate threshold"
-        tooltip="How much of the fund's redemption safety buffer has been used this period. Crossing 10% of AUM can trigger the liquidity 'gate' that delays large withdrawals."
-        to="/liquidity"
       />
     ),
     canAccess("/aml-alerts") && (
@@ -337,46 +303,6 @@ export default function Dashboard() {
                 ]}
               />
             )}
-          </ChartFrame>
-        )}
-
-        {/* ---- liquidity: the control that stops a run ---- */}
-        {shown.gate && (
-          <ChartFrame
-            className={span.gate}
-            title="Gate utilisation"
-            subtitle="Redemptions this period against the 10%-of-AUM gate. The notch is the gate itself."
-          >
-            {fundsLoading ? (
-              <ChartSkeleton height={200} />
-            ) : (
-              <div className="flex flex-wrap items-start justify-around gap-4 pt-2">
-                {(funds ?? []).map((f) => {
-                  const threshold = facilities?.[f.code]?.gateThresholdValue ?? f.aum * 0.1;
-                  const util = threshold > 0 ? f.liquidityUsed / threshold : 0;
-                  const tone = f.gateActive ? "danger" : util > 0.7 ? "warning" : "success";
-                  return (
-                    <GaugeArc
-                      key={f.code}
-                      value={util}
-                      markerAt={1}
-                      tone={tone}
-                      label={`${(util * 100).toFixed(0)}%`}
-                      caption={
-                        <>
-                          <span className="block font-medium text-text-soft">{f.currency} fund</span>
-                          <span className="block">{compactNumber(f.liquidityUsed)} of {compactNumber(threshold)}</span>
-                        </>
-                      }
-                    />
-                  );
-                })}
-              </div>
-            )}
-            <p className="text-[11px] text-text-faint mt-3 leading-snug">
-              Crossing the gate defers the excess FIFO for up to five dealing days —{" "}
-              <Link to="/liquidity" className="text-primary-600 font-medium">facility &amp; covenant detail</Link>.
-            </p>
           </ChartFrame>
         )}
 
