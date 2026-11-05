@@ -34,8 +34,8 @@ export default function TokenConsoleFunds() {
     <div>
       <PageHeader
         eyebrow="Baracel Unyt"
-        title="Funds"
-        subtitle="The structure products hang off: institutions, funds, sub-funds and their bond ladders. Select a sub-fund to work its ladder."
+        title="Institutions"
+        subtitle="Institutions and the structure products hang off them: their accounts, funds, sub-funds and bond ladders. Select a sub-fund to work its ladder."
       />
 
       <ConsoleTable<BondLadderView>

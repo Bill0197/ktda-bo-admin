@@ -35,6 +35,7 @@ const PAGES: PageCase[] = [
   { path: "compliance", heading: "Review queue", empty: "Queue is clear", data: ["Name partially matches a sanctions list"], fails: "tok" },
   { path: "changes", heading: "Change approvals", empty: "Nothing is waiting.", data: ["Price BRF-KES-INC at 101.25", "Management fee 2%"], fails: "tok" },
   { path: "tariffs", heading: "Tariffs", empty: "No values", data: ["Retail default", "1.5%"], fails: "tok" },
+  { path: "funds", heading: "Institutions", empty: "No ladders built", data: ["CMA/CIS/2026/01", "KES 19,750,000.00"], fails: "tok" },
   { path: "configuration", heading: "Configuration", empty: /No schemes yet/, data: ["Bond fund scheme"], fails: "tok" },
   { path: "loans", heading: "Loans", empty: "No loan accounts yet", data: [IDS.loanContract], fails: "tok" },
   { path: "kyc", heading: "KYC desk", empty: /REGISTRY MISMATCHES\s*0/i, data: ["Otieno Ochieng", "Born Apr 02, 1990"], fails: "omni" },

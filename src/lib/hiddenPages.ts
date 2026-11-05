@@ -8,9 +8,8 @@ export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   // under Baracel Unyt (/token-console/investors, labelled Farmers). Demo
   // pages (screening, KYC, cases) still link to its records.
   "/clients",
-  // Baracel Unyt: kept for KTDA requirements (Policies drive the batch runs;
-  // Funds is where institutions are created and given a tariff domain).
-  "/token-console/policies", "/token-console/funds",
+  // Baracel Unyt: kept for KTDA requirements (Policies drive the batch runs).
+  "/token-console/policies",
 ]);
 
 export const isHiddenPage = (path: string) => HIDDEN_PAGES.has(path);

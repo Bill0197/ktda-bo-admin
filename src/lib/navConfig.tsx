@@ -69,6 +69,7 @@ const ALL_NAV_DEFS: NavDef[] = [
 const KTDA_LABELS: Record<string, string> = {
   "/clients": "Farmers",
   "/token-console/investors": "Farmers",
+  "/token-console/funds": "Institutions",
 };
 /** KTDA's names for sections, where the source's do not fit. */
 const KTDA_SECTIONS: Record<string, string> = {
