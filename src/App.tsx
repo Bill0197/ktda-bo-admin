@@ -76,10 +76,6 @@ const InstMandates = lazy(() => import("./pages/institutional/Mandates"));
 const InstPortfolios = lazy(() => import("./pages/institutional/Portfolios"));
 const InstFees = lazy(() => import("./pages/institutional/Fees"));
 const InstReporting = lazy(() => import("./pages/institutional/Reporting"));
-const InstBreaches = lazy(() => import("./pages/instcompliance/Breaches"));
-const InstRestrictions = lazy(() => import("./pages/instcompliance/Restrictions"));
-const InstCounterparties = lazy(() => import("./pages/instcompliance/Counterparties"));
-const InstClientCompliance = lazy(() => import("./pages/instcompliance/ClientCompliance"));
 
 function AppRoutes() {
   return (
@@ -157,10 +153,6 @@ function AppRoutes() {
       <Route path="/institutional/portfolios" element={<ProtectedRoute><InstPortfolios /></ProtectedRoute>} />
       <Route path="/institutional/fees" element={<ProtectedRoute><InstFees /></ProtectedRoute>} />
       <Route path="/institutional/reporting" element={<ProtectedRoute><InstReporting /></ProtectedRoute>} />
-      <Route path="/institutional-compliance/breaches" element={<ProtectedRoute><InstBreaches /></ProtectedRoute>} />
-      <Route path="/institutional-compliance/restrictions" element={<ProtectedRoute><InstRestrictions /></ProtectedRoute>} />
-      <Route path="/institutional-compliance/counterparties" element={<ProtectedRoute><InstCounterparties /></ProtectedRoute>} />
-      <Route path="/institutional-compliance/clients" element={<ProtectedRoute><InstClientCompliance /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UsersAdmin /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />

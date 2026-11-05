@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, ShieldX, Gavel, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, Gavel, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -47,10 +47,6 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Configuration", to: "/token-console/configuration", section: "Baracel Unyt", icon: SlidersHorizontal },
   { label: "Change approvals", to: "/token-console/changes", section: "Baracel Unyt", icon: ClipboardCheck },
   { label: "Tokenization users", to: "/token-console/users", section: "Baracel Unyt", icon: KeyRound },
-  { label: "Mandate breaches", to: "/institutional-compliance/breaches", section: "Institutional Investment Compliance", icon: ShieldX },
-  { label: "Investment restrictions", to: "/institutional-compliance/restrictions", section: "Institutional Investment Compliance", icon: Gavel },
-  { label: "Counterparty due diligence", to: "/institutional-compliance/counterparties", section: "Institutional Investment Compliance", icon: Building2 },
-  { label: "Institutional client compliance", to: "/institutional-compliance/clients", section: "Institutional Investment Compliance", icon: FileSignature },
   { label: "Approvals", to: "/approvals", section: "Controls", icon: ClipboardCheck },
   { label: "Transactions", to: "/transactions", section: "Operations", icon: Receipt },
   { label: "Reconciliation", to: "/reconciliation", section: "Operations", icon: GitCompareArrows },
@@ -121,7 +117,6 @@ export const SECTION_ICONS: Record<string, ReactNode> = {
   Compliance: <Scale size={16} />,
   "Farmer Payments": <HandCoins size={16} />,
   "Baracel Unyt": <Blocks size={16} />,
-  "Institutional Investment Compliance": <ShieldX size={16} />,
   Controls: <Stamp size={16} />,
   Operations: <Workflow size={16} />,
   Finance: <CircleDollarSign size={16} />,
