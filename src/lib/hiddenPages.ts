@@ -17,10 +17,8 @@ export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   // Institutional Investment Compliance
   // Finance and Investments: fund accounting
   // Investment Management
-  
   // Institutional Funds
-  "/institutional/clients", "/institutional/mandates", "/institutional/portfolios",
-  "/institutional/fees", "/institutional/reporting",
+  
   // Platform
   "/catalogue",
 ]);

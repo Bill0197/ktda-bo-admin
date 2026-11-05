@@ -58,11 +58,6 @@ const TokenConsoleTransactions = lazy(() => import("./pages/tokenconsole/Transac
 const TokenConsoleReports = lazy(() => import("./pages/tokenconsole/Reports"));
 const TokenConsoleSurveillance = lazy(() => import("./pages/tokenconsole/Surveillance"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
-const InstClients = lazy(() => import("./pages/institutional/Clients"));
-const InstMandates = lazy(() => import("./pages/institutional/Mandates"));
-const InstPortfolios = lazy(() => import("./pages/institutional/Portfolios"));
-const InstFees = lazy(() => import("./pages/institutional/Fees"));
-const InstReporting = lazy(() => import("./pages/institutional/Reporting"));
 
 function AppRoutes() {
   return (
@@ -122,11 +117,6 @@ function AppRoutes() {
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />
-      <Route path="/institutional/clients" element={<ProtectedRoute><InstClients /></ProtectedRoute>} />
-      <Route path="/institutional/mandates" element={<ProtectedRoute><InstMandates /></ProtectedRoute>} />
-      <Route path="/institutional/portfolios" element={<ProtectedRoute><InstPortfolios /></ProtectedRoute>} />
-      <Route path="/institutional/fees" element={<ProtectedRoute><InstFees /></ProtectedRoute>} />
-      <Route path="/institutional/reporting" element={<ProtectedRoute><InstReporting /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UsersAdmin /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, CalendarClock, FileSignature, Building2, Percent, Send, Gavel, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, CalendarClock, FileSignature, Percent, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -52,11 +52,6 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Reconciliation", to: "/reconciliation", section: "Operations", icon: GitCompareArrows },
   { label: "Unallocated funds", to: "/unallocated-funds", section: "Operations", icon: Wallet },
   { label: "General ledger", to: "/ledger", section: "Finance", icon: BookOpenCheck },
-  { label: "Institutional clients", to: "/institutional/clients", section: "Institutional Funds", icon: Building2 },
-  { label: "Mandates & restrictions", to: "/institutional/mandates", section: "Institutional Funds", icon: Gavel },
-  { label: "Segregated portfolios", to: "/institutional/portfolios", section: "Institutional Funds", icon: LineChart },
-  { label: "Fee schedules", to: "/institutional/fees", section: "Institutional Funds", icon: Percent },
-  { label: "Institutional reporting", to: "/institutional/reporting", section: "Institutional Funds", icon: Send },
   { label: "Reports", to: "/reports", section: "Reporting", icon: FileBarChart2 },
   { label: "Product catalogue", to: "/catalogue", section: "Platform", icon: PackageSearch },
   { label: "Platform settings", to: "/settings", section: "Platform", icon: SlidersHorizontal },
@@ -107,7 +102,6 @@ export const SECTION_ICONS: Record<string, ReactNode> = {
   Controls: <Stamp size={16} />,
   Operations: <Workflow size={16} />,
   Finance: <CircleDollarSign size={16} />,
-  "Institutional Funds": <Building2 size={16} />,
   Reporting: <BarChart3 size={16} />,
   Platform: <Settings size={16} />,
   Admin: <Shield size={16} />,
