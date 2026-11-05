@@ -84,7 +84,7 @@ export default function ClientDetail() {
           icon={<UserSearch size={20} />}
           title="Client not found"
           body={error ?? "This client may have been removed, or the link is stale."}
-          action={<Link to="/clients" className="text-sm text-primary-600 font-medium">Back to clients</Link>}
+          action={<Link to="/clients" className="text-sm text-primary-600 font-medium">Back to farmers</Link>}
         />
       </Card>
     );
@@ -123,7 +123,7 @@ export default function ClientDetail() {
   return (
     <div>
       <Link to="/clients" className="inline-flex items-center gap-1.5 text-sm text-text-soft hover:text-text mb-4">
-        <ArrowLeft size={15} /> Clients
+        <ArrowLeft size={15} /> Farmers
       </Link>
 
       <PageHeader

@@ -12,8 +12,13 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
+import { isHiddenPage } from "./hiddenPages";
 
-export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard })[] = [
+type NavDef = Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard };
+
+/** Every page as the source back office lists it. Kept whole so its changes
+ *  still merge; KTDA trims and relabels it below. */
+const ALL_NAV_DEFS: NavDef[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Bulk onboarding", to: "/bulk/onboarding", section: "Farmer Payments", icon: UserPlus },
   { label: "Bulk payments", to: "/bulk/payments", section: "Farmer Payments", icon: HandCoins },
@@ -106,6 +111,25 @@ export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard }
   { label: "Audit log", to: "/audit-log", section: "Admin", icon: ScrollText },
 ];
 
+/** KTDA's names for pages it keeps, by route. */
+const KTDA_LABELS: Record<string, string> = {
+  "/clients": "Farmers",
+};
+/** KTDA's names for sections, where the source's do not fit. */
+const KTDA_SECTIONS: Record<string, string> = {
+  "Client Services": "Farmer Services",
+};
+
+/** The navigation KTDA shows: investment-only pages hidden (hiddenPages.ts),
+ *  and the rest relabelled where KTDA's word differs. */
+export const NAV_DEFS: NavDef[] = ALL_NAV_DEFS
+  .filter((n) => !isHiddenPage(n.to))
+  .map((n) => ({
+    ...n,
+    label: KTDA_LABELS[n.to] ?? n.label,
+    section: n.section ? KTDA_SECTIONS[n.section] ?? n.section : n.section,
+  }));
+
 export function navForRole(allowedPaths: string[]): NavItem[] {
   return NAV_DEFS.filter((n) => allowedPaths.includes(n.to)).map((n) => ({
     ...n,
@@ -116,6 +140,7 @@ export function navForRole(allowedPaths: string[]): NavItem[] {
 /** Parent-menu icons, one per `section` used above. */
 export const SECTION_ICONS: Record<string, ReactNode> = {
   "Client Services": <UsersRound size={16} />,
+  "Farmer Services": <UsersRound size={16} />,
   "Business Development": <Briefcase size={16} />,
   "KYC Review": <ShieldCheck size={16} />,
   "Transaction Monitoring": <Siren size={16} />,

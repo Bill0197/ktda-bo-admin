@@ -86,7 +86,7 @@ export default function Clients() {
 
   return (
     <div>
-      <PageHeader title="Clients" subtitle={`${all.length} onboarded investors — open a client for the full compliance file.`} />
+      <PageHeader title="Farmers" subtitle={`${all.length} onboarded farmers. Open one for the full compliance file.`} />
 
       {error && (
         <Card className="p-5 mb-6 flex items-center justify-between">
@@ -99,7 +99,7 @@ export default function Clients() {
         <SearchInput value={query} onChange={setQuery} placeholder="Search name, email, phone, ID no.…" />
         <SelectFilter value={kyc} onChange={setKyc} options={KYC_OPTIONS} allLabel="All KYC statuses" />
         <SelectFilter value={channel} onChange={setChannel} options={channelOptions} allLabel="All channels" />
-        <span className="text-xs text-text-faint ml-auto">{rows.length} of {all.length} clients</span>
+        <span className="text-xs text-text-faint ml-auto">{rows.length} of {all.length} farmers</span>
       </FilterBar>
 
       {loading ? (
@@ -107,7 +107,7 @@ export default function Clients() {
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
-        <DataTable newest={(r) => r.joinedAt} columns={columns} rows={rows} onRowClick={(r) => navigate(`/clients/${r.id}`)} columnPicker emptyLabel="No clients match" />
+        <DataTable newest={(r) => r.joinedAt} columns={columns} rows={rows} onRowClick={(r) => navigate(`/clients/${r.id}`)} columnPicker emptyLabel="No farmers match" />
       )}
     </div>
   );

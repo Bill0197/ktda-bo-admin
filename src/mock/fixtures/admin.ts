@@ -1,4 +1,5 @@
 import type { EmploymentType, Gender } from "./reference";
+import { isHiddenPage } from "../../lib/hiddenPages";
 
 /** `client_services` and `head_of_bd` exist because the BD SOP names them as
  * separate functions and this app used to collapse both into `bd_officer`
@@ -26,7 +27,7 @@ export const ROLE_LABELS: Record<AdminRole, string> = {
 /** Page-level RBAC — mirrors the "BO Admin Panel roles" table in the
  * architecture artifact. A route not listed for a role is not just
  * hidden from nav, ProtectedRoute below refuses it outright. */
-export const ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
+const ALL_ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
   bd_officer: ["/", "/clients", "/leads", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/suitability", "/reports"],
   // Client Services reaches the customer-facing desk and nothing behind it:
   // no cases, no screening, no AML alerts, no pipeline. The redaction on
@@ -67,6 +68,12 @@ export const ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
   // suspicious-activity matters — the control is on the data, not the route.
   system_admin: ["/", "/bulk/onboarding", "/bulk/payments", "/clients", "/leads", "/suitability", "/complaints", "/kyc-queue", "/kyc-periodic", "/kyc-dynamic", "/aml-alerts", "/cases", "/fraud-alerts", "/fraud-cases", "/screening", "/approvals", "/transactions", "/reconciliation", "/unallocated-funds", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/nav", "/distributions", "/liquidity", "/bond-ladder", "/ledger", "/catalogue", "/reports", "/settings", "/feature-flags", "/users", "/system", "/audit-log", "/tokenization/issuance", "/tokenization/lifecycle", "/tokenization/smart-contracts", "/token-console/overview", "/token-console/investors", "/token-console/accounts", "/token-console/offerings", "/token-console/products", "/token-console/market", "/token-console/journals", "/token-console/trial-balance", "/token-console/unit-ledger", "/token-console/reconciliation", "/token-console/runs", "/token-console/policies", "/token-console/compliance", "/token-console/funds", "/token-console/tariffs", "/token-console/configuration", "/token-console/changes", "/token-console/loans", "/token-console/kyc", "/token-console/customers", "/token-console/customer-approvals", "/token-console/transactions", "/token-console/users", "/token-console/nav", "/token-console/assets", "/market-conduct/market-abuse", "/market-conduct/conflicts", "/market-conduct/employee-trading", "/institutional-compliance/breaches", "/institutional-compliance/restrictions", "/institutional-compliance/counterparties", "/institutional-compliance/clients", "/investment/products", "/investment/orders", "/investment/portfolio", "/investment/holdings", "/investment/valuations", "/investment/redemptions", "/investment/corporate-actions", "/investment/ic-approvals", "/investment/mandates", "/institutional/clients", "/institutional/mandates", "/institutional/portfolios", "/institutional/fees", "/institutional/reporting"],
 };
+
+/** What each role reaches in the KTDA back office: the lists above without
+ *  the hidden investment pages (lib/hiddenPages.ts). */
+export const ROLE_PAGE_ACCESS = Object.fromEntries(
+  Object.entries(ALL_ROLE_PAGE_ACCESS).map(([role, paths]) => [role, paths.filter((p) => !isHiddenPage(p))]),
+) as Record<AdminRole, string[]>;
 
 export const ADMIN_USERS: Record<AdminRole, { name: string; initials: string; email: string }> = {
   ceo: { name: "Charles Mburu", initials: "CM", email: "charles.mburu@ktda.example" },
