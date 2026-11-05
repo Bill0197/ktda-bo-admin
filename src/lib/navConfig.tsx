@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Blocks, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, UserCheck, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -29,17 +29,9 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Overview", to: "/token-console/overview", section: "Baracel Unyt", icon: LayoutDashboard },
   { label: "Investors", to: "/token-console/investors", section: "Baracel Unyt", icon: Users },
   { label: "Accounts", to: "/token-console/accounts", section: "Baracel Unyt", icon: Wallet },
-  { label: "Offerings", to: "/token-console/offerings", section: "Baracel Unyt", icon: ShoppingCart },
-  { label: "Assets", to: "/token-console/assets", section: "Baracel Unyt", icon: Landmark },
-  { label: "Products", to: "/token-console/products", section: "Baracel Unyt", icon: Boxes },
-  { label: "Market", to: "/token-console/market", section: "Baracel Unyt", icon: ChartCandlestick },
-  { label: "Bond prices", to: "/token-console/prices", section: "Baracel Unyt", icon: Tag },
-  { label: "FX rates", to: "/token-console/fx", section: "Baracel Unyt", icon: ArrowLeftRight },
   { label: "Journals", to: "/token-console/journals", section: "Baracel Unyt", icon: BookOpenCheck },
   { label: "Trial balance", to: "/token-console/trial-balance", section: "Baracel Unyt", icon: Scale },
-  { label: "Unit ledger", to: "/token-console/unit-ledger", section: "Baracel Unyt", icon: Layers },
   { label: "Reconciliation", to: "/token-console/reconciliation", section: "Baracel Unyt", icon: GitCompareArrows },
-  { label: "NAV", to: "/token-console/nav", section: "Baracel Unyt", icon: TrendingUp },
   { label: "Batch runs", to: "/token-console/runs", section: "Baracel Unyt", icon: CalendarClock },
   { label: "Policies", to: "/token-console/policies", section: "Baracel Unyt", icon: FileSignature },
   { label: "Loans", to: "/token-console/loans", section: "Baracel Unyt", icon: HandCoins },

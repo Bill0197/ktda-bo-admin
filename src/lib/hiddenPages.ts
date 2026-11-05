@@ -12,8 +12,7 @@ export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   // Client Services and Business Development: investment sales
   // Tokenization Compliance
   // Baracel Unyt: the investment products and their pricing
-  "/token-console/offerings", "/token-console/assets", "/token-console/products", "/token-console/market",
-  "/token-console/prices", "/token-console/fx", "/token-console/unit-ledger", "/token-console/nav",
+  
   "/token-console/policies", "/token-console/funds",
   // Market Conduct
   "/market-conduct/market-abuse", "/market-conduct/conflicts", "/market-conduct/employee-trading",

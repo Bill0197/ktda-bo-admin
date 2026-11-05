@@ -43,14 +43,8 @@ const Campaigns = lazy(() => import("./pages/Campaigns"));
 const TokenConsoleOverview = lazy(() => import("./pages/tokenconsole/Overview"));
 const TokenConsoleInvestors = lazy(() => import("./pages/tokenconsole/Investors"));
 const TokenConsoleAccounts = lazy(() => import("./pages/tokenconsole/Accounts"));
-const TokenConsoleOfferings = lazy(() => import("./pages/tokenconsole/Offerings"));
-const TokenConsoleProducts = lazy(() => import("./pages/tokenconsole/Products"));
-const TokenConsoleMarket = lazy(() => import("./pages/tokenconsole/Market"));
-const TokenConsolePrices = lazy(() => import("./pages/tokenconsole/Prices"));
-const TokenConsoleFx = lazy(() => import("./pages/tokenconsole/Fx"));
 const TokenConsoleJournals = lazy(() => import("./pages/tokenconsole/Journals"));
 const TokenConsoleTrialBalance = lazy(() => import("./pages/tokenconsole/TrialBalance"));
-const TokenConsoleUnitLedger = lazy(() => import("./pages/tokenconsole/UnitLedger"));
 const TokenConsoleReconciliation = lazy(() => import("./pages/tokenconsole/Reconciliation"));
 const TokenConsoleRuns = lazy(() => import("./pages/tokenconsole/Runs"));
 const BulkLoad = lazy(() => import("./pages/ktda/BulkLoad"));
@@ -68,8 +62,6 @@ const TokenConsoleTransactions = lazy(() => import("./pages/tokenconsole/Transac
 const TokenConsoleReports = lazy(() => import("./pages/tokenconsole/Reports"));
 const TokenConsoleSurveillance = lazy(() => import("./pages/tokenconsole/Surveillance"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
-const TokenConsoleNav = lazy(() => import("./pages/tokenconsole/Nav"));
-const TokenConsoleAssets = lazy(() => import("./pages/tokenconsole/Assets"));
 const MarketAbuse = lazy(() => import("./pages/conduct/MarketAbuse"));
 const ConflictsOfInterest = lazy(() => import("./pages/conduct/ConflictsOfInterest"));
 const EmployeeTrading = lazy(() => import("./pages/conduct/EmployeeTrading"));
@@ -132,14 +124,8 @@ function AppRoutes() {
       <Route path="/token-console/overview" element={<ProtectedRoute><TokenConsoleOverview /></ProtectedRoute>} />
       <Route path="/token-console/investors" element={<ProtectedRoute><TokenConsoleInvestors /></ProtectedRoute>} />
       <Route path="/token-console/accounts" element={<ProtectedRoute><TokenConsoleAccounts /></ProtectedRoute>} />
-      <Route path="/token-console/offerings" element={<ProtectedRoute><TokenConsoleOfferings /></ProtectedRoute>} />
-      <Route path="/token-console/products" element={<ProtectedRoute><TokenConsoleProducts /></ProtectedRoute>} />
-      <Route path="/token-console/market" element={<ProtectedRoute><TokenConsoleMarket /></ProtectedRoute>} />
-      <Route path="/token-console/prices" element={<ProtectedRoute><TokenConsolePrices /></ProtectedRoute>} />
-      <Route path="/token-console/fx" element={<ProtectedRoute><TokenConsoleFx /></ProtectedRoute>} />
       <Route path="/token-console/journals" element={<ProtectedRoute><TokenConsoleJournals /></ProtectedRoute>} />
       <Route path="/token-console/trial-balance" element={<ProtectedRoute><TokenConsoleTrialBalance /></ProtectedRoute>} />
-      <Route path="/token-console/unit-ledger" element={<ProtectedRoute><TokenConsoleUnitLedger /></ProtectedRoute>} />
       <Route path="/token-console/reconciliation" element={<ProtectedRoute><TokenConsoleReconciliation /></ProtectedRoute>} />
       <Route path="/bulk/onboarding" element={<ProtectedRoute><BulkLoad key="onboarding" flow="ONBOARDING" /></ProtectedRoute>} />
       <Route path="/bulk/payments" element={<ProtectedRoute><BulkLoad key="payments" flow="PAYMENT" /></ProtectedRoute>} />
@@ -160,8 +146,6 @@ function AppRoutes() {
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />
-      <Route path="/token-console/nav" element={<ProtectedRoute><TokenConsoleNav /></ProtectedRoute>} />
-      <Route path="/token-console/assets" element={<ProtectedRoute><TokenConsoleAssets /></ProtectedRoute>} />
       <Route path="/market-conduct/market-abuse" element={<ProtectedRoute><MarketAbuse /></ProtectedRoute>} />
       <Route path="/market-conduct/conflicts" element={<ProtectedRoute><ConflictsOfInterest /></ProtectedRoute>} />
       <Route path="/market-conduct/employee-trading" element={<ProtectedRoute><EmployeeTrading /></ProtectedRoute>} />
