@@ -171,7 +171,7 @@ export default function System() {
         </Card>
 
         <Card className="overflow-hidden">
-          <SectionHeader icon={Construction} title="Maintenance mode" description="Take a surface offline with a maintenance notice — e.g. during cutovers. BO Admin itself can't be taken down from here." />
+          <SectionHeader icon={Construction} title="Maintenance mode" description="Take a surface offline with a maintenance notice — e.g. during cutovers. The back office itself can't be taken down from here." />
           {maintenance.loading ? (
             <div className="p-5 flex flex-col gap-3">
               <Skeleton className="h-10 w-full" />

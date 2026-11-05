@@ -6,11 +6,10 @@
 // calling a customer's /api/me/* on their behalf, and on UAT omnichannel runs
 // open (no token), so an unrestricted proxy would hand that surface to anyone.
 //
-// Same certificate caveat as functions/tok: 503 until the load balancer has a
-// trusted certificate or OMNI_TARGET points at a host that has one.
-const UPSTREAM = "https://tokenization-omnichannel-lb-1369560458.us-east-1.elb.amazonaws.com";
-// Must match functions/tok — the session this proxy checks lives there.
-const TOK_UPSTREAM = "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
+// Omnichannel is the Pages environment variable OMNI_TARGET, and the session
+// this proxy checks lives on the engine at TOK_TARGET (the one functions/tok
+// uses). Neither has a default: until both are set every call answers 503
+// saying so. Same certificate caveat as functions/tok.
 
 const UUID = "[0-9a-fA-F-]+";
 // What each method may reach: actions on an investor record, and compliance's
@@ -21,10 +20,12 @@ const UUID = "[0-9a-fA-F-]+";
 // (retry, resolve, match, unmatched), and the Market page (the dealing settings and
 // their change log, a proposal, an approval or a rejection), and Reports and
 // Surveillance (the CSV reports, the alert queue with assign and close, and the
-// snapshot and rule runs).
+// snapshot and rule runs), and the bulk onboarding and payment runs (a CSV
+// upload, Process, the run, the recent runs, its reconciliation, and whether
+// onboarding has completed for an institution).
 const ALLOWED = {
-  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject)|fx/settings/changes|fx/settings/changes/${UUID}/(approve|reject)|reporting/alerts/${UUID}/(assign|close)|reporting/runs/(snapshot|surveillance))$`),
-  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs)$`),
+  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject)|fx/settings/changes|fx/settings/changes/${UUID}/(approve|reject)|reporting/alerts/${UUID}/(assign|close)|reporting/runs/(snapshot|surveillance)|bulk-loads/upload|bulk-loads/${UUID}/process)$`),
+  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs|bulk-loads|bulk-loads/onboarding-status|bulk-loads/${UUID}(/reconciliation)?)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.
@@ -38,13 +39,16 @@ export async function onRequest({ request, env }) {
   if (!allowed || !allowed.test(url.pathname)) {
     return json(404, { error: "Not found." });
   }
+  if (!env.OMNI_TARGET || !env.TOK_TARGET) {
+    return json(503, { error: "This site has no omnichannel or engine configured yet (OMNI_TARGET, TOK_TARGET)." });
+  }
   // UAT omnichannel checks no token, so this proxy is the only gate: forward
   // nothing unless the caller holds a live BO Admin (tokenization) session.
   const session = await signedIn(request, env);
   if (session === null) return unavailable();
-  if (!session) return json(401, { error: "Sign in to BO Admin first." });
+  if (!session) return json(401, { error: "Sign in to the back office first." });
 
-  const target = (env.OMNI_TARGET || UPSTREAM) + url.pathname.replace(/^\/omni/, "") + url.search;
+  const target = env.OMNI_TARGET + url.pathname.replace(/^\/omni/, "") + url.search;
 
   const headers = new Headers();
   for (const name of FORWARDED) {
@@ -84,7 +88,7 @@ async function signedIn(request, env) {
   const cookie = request.headers.get("cookie");
   if (!cookie) return false;
   try {
-    const res = await fetch((env.TOK_TARGET || TOK_UPSTREAM) + "/api/auth/me", { headers: { cookie } });
+    const res = await fetch(env.TOK_TARGET + "/api/auth/me", { headers: { cookie } });
     if (res.status >= 520 && res.status <= 530) return null;
     if (!res.ok) return false;
     const me = await res.json().catch(() => ({}));

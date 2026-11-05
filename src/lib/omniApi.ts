@@ -68,16 +68,19 @@ export function staffName(subject: string | null | undefined): string {
   return subject.startsWith("staff:") ? subject.slice("staff:".length) : subject;
 }
 
+/** A FormData body goes as multipart: the browser sets Content-Type with
+ *  its boundary, so it is never set here. Anything else goes as JSON. */
 async function send(method: "GET" | "POST", path: string, body?: unknown): Promise<Response> {
+  const form = body instanceof FormData;
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined && !form) headers["Content-Type"] = "application/json";
   if (actor) headers["X-Dev-Subject"] = actor;
   try {
     return await fetch(`${BASE}${path}`, {
       method,
       credentials: "include",
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : form ? body : JSON.stringify(body),
     });
   } catch {
     throw new OmniApiError(0, "Cannot reach the omnichannel service. Check your connection and try again.");
@@ -544,6 +547,19 @@ async function getOne<T>(path: string): Promise<T> {
   if (!res.ok) throw await failure(res);
   return (await res.json()) as T;
 }
+
+/** The plain calls, for clients of omnichannel's operator API kept in their
+ *  own module (api.bulkLoad.ts). `post` with a FormData sends a multipart
+ *  upload. */
+export const omniCall = {
+  get: getOne,
+  list: async <T>(path: string): Promise<T[]> => {
+    const res = await send("GET", path);
+    if (!res.ok) throw await failure(res);
+    return listOf<T>(res);
+  },
+  post,
+};
 
 const marketChangePath = (id: string) => `/market/settings/changes/${encodeURIComponent(id)}`;
 const fxChangePath = (id: string) => `/fx/settings/changes/${encodeURIComponent(id)}`;

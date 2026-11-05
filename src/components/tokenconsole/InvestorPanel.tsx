@@ -14,12 +14,12 @@ import { customerDeskLink } from "../../lib/tokenConsole/customerSearch";
 
 type Lifecycle = "suspend" | "reactivate" | "offboard";
 const LIFECYCLE: Record<Lifecycle, { title: string; body: string; label: string; ok: string; danger: boolean }> = {
-  suspend: { title: "Suspend this investor?", body: "They can no longer subscribe, redeem or withdraw until reactivated.", label: "Suspend", ok: "Investor suspended.", danger: true },
-  reactivate: { title: "Reactivate this investor?", body: "Lifts the suspension; they can transact again.", label: "Reactivate", ok: "Investor reactivated.", danger: false },
+  suspend: { title: "Suspend this farmer?", body: "They can no longer subscribe, redeem or withdraw until reactivated.", label: "Suspend", ok: "Farmer suspended.", danger: true },
+  reactivate: { title: "Reactivate this farmer?", body: "Lifts the suspension; they can transact again.", label: "Reactivate", ok: "Farmer reactivated.", danger: false },
   offboard: {
-    title: "Offboard this investor?",
+    title: "Offboard this farmer?",
     body: "Offboarding is terminal: no new accounts, and withdrawals stop applying. Settle their holdings first.",
-    label: "Offboard", ok: "Investor offboarded.", danger: true,
+    label: "Offboard", ok: "Farmer offboarded.", danger: true,
   },
 };
 

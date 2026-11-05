@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { Agent as HttpAgent } from "node:http";
 import { Agent as HttpsAgent } from "node:https";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -33,11 +33,22 @@ function appVersion() {
    so every call must be same-origin — and the browser's Origin is dropped,
    as the deployed proxies do.
 
-   TOK_TARGET / OMNI_TARGET pick the backends (default: UAT). `secure: false`
-   because the UAT load balancers present self-signed certificates — acceptable
-   only on a developer machine; the deployed proxies cannot do this. */
-const TOK_TARGET = process.env.TOK_TARGET ?? "https://tokenization-engine-lb-2030238964.us-east-1.elb.amazonaws.com";
-const OMNI_TARGET = process.env.OMNI_TARGET ?? "https://tokenization-omnichannel-lb-1369560458.us-east-1.elb.amazonaws.com";
+   TOK_TARGET / OMNI_TARGET pick the backends and have no default: this copy
+   came from another back office whose defaults pointed at a shared UAT, and a
+   sign-in there writes to that environment. They are read from the
+   environment or from an untracked .env.local (any .env file Vite loads; the
+   environment wins). Unset, the dev server still runs (the stubbed browser
+   tests need nothing more) and every /tok or /omni call answers 503 saying
+   which variable to set. `secure: false` because test load balancers often
+   present self-signed certificates — acceptable only on a developer machine;
+   the deployed proxies cannot do this. */
+type Targets = { tok: string | null; omni: string | null };
+
+function targetsFor(mode: string): Targets {
+  // Only these two names are read; neither reaches the browser (that needs VITE_).
+  const env = loadEnv(mode, process.cwd(), ["TOK_TARGET", "OMNI_TARGET"]);
+  return { tok: env.TOK_TARGET?.trim() || null, omni: env.OMNI_TARGET?.trim() || null };
+}
 
 /* One pooled, kept-alive connection set per backend. Without it every proxied
    request pays a fresh TLS handshake to the load balancer, which on UAT is most
@@ -46,43 +57,77 @@ const OMNI_TARGET = process.env.OMNI_TARGET ?? "https://tokenization-omnichannel
 const pool = (target: string) =>
   target.startsWith("https:") ? new HttpsAgent({ keepAlive: true, maxSockets: 64 }) : new HttpAgent({ keepAlive: true, maxSockets: 64 });
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  define: {
-    __APP_VERSION__: JSON.stringify(appVersion()),
-  },
-  server: {
-    port: 5174,
-    proxy: {
-      // Anchored with a trailing slash: Vite matches keys as plain prefixes,
-      // and a bare "/tok" would also swallow /tokenization/* and /token-console/*.
-      "^/tok/": {
-        target: TOK_TARGET,
-        agent: pool(TOK_TARGET),
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/tok/, "/api"),
-        // Same rule as functions/tok: a 401's anonymous-session cookie would
-        // clobber a session established a moment earlier.
-        configure: (proxy) => {
-          proxy.on("proxyReq", (req) => req.removeHeader("origin"));
-          proxy.on("proxyRes", (res) => {
-            if (res.statusCode === 401) delete res.headers["set-cookie"];
-          });
-        },
-      },
-      "^/omni/api/operator/": {
-        target: OMNI_TARGET,
-        agent: pool(OMNI_TARGET),
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/omni/, ""),
-        // Omnichannel's CORS list is localhost:5173-5178 only and it 403s any
-        // other Origin — same-origin needs none, so drop it (as functions/omni does).
-        configure: (proxy) => {
-          proxy.on("proxyReq", (req) => req.removeHeader("origin"));
-        },
-      },
+/** Answers /tok and /omni with 503 when their target is not set, so a call
+ *  never goes anywhere by default. */
+function unsetTargets({ tok, omni }: Targets): Plugin {
+  const missing: [string, string][] = [];
+  if (!tok) missing.push(["/tok/", "TOK_TARGET"]);
+  if (!omni) missing.push(["/omni/", "OMNI_TARGET"]);
+  return {
+    name: "unset-proxy-targets",
+    configureServer(server) {
+      if (missing.length) {
+        server.config.logger.warn(`Dev proxy: ${missing.map(([, v]) => v).join(" and ")} not set; those calls will answer 503.`);
+      }
+      server.middlewares.use((req, res, next) => {
+        const hit = missing.find(([prefix]) => req.url?.startsWith(prefix));
+        if (!hit) return next();
+        res.statusCode = 503;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: `The dev proxy has no target for ${hit[0]}. Set ${hit[1]} (environment or .env.local) and restart the dev server.` }));
+      });
     },
-  },
+  };
+}
+
+function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET }: Targets): Record<string, ProxyOptions> {
+  const proxy: Record<string, ProxyOptions> = {};
+  if (TOK_TARGET) {
+    // Anchored with a trailing slash: Vite matches keys as plain prefixes,
+    // and a bare "/tok" would also swallow /tokenization/* and /token-console/*.
+    proxy["^/tok/"] = {
+      target: TOK_TARGET,
+      agent: pool(TOK_TARGET),
+      changeOrigin: true,
+      secure: false,
+      rewrite: (path) => path.replace(/^\/tok/, "/api"),
+      // Same rule as functions/tok: a 401's anonymous-session cookie would
+      // clobber a session established a moment earlier.
+      configure: (p) => {
+        p.on("proxyReq", (req) => req.removeHeader("origin"));
+        p.on("proxyRes", (res) => {
+          if (res.statusCode === 401) delete res.headers["set-cookie"];
+        });
+      },
+    };
+  }
+  if (OMNI_TARGET) {
+    proxy["^/omni/api/operator/"] = {
+      target: OMNI_TARGET,
+      agent: pool(OMNI_TARGET),
+      changeOrigin: true,
+      secure: false,
+      rewrite: (path) => path.replace(/^\/omni/, ""),
+      // Omnichannel's CORS list is localhost:5173-5178 only and it 403s any
+      // other Origin — same-origin needs none, so drop it (as functions/omni does).
+      configure: (p) => {
+        p.on("proxyReq", (req) => req.removeHeader("origin"));
+      },
+    };
+  }
+  return proxy;
+}
+
+export default defineConfig(({ mode }) => {
+  const targets = targetsFor(mode);
+  return {
+    plugins: [react(), tailwindcss(), unsetTargets(targets)],
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion()),
+    },
+    server: {
+      port: 5174,
+      proxy: proxyFor(targets),
+    },
+  };
 });

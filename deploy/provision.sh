@@ -11,6 +11,11 @@
 # in which case it is disabled (renamed, not deleted, so it can be restored).
 set -euo pipefail
 
+# Disabled for the KTDA back office: this ships to Investcent's UAT box and
+# takes over its web root. Retarget it to a KTDA host before removing this.
+echo "Disabled in the KTDA back office: this still targets Investcent's UAT box (see deploy/README.md)." >&2
+exit 1
+
 WEBROOT=/var/www/bo-admin
 SITE_CONF_SRC=/tmp/bo-admin.conf
 SITE_CONF_DST=/etc/nginx/conf.d/bo-admin.conf

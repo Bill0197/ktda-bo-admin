@@ -12,6 +12,11 @@
 # (renamed, not deleted). See deploy/README.md.
 set -euo pipefail
 
+# Disabled for the KTDA back office: this ships to Investcent's UAT box and
+# takes over its web root. Retarget it to a KTDA host before removing this.
+echo "Disabled in the KTDA back office: this still targets Investcent's UAT box (see deploy/README.md)." >&2
+exit 1
+
 HOST="${1:?usage: deploy/deploy.sh <host> <ssh-key.pem> [--replace-tokenization-web]}"
 KEY="${2:?usage: deploy/deploy.sh <host> <ssh-key.pem> [--replace-tokenization-web]}"
 REPLACE=0

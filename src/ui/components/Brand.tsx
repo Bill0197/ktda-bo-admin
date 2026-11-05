@@ -1,40 +1,42 @@
 import clsx from "clsx";
-import { LOCKUP_W, LOCKUP_WORD_PATH, LOGO_BOX, MARK_PATH, TAGLINE_PATH, WORD_PATH } from "./logoPaths";
 
-/* The Investcent logo, per the IIB brand guidelines and letterhead. This app
- * is light: IC Slate Blue mark with an IC Blue wordmark (the guidelines' logo
- * on white). `tone="white"` is for a brand fill. Same outlines as
- * investor-web's Brand.tsx. */
+/* Placeholder KTDA brand until the real assets arrive: a plain wordmark, no
+ * logo artwork. Every colour comes from tokens.css (--brand-*), so swapping in
+ * the real brand is a change there plus this file's outlines.
+ * public/favicon.svg carries the same placeholder and needs its own swap. */
 
-const SLATE = "#003A5D";
-const BLUE = "#00A7E1";
+const INK = "var(--brand-ink)";
+const LEAF = "var(--brand-leaf)";
 
-/** The mark alone: two linked loops and a rising arrow. `size` is its height. */
-export function InvestcentMark({ size = 36, tone = "auto", className }: { size?: number; tone?: "auto" | "white"; className?: string }) {
+/** The square mark: "K" on the brand fill. `size` is its height. */
+export function BrandMark({ size = 36, tone = "auto", className }: { size?: number; tone?: "auto" | "white"; className?: string }) {
   return (
-    <svg viewBox={`0 0 ${LOGO_BOX.markW} ${LOGO_BOX.h}`} height={size} width={(size * LOGO_BOX.markW) / LOGO_BOX.h} className={clsx("shrink-0", className)} role="img" aria-label="Investcent">
-      <path fill={tone === "white" ? "#fff" : SLATE} d={MARK_PATH} />
+    <svg viewBox="0 0 40 40" height={size} width={size} className={clsx("shrink-0", className)} role="img" aria-label="KTDA">
+      <rect width="40" height="40" rx="9" fill={tone === "white" ? "#fff" : LEAF} />
+      <text x="20" y="28" textAnchor="middle" fontFamily="var(--font-display)" fontWeight="700" fontSize="22" fill={tone === "white" ? LEAF : "#fff"}>K</text>
     </svg>
   );
 }
 
-/** The mark with the INVESTCENT wordmark. `size` is the mark's height. */
-export function InvestcentLogo({ size = 36, className }: { size?: number; className?: string }) {
+/** The mark with the KTDA wordmark. `size` is the mark's height. */
+export function BrandLogo({ size = 36, className }: { size?: number; className?: string }) {
   return (
-    <svg viewBox={`0 0 ${LOGO_BOX.fullW} ${LOGO_BOX.h}`} height={size} width={(size * LOGO_BOX.fullW) / LOGO_BOX.h} className={clsx("shrink-0", className)} role="img" aria-label="Investcent">
-      <path fill={SLATE} d={MARK_PATH} />
-      <path fill={BLUE} d={WORD_PATH} />
+    <svg viewBox="0 0 120 40" height={size} width={(size * 120) / 40} className={clsx("shrink-0", className)} role="img" aria-label="KTDA">
+      <rect width="40" height="40" rx="9" fill={LEAF} />
+      <text x="20" y="28" textAnchor="middle" fontFamily="var(--font-display)" fontWeight="700" fontSize="22" fill="#fff">K</text>
+      <text x="50" y="28" fontFamily="var(--font-display)" fontWeight="700" fontSize="22" letterSpacing="1" fill={INK}>KTDA</text>
     </svg>
   );
 }
 
-/** The letterhead lockup: mark, INVESTCENT, and INVESTMENT BANK beneath. */
-export function InvestcentLockup({ size = 40, className }: { size?: number; className?: string }) {
+/** The lockup: mark, KTDA, and BACK OFFICE beneath. */
+export function BrandLockup({ size = 40, className }: { size?: number; className?: string }) {
   return (
-    <svg viewBox={`0 0 ${LOCKUP_W} ${LOGO_BOX.h}`} height={size} width={(size * LOCKUP_W) / LOGO_BOX.h} className={clsx("shrink-0", className)} role="img" aria-label="Investcent Investment Bank">
-      <path fill={SLATE} d={MARK_PATH} />
-      <path fill={BLUE} d={LOCKUP_WORD_PATH} />
-      <path fill={SLATE} d={TAGLINE_PATH} />
+    <svg viewBox="0 0 150 40" height={size} width={(size * 150) / 40} className={clsx("shrink-0", className)} role="img" aria-label="KTDA Back Office">
+      <rect width="40" height="40" rx="9" fill={LEAF} />
+      <text x="20" y="28" textAnchor="middle" fontFamily="var(--font-display)" fontWeight="700" fontSize="22" fill="#fff">K</text>
+      <text x="50" y="21" fontFamily="var(--font-display)" fontWeight="700" fontSize="19" letterSpacing="1" fill={INK}>KTDA</text>
+      <text x="50" y="35" fontFamily="var(--font-sans)" fontWeight="500" fontSize="9" letterSpacing="2" fill={LEAF}>BACK OFFICE</text>
     </svg>
   );
 }

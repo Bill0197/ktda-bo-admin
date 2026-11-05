@@ -12,13 +12,13 @@ const ALL_PAGES = NAV_DEFS.map((n) => n.to);
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const footerNote = useContentField("regulatory_footer", "text", "Investcent Investment Bank is regulated by the Capital Markets Authority (CMA).");
+  const footerNote = useContentField("regulatory_footer", "text", "KTDA Digital Tea Payment Solution.");
   if (!user) return null;
 
   return (
     <AppShell
-      appName="Investcent"
-      appTag="Investment Bank"
+      appName="KTDA"
+      appTag="Back Office"
       nav={navForRole(ALL_PAGES)}
       user={{ name: user.name, role: user.tokRoles.join(", ") || "Staff", avatarInitials: user.initials }}
       footerNote={
@@ -30,7 +30,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       }
       onLogout={() => { logout(); navigate("/login"); }}
       collapsibleNav
-      navStorageKey="bo-admin"
+      navStorageKey="ktda-bo"
       sectionIcons={SECTION_ICONS}
     >
       {children}

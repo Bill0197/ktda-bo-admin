@@ -62,6 +62,7 @@ const TokenConsoleTrialBalance = lazy(() => import("./pages/tokenconsole/TrialBa
 const TokenConsoleUnitLedger = lazy(() => import("./pages/tokenconsole/UnitLedger"));
 const TokenConsoleReconciliation = lazy(() => import("./pages/tokenconsole/Reconciliation"));
 const TokenConsoleRuns = lazy(() => import("./pages/tokenconsole/Runs"));
+const BulkLoad = lazy(() => import("./pages/ktda/BulkLoad"));
 const TokenConsolePolicies = lazy(() => import("./pages/tokenconsole/Policies"));
 const TokenConsoleCompliance = lazy(() => import("./pages/tokenconsole/Compliance"));
 const TokenConsoleChanges = lazy(() => import("./pages/tokenconsole/Changes"));
@@ -158,6 +159,8 @@ function AppRoutes() {
       <Route path="/token-console/trial-balance" element={<ProtectedRoute><TokenConsoleTrialBalance /></ProtectedRoute>} />
       <Route path="/token-console/unit-ledger" element={<ProtectedRoute><TokenConsoleUnitLedger /></ProtectedRoute>} />
       <Route path="/token-console/reconciliation" element={<ProtectedRoute><TokenConsoleReconciliation /></ProtectedRoute>} />
+      <Route path="/bulk/onboarding" element={<ProtectedRoute><BulkLoad key="onboarding" flow="ONBOARDING" /></ProtectedRoute>} />
+      <Route path="/bulk/payments" element={<ProtectedRoute><BulkLoad key="payments" flow="PAYMENT" /></ProtectedRoute>} />
       <Route path="/token-console/runs" element={<ProtectedRoute><TokenConsoleRuns /></ProtectedRoute>} />
       <Route path="/token-console/policies" element={<ProtectedRoute><TokenConsolePolicies /></ProtectedRoute>} />
       <Route path="/token-console/compliance" element={<ProtectedRoute><TokenConsoleCompliance /></ProtectedRoute>} />
@@ -211,7 +214,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ErrorBoundary appName="Investcent BO Admin">
+    <ErrorBoundary appName="KTDA Back Office">
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
