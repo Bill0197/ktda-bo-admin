@@ -15,6 +15,8 @@ import type { NavItem } from "../ui";
 
 export const NAV_DEFS: (Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard })[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
+  { label: "Bulk onboarding", to: "/bulk/onboarding", section: "Farmer Payments", icon: UserPlus },
+  { label: "Bulk payments", to: "/bulk/payments", section: "Farmer Payments", icon: HandCoins },
   { label: "Clients", to: "/clients", section: "Client Services", icon: Users },
   { label: "Enquiries", to: "/enquiries", section: "Client Services", icon: Inbox },
   { label: "Leads", to: "/leads", section: "Client Services", icon: UserPlus },
@@ -120,6 +122,7 @@ export const SECTION_ICONS: Record<string, ReactNode> = {
   "Fraud Reporting": <Fingerprint size={16} />,
   Compliance: <Scale size={16} />,
   "Tokenization Compliance": <Coins size={16} />,
+  "Farmer Payments": <HandCoins size={16} />,
   "Baracel Unyt": <Blocks size={16} />,
   "Market Conduct": <Gavel size={16} />,
   "Institutional Investment Compliance": <ShieldX size={16} />,
