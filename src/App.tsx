@@ -62,9 +62,6 @@ const TokenConsoleTransactions = lazy(() => import("./pages/tokenconsole/Transac
 const TokenConsoleReports = lazy(() => import("./pages/tokenconsole/Reports"));
 const TokenConsoleSurveillance = lazy(() => import("./pages/tokenconsole/Surveillance"));
 const TokenConsoleUsers = lazy(() => import("./pages/tokenconsole/Users"));
-const MarketAbuse = lazy(() => import("./pages/conduct/MarketAbuse"));
-const ConflictsOfInterest = lazy(() => import("./pages/conduct/ConflictsOfInterest"));
-const EmployeeTrading = lazy(() => import("./pages/conduct/EmployeeTrading"));
 const InvProducts = lazy(() => import("./pages/investment/Products"));
 const InvOrders = lazy(() => import("./pages/investment/Orders"));
 const InvPortfolio = lazy(() => import("./pages/investment/PortfolioManagement"));
@@ -146,9 +143,6 @@ function AppRoutes() {
       {/* Identity checks merged into the KYC desk; old links still land. */}
       <Route path="/token-console/identity" element={<Navigate to="/token-console/kyc" replace />} />
       <Route path="/token-console/users" element={<ProtectedRoute><TokenConsoleUsers /></ProtectedRoute>} />
-      <Route path="/market-conduct/market-abuse" element={<ProtectedRoute><MarketAbuse /></ProtectedRoute>} />
-      <Route path="/market-conduct/conflicts" element={<ProtectedRoute><ConflictsOfInterest /></ProtectedRoute>} />
-      <Route path="/market-conduct/employee-trading" element={<ProtectedRoute><EmployeeTrading /></ProtectedRoute>} />
       <Route path="/investment/products" element={<ProtectedRoute><InvProducts /></ProtectedRoute>} />
       <Route path="/investment/orders" element={<ProtectedRoute><InvOrders /></ProtectedRoute>} />
       <Route path="/investment/portfolio" element={<ProtectedRoute><InvPortfolio /></ProtectedRoute>} />
