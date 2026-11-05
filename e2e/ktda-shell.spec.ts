@@ -1,11 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { json, signIn } from "./stubs";
+import { json, signIn, STAFF } from "./stubs";
 import { HIDDEN_PAGES } from "../src/lib/hiddenPages";
 
-/* The KTDA shell: placeholder branding, the trimmed navigation, and the
- * investment pages hidden from it but still reachable by their address. */
+/* The KTDA shell: placeholder branding, the prototype's navigation (four
+ * top-level items, People, Money and Admin), the top bar's search, theme
+ * switch and user chip, and the demo-data footer line. */
 
-const nav = (page: Page) => page.locator("aside nav, aside").first();
+const nav = (page: Page) => page.locator("aside").first();
+const menuHrefs = (page: Page) => page.locator("aside a[href]").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
 
 test("the sign-in page is KTDA's, with nothing of the source back office", async ({ page }) => {
   await page.route(/\/tok\//, (route) => json(route, { error: "signed out" }, 401));
@@ -25,26 +27,45 @@ test.describe("signed in", () => {
   });
 
   test("the sidebar is KTDA's: no Investcent name or regulator line", async ({ page }) => {
-    await expect(page.locator("aside").first()).toContainText("KTDA Digital Tea Payment Solution.");
+    await expect(nav(page)).toContainText("KTDA Digital Tea Payment Solution.");
     await expect(page.locator("body")).not.toContainText(/Investcent|Capital Markets Authority/);
   });
 
-  test("Farmer Payments and the live Farmers list are in the menu", async ({ page }) => {
+  test("the menu is four items and three groups: People, Money, Admin", async ({ page }) => {
     const menu = nav(page);
-    await menu.getByRole("button", { name: "Farmer Payments" }).click();
-    await expect(menu.getByRole("link", { name: "Bulk onboarding" })).toBeVisible();
-    await expect(menu.getByRole("link", { name: "Bulk payments" })).toBeVisible();
-    await menu.getByRole("button", { name: "Baracel Unyt" }).click();
+    await expect(menu.getByRole("link", { name: "Dashboard", exact: true })).toHaveAttribute("href", "/");
+    await expect(menu.getByRole("link", { name: "Payment runs", exact: true })).toHaveAttribute("href", "/bulk/payments");
+    await expect(menu.getByRole("link", { name: "Approvals", exact: true })).toHaveAttribute("href", "/approvals");
+
+    await menu.getByRole("button", { name: "People", exact: true }).click();
     await expect(menu.getByRole("link", { name: "Farmers", exact: true })).toHaveAttribute("href", "/token-console/investors");
-    await expect(menu.getByRole("link", { name: "Investors", exact: true })).toHaveCount(0);
+    await expect(menu.getByRole("link", { name: "Onboarding review", exact: true })).toHaveAttribute("href", "/kyc-queue");
+    await expect(menu.getByRole("link", { name: "Messages", exact: true })).toHaveAttribute("href", "/campaigns");
+    await expect(menu.getByRole("link", { name: "Bulk onboarding", exact: true })).toHaveAttribute("href", "/bulk/onboarding");
+
+    await menu.getByRole("button", { name: "Money", exact: true }).click();
+    await expect(menu.getByRole("link", { name: "Transactions", exact: true })).toHaveAttribute("href", "/token-console/transactions");
+    await expect(menu.getByRole("link", { name: "Disputes", exact: true })).toHaveAttribute("href", "/complaints");
+    await expect(menu.getByRole("link", { name: "Reconciliation", exact: true })).toHaveAttribute("href", "/token-console/reconciliation");
+    await expect(menu.getByRole("link", { name: "Fraud alerts", exact: true })).toHaveAttribute("href", "/fraud-alerts");
+    await expect(menu.getByRole("link", { name: "Reports", exact: true })).toHaveAttribute("href", "/reports");
+
+    await menu.getByRole("button", { name: "Admin", exact: true }).click();
+    for (const [label, href] of [["Configuration", "/token-console/configuration"], ["System health", "/system"], ["Users & roles", "/users"], ["Audit log", "/audit-log"]]) {
+      await expect(menu.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
+    }
+
+    for (const section of ["Farmer Payments", "Farmer Services", "Baracel Unyt", "Operations", "Finance", "Controls", "Platform", "Reporting"]) {
+      await expect(menu.getByRole("button", { name: section, exact: true })).toHaveCount(0);
+    }
   });
 
-  test("no hidden page has a menu link, and no investment section is left", async ({ page }) => {
-    const hrefs = await page.locator("aside a[href]").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+  test("no hidden page and no replaced demo page has a menu link", async ({ page }) => {
+    const hrefs = await menuHrefs(page);
     expect(hrefs.filter((h) => h && HIDDEN_PAGES.has(h))).toEqual([]);
-    for (const section of ["Investment Management", "Institutional Funds", "Market Conduct", "Tokenization Compliance", "Investments"]) {
-      await expect(nav(page).getByRole("button", { name: section, exact: true })).toHaveCount(0);
-    }
+    expect(hrefs).not.toContain("/transactions");
+    expect(hrefs).not.toContain("/reconciliation");
+    expect(hrefs.filter((h) => h === "/token-console/investors")).toHaveLength(1);
   });
 
   test("a hidden page still opens by its address", async ({ page }) => {
@@ -53,20 +74,77 @@ test.describe("signed in", () => {
     await expect(page.getByRole("heading", { name: "Accrual & distribution policies", level: 1 })).toBeVisible();
   });
 
-  test("only one menu item is called Farmers: the demo register is hidden", async ({ page }) => {
-    const farmers = page.locator("aside a", { hasText: /^Farmers$/ });
-    await expect(farmers).toHaveCount(1);
-    await expect(farmers).toHaveAttribute("href", "/token-console/investors");
-    const hrefs = await page.locator("aside a[href]").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-    expect(hrefs).not.toContain("/clients");
-    await expect(page.getByRole("link", { name: "Client files" })).toHaveCount(0);
-  });
-
   test("the live Farmers page says farmers", async ({ page }) => {
     await page.route(/\/tok\/accounting\/investors$/, (route) => json(route, []));
     await page.goto("/token-console/investors");
     await expect(page.getByRole("heading", { name: "Farmers", level: 1 })).toBeVisible();
     await expect(page.getByText("No farmers on the register yet")).toBeVisible();
     await expect(page.getByRole("button", { name: "Onboard farmer" })).toBeVisible();
+  });
+
+  test("a group's count is the sum of its entries' counts", async ({ page }) => {
+    const menu = nav(page);
+    const people = menu.getByRole("button", { name: "People", exact: true });
+    await expect(people).toContainText(/\d/);
+    await people.click();
+    const onboarding = menu.getByRole("link", { name: "Onboarding review", exact: true });
+    await expect(onboarding).toHaveAttribute("title", /^Onboarding review: \d+ waiting$/);
+    const n = Number((await onboarding.getAttribute("title"))!.match(/(\d+) waiting/)![1]);
+    await expect(people).toHaveText(new RegExp(`People\\s*${n}$`));
+    const money = menu.getByRole("button", { name: "Money", exact: true });
+    await money.click();
+
+    const fraud = menu.getByRole("link", { name: "Fraud alerts", exact: true });
+    await expect(fraud).toHaveAttribute("title", /^Fraud alerts: \d+ waiting$/);
+    const f = Number((await fraud.getAttribute("title"))!.match(/(\d+) waiting/)![1]);
+    await expect(money).toHaveText(new RegExp(`Money\\s*${f}$`));
+  });
+
+  test("search finds a page, and a grower number goes to the farmer", async ({ page }) => {
+    const search = page.getByRole("combobox", { name: "Search farmers, runs, pages" });
+    await page.locator("main").click();
+    await page.keyboard.press("Control+k");
+    await expect(search).toBeFocused();
+
+    await search.fill("reconc");
+    await expect(page.getByRole("option", { name: /Reconciliation/ })).toBeVisible();
+    await search.press("Enter");
+    await expect(page).toHaveURL(/\/token-console\/reconciliation$/);
+
+    await search.fill("GN-104233");
+    await expect(page.getByRole("option").first()).toContainText("Farmer GN-104233");
+    await search.press("Enter");
+    await expect(page).toHaveURL(/\/token-console\/investors\?q=GN-104233$/);
+  });
+
+  test("the theme switch sets light, dark or the system theme, and remembers it", async ({ page }) => {
+    const html = page.locator("html");
+    await page.getByRole("button", { name: "Dark theme" }).click();
+    await expect(html).toHaveClass(/\bdark\b/);
+    await page.reload();
+    await expect(html).toHaveClass(/\bdark\b/);
+    await expect(page.getByRole("button", { name: "Dark theme" })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "Light theme" }).click();
+    await expect(html).not.toHaveClass(/\bdark\b/);
+
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.getByRole("button", { name: "Follow the system theme" }).click();
+    await expect(html).toHaveClass(/\bdark\b/);
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(html).not.toHaveClass(/\bdark\b/);
+  });
+
+  test("the top bar shows the signed-in user's name and role", async ({ page }) => {
+    const chip = page.getByTestId("user-chip");
+    await expect(chip).toContainText(STAFF.fullName);
+    await expect(chip).toContainText("ADMIN");
+  });
+
+  test("the demo-data footer shows on demo pages only", async ({ page }) => {
+    await expect(page.getByTestId("demo-footer")).toHaveText("Demo data: no real farmers or money");
+    await page.goto("/token-console/policies");
+    await expect(page.getByRole("heading", { name: "Accrual & distribution policies", level: 1 })).toBeVisible();
+    await expect(page.getByTestId("demo-footer")).toHaveCount(0);
   });
 });

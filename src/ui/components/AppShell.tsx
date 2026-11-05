@@ -12,9 +12,23 @@ export type NavItem = {
   to: string;
   icon: ReactNode;
   section?: string;
+  /** A count waiting on the user (open reviews, alerts). Zero or absent shows nothing. */
+  badge?: number;
 };
 
 const UNGROUPED = "";
+
+/** The count pill beside a menu entry. Hidden from the accessible name so a
+ *  link stays "Approvals", not "Approvals 2"; the title carries the count. */
+function CountPill({ n }: { n: number }) {
+  return (
+    <span aria-hidden="true" className="ml-auto shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-warning-bg text-warning text-[11px] font-semibold tabular grid place-items-center">
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+const sumBadges = (items: NavItem[]) => items.reduce((t, i) => t + (i.badge ?? 0), 0);
 /** Width of the collapsed rail (Ant Design's collapsed Sider is 80px). */
 const RAIL_W = 80;
 
@@ -47,6 +61,8 @@ export function AppShell({
   collapsibleNav = false,
   navStorageKey,
   sectionIcons,
+  headerStart,
+  headerEnd,
 }: {
   appName: string;
   appTag: string;
@@ -61,6 +77,10 @@ export function AppShell({
   navStorageKey?: string;
   /** Icon per section name, shown on the parent menu row. Falls back to the first child's icon. */
   sectionIcons?: Record<string, ReactNode>;
+  /** Top bar, left (a search box). */
+  headerStart?: ReactNode;
+  /** Top bar, right, before the user chip (a theme switch). */
+  headerEnd?: ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -183,6 +203,7 @@ export function AppShell({
         key={item.to}
         to={item.to}
         aria-current={active ? "page" : undefined}
+        title={item.badge ? `${item.label}: ${item.badge} waiting` : undefined}
         onClick={() => {
           setDrawerOpen(false);
           closeFlyoutNow();
@@ -195,6 +216,7 @@ export function AppShell({
       >
         <span className={clsx("shrink-0", active ? "text-primary-600" : "text-text-faint")}>{item.icon}</span>
         <span className="truncate">{item.label}</span>
+        {!!item.badge && <CountPill n={item.badge} />}
       </Link>
     );
   };
@@ -246,12 +268,13 @@ export function AppShell({
                   aria-current={active ? "page" : undefined}
                   onClick={closeFlyoutNow}
                   className={clsx(
-                    "flex items-center justify-center h-10 w-full rounded-md cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50",
+                    "relative flex items-center justify-center h-10 w-full rounded-md cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50",
                     active ? "bg-primary-50 text-primary-600" : "text-text-faint hover:bg-surface-sunken hover:text-text",
                   )}
                 >
                   {item.icon}
                   <span className="sr-only">{item.label}</span>
+                  {!!item.badge && <span aria-hidden="true" className="absolute top-1.5 right-2.5 h-2 w-2 rounded-full bg-warning" />}
                 </Link>,
                 <div className="px-2 py-1 text-[13px] font-medium text-text whitespace-nowrap">{item.label}</div>,
                 40,
@@ -266,13 +289,14 @@ export function AppShell({
                 aria-label={section}
                 onClick={(e) => openFlyout(section, e.currentTarget.parentElement)}
                 className={clsx(
-                  "flex items-center justify-center h-10 w-full rounded-md cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50",
+                  "relative flex items-center justify-center h-10 w-full rounded-md cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50",
                   section === activeSection
                     ? "bg-primary-50 text-primary-600"
                     : "text-text-faint hover:bg-surface-sunken hover:text-text",
                 )}
               >
                 {sectionIconFor(section, items)}
+                {sumBadges(items) > 0 && <span aria-hidden="true" className="absolute top-1.5 right-2.5 h-2 w-2 rounded-full bg-warning" />}
               </button>,
               <>
                 <div className="px-2.5 pt-1 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint whitespace-nowrap">
@@ -326,6 +350,7 @@ export function AppShell({
                 {sectionIconFor(section, items)}
               </span>
               <span className="flex-1 text-left truncate">{section}</span>
+              {sumBadges(items) > 0 && <CountPill n={sumBadges(items)} />}
               <ChevronDown
                 size={14}
                 aria-hidden="true"
@@ -463,13 +488,18 @@ export function AppShell({
             <Menu size={22} />
           </button>
           <BrandLogo size={22} className="lg:hidden" />
+          {headerStart && <div className="min-w-0 flex-1 max-w-md">{headerStart}</div>}
           <div className="ml-auto flex items-center gap-3">
+            {headerEnd}
             {user && (
-              <div className="hidden lg:flex items-center gap-1.5 text-sm text-text-soft">
-                <div className="h-7 w-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[11px] font-semibold">
+              <div className="hidden lg:flex items-center gap-2.5" data-testid="user-chip">
+                <div className="h-8 w-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[11px] font-semibold">
                   {user.avatarInitials}
                 </div>
-                <ChevronDown size={14} />
+                <div className="leading-tight">
+                  <div className="text-[13px] font-medium text-text">{user.name}</div>
+                  <div className="text-[11px] text-text-faint">{user.role}</div>
+                </div>
               </div>
             )}
           </div>

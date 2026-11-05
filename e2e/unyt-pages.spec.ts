@@ -123,7 +123,7 @@ for (const c of PAGES) {
 test("the Demo data check can fail: a page still on src/mock shows the badge", async ({ page }) => {
   await stubUnyt(page, "empty");
   await page.goto("/clients");
-  await expect(page.getByText("Demo data")).toBeVisible();
+  await expect(page.getByText("Demo data", { exact: true })).toBeVisible();
 });
 
 test("overview: a trial balance that cannot be read is not reported as an empty book", async ({ page }) => {

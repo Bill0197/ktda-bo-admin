@@ -90,8 +90,8 @@
   color-scheme: light;
 }
 
-/* Kept for the rare deliberately-dark accent (none in the default flows
-   today) — no app applies this to <html> anymore; every app is light. */
+/* The dark palette. Applied to <html> by the theme switch (lib/theme.ts in the
+   KTDA back office) when the user picks dark, or follows a dark system theme. */
 .dark {
   --brand-ink: #F2F8F4;
   --brand-leaf: #4FB37A;
