@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { PageTransition } from "./PageTransition";
 import { Modal } from "./Modal";
 import { Button } from "./Primitives";
-import { InvestcentLockup, InvestcentLogo, InvestcentMark } from "./Brand";
+import { BrandLockup, BrandLogo, BrandMark } from "./Brand";
 
 export type NavItem = {
   label: string;
@@ -409,7 +409,7 @@ export function AppShell({
           {!showRail && (
             <>
               <div className="min-w-0 flex-1" title={`${appName} ${appTag}`}>
-                <InvestcentLockup size={30} />
+                <BrandLockup size={30} />
               </div>
             </>
           )}
@@ -426,7 +426,7 @@ export function AppShell({
             </button>
           ) : (
             showRail && (
-              <InvestcentMark size={28} />
+              <BrandMark size={28} />
             )
           )}
         </div>
@@ -444,7 +444,7 @@ export function AppShell({
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-surface border-r border-border flex flex-col animate-fade-in">
             <div className="h-16 flex items-center justify-between px-5 border-b border-border shrink-0">
               <div className="flex items-center gap-2.5">
-                <InvestcentLockup size={30} />
+                <BrandLockup size={30} />
               </div>
               <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Close menu" className="text-text-faint hover:text-text cursor-pointer">
                 <X size={20} />
@@ -462,7 +462,7 @@ export function AppShell({
           <button type="button" className="lg:hidden text-text-soft cursor-pointer" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
             <Menu size={22} />
           </button>
-          <InvestcentLogo size={22} className="lg:hidden" />
+          <BrandLogo size={22} className="lg:hidden" />
           <div className="ml-auto flex items-center gap-3">
             {user && (
               <div className="hidden lg:flex items-center gap-1.5 text-sm text-text-soft">

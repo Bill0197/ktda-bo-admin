@@ -69,18 +69,18 @@ export const ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
 };
 
 export const ADMIN_USERS: Record<AdminRole, { name: string; initials: string; email: string }> = {
-  ceo: { name: "Charles Mburu", initials: "CM", email: "charles.mburu@investcent.co.ke" },
-  bd_officer: { name: "Faith Kamau", initials: "FK", email: "faith.kamau@investcent.co.ke" },
-  client_services: { name: "Mercy Wanjala", initials: "MW", email: "mercy.wanjala@investcent.co.ke" },
-  head_of_bd: { name: "Anthony Mwenda", initials: "AM", email: "anthony.mwenda@investcent.co.ke" },
-  compliance: { name: "Kevin Baraka", initials: "KB", email: "kevin.baraka@investcent.co.ke" },
-  mlro: { name: "Josephine Muthoni", initials: "JM", email: "josephine.muthoni@investcent.co.ke" },
-  compliance_analyst: { name: "Peter Otieno", initials: "PO", email: "peter.otieno@investcent.co.ke" },
-  operations: { name: "Grace Mumbi", initials: "GM", email: "grace.mumbi@investcent.co.ke" },
-  head_of_finance: { name: "Daniel Kiptoo", initials: "DK", email: "daniel.kiptoo@investcent.co.ke" },
-  investment_manager: { name: "Ruth Nyambura", initials: "RN", email: "ruth.nyambura@investcent.co.ke" },
-  investment_committee: { name: "Susan Achieng", initials: "SA", email: "susan.achieng@investcent.co.ke" },
-  system_admin: { name: "IT Admin", initials: "IT", email: "admin@investcent.co.ke" },
+  ceo: { name: "Charles Mburu", initials: "CM", email: "charles.mburu@ktda.example" },
+  bd_officer: { name: "Faith Kamau", initials: "FK", email: "faith.kamau@ktda.example" },
+  client_services: { name: "Mercy Wanjala", initials: "MW", email: "mercy.wanjala@ktda.example" },
+  head_of_bd: { name: "Anthony Mwenda", initials: "AM", email: "anthony.mwenda@ktda.example" },
+  compliance: { name: "Kevin Baraka", initials: "KB", email: "kevin.baraka@ktda.example" },
+  mlro: { name: "Josephine Muthoni", initials: "JM", email: "josephine.muthoni@ktda.example" },
+  compliance_analyst: { name: "Peter Otieno", initials: "PO", email: "peter.otieno@ktda.example" },
+  operations: { name: "Grace Mumbi", initials: "GM", email: "grace.mumbi@ktda.example" },
+  head_of_finance: { name: "Daniel Kiptoo", initials: "DK", email: "daniel.kiptoo@ktda.example" },
+  investment_manager: { name: "Ruth Nyambura", initials: "RN", email: "ruth.nyambura@ktda.example" },
+  investment_committee: { name: "Susan Achieng", initials: "SA", email: "susan.achieng@ktda.example" },
+  system_admin: { name: "IT Admin", initials: "IT", email: "admin@ktda.example" },
 };
 
 export type ApprovalKind =
@@ -274,16 +274,16 @@ export type SystemUser = {
 };
 
 export const SYSTEM_USERS: SystemUser[] = [
-  { id: "u_1", name: "Faith Kamau", email: "faith.kamau@investcent.co.ke", role: "bd_officer", status: "active", lastLogin: "2026-08-06T09:10:00Z" },
-  { id: "u_2", name: "Peter Otieno", email: "peter.otieno@investcent.co.ke", role: "compliance_analyst", status: "active", lastLogin: "2026-08-06T08:45:00Z" },
-  { id: "u_3", name: "Grace Mumbi", email: "grace.mumbi@investcent.co.ke", role: "operations", status: "active", lastLogin: "2026-08-06T07:30:00Z" },
-  { id: "u_4", name: "Daniel Kiptoo", email: "daniel.kiptoo@investcent.co.ke", role: "head_of_finance", status: "active", lastLogin: "2026-08-05T18:00:00Z" },
-  { id: "u_5", name: "Susan Achieng", email: "susan.achieng@investcent.co.ke", role: "investment_committee", status: "active", lastLogin: "2026-08-05T16:20:00Z" },
-  { id: "u_6", name: "IT Admin", email: "admin@investcent.co.ke", role: "system_admin", status: "active", lastLogin: "2026-08-06T06:00:00Z" },
-  { id: "u_7", name: "Josephine Muthoni", email: "josephine.muthoni@investcent.co.ke", role: "mlro", status: "active", lastLogin: "2026-08-08T15:30:00Z" },
-  { id: "u_8", name: "Kevin Baraka", email: "kevin.baraka@investcent.co.ke", role: "compliance", status: "active", lastLogin: "2026-08-11T08:10:00Z" },
-  { id: "u_9", name: "Mercy Wanjala", email: "mercy.wanjala@investcent.co.ke", role: "client_services", status: "active", lastLogin: "2026-09-02T06:05:00Z" },
-  { id: "u_10", name: "Anthony Mwenda", email: "anthony.mwenda@investcent.co.ke", role: "head_of_bd", status: "active", lastLogin: "2026-09-01T17:40:00Z" },
-  { id: "u_11", name: "Charles Mburu", email: "charles.mburu@investcent.co.ke", role: "ceo", status: "active", lastLogin: "2026-09-03T06:20:00Z" },
-  { id: "u_12", name: "Ruth Nyambura", email: "ruth.nyambura@investcent.co.ke", role: "investment_manager", status: "active", lastLogin: "2026-09-02T15:05:00Z" },
+  { id: "u_1", name: "Faith Kamau", email: "faith.kamau@ktda.example", role: "bd_officer", status: "active", lastLogin: "2026-08-06T09:10:00Z" },
+  { id: "u_2", name: "Peter Otieno", email: "peter.otieno@ktda.example", role: "compliance_analyst", status: "active", lastLogin: "2026-08-06T08:45:00Z" },
+  { id: "u_3", name: "Grace Mumbi", email: "grace.mumbi@ktda.example", role: "operations", status: "active", lastLogin: "2026-08-06T07:30:00Z" },
+  { id: "u_4", name: "Daniel Kiptoo", email: "daniel.kiptoo@ktda.example", role: "head_of_finance", status: "active", lastLogin: "2026-08-05T18:00:00Z" },
+  { id: "u_5", name: "Susan Achieng", email: "susan.achieng@ktda.example", role: "investment_committee", status: "active", lastLogin: "2026-08-05T16:20:00Z" },
+  { id: "u_6", name: "IT Admin", email: "admin@ktda.example", role: "system_admin", status: "active", lastLogin: "2026-08-06T06:00:00Z" },
+  { id: "u_7", name: "Josephine Muthoni", email: "josephine.muthoni@ktda.example", role: "mlro", status: "active", lastLogin: "2026-08-08T15:30:00Z" },
+  { id: "u_8", name: "Kevin Baraka", email: "kevin.baraka@ktda.example", role: "compliance", status: "active", lastLogin: "2026-08-11T08:10:00Z" },
+  { id: "u_9", name: "Mercy Wanjala", email: "mercy.wanjala@ktda.example", role: "client_services", status: "active", lastLogin: "2026-09-02T06:05:00Z" },
+  { id: "u_10", name: "Anthony Mwenda", email: "anthony.mwenda@ktda.example", role: "head_of_bd", status: "active", lastLogin: "2026-09-01T17:40:00Z" },
+  { id: "u_11", name: "Charles Mburu", email: "charles.mburu@ktda.example", role: "ceo", status: "active", lastLogin: "2026-09-03T06:20:00Z" },
+  { id: "u_12", name: "Ruth Nyambura", email: "ruth.nyambura@ktda.example", role: "investment_manager", status: "active", lastLogin: "2026-09-02T15:05:00Z" },
 ];

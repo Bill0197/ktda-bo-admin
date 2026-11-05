@@ -7,7 +7,7 @@ import { TokApiError } from "../lib/tokApi";
 import { PENDING_APPROVAL_HINT, type SelfServiceRole } from "../lib/tokenConsole/spec-deviations";
 
 const BULLETS = [
-  { label: "Two-person approval on prices, rates and configuration", icon: <Lock size={15} /> },
+  { label: "Two-person approval on fees, limits and configuration", icon: <Lock size={15} /> },
   { label: "Maker-checker on every payment release", icon: <ClipboardCheck size={15} /> },
   { label: "Every action auditable end to end", icon: <ShieldCheck size={15} /> },
 ];
@@ -34,9 +34,9 @@ export default function Login() {
 
   return (
     <AuthLayout
-      eyebrow="Investcent Investment Bank"
-      title="BO Admin"
-      description="Run the bank's day-to-day investment operations: approvals, client onboarding, NAV publication, and liquidity monitoring — scoped precisely to what your role owns."
+      eyebrow="KTDA Digital Tea Payment Solution"
+      title="Back Office"
+      description="Onboard farmers, pay their wallets, reconcile the ledger and follow every exception, with two-person control on what moves money."
       bullets={BULLETS}
     >
       <div className="max-w-md w-full relative z-10">

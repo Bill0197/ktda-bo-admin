@@ -18,7 +18,7 @@ const CONFIRM: Record<"reject" | "disable", { title: string; body: (who: string)
   reject: { title: "Reject this signup?", body: (who) => `${who} will not be able to sign in.`, button: "Reject" },
   disable: {
     title: "Disable this account?",
-    body: (who) => `${who} is signed out of BO Admin and cannot sign in again until the account is re-enabled.`,
+    body: (who) => `${who} is signed out of the back office and cannot sign in again until the account is re-enabled.`,
     button: "Disable",
   },
 };
@@ -65,7 +65,7 @@ export default function TokenConsoleUsers() {
 
   return (
     <div>
-      <PageHeader eyebrow="Baracel Unyt" title="Tokenization users" subtitle="The accounts people sign in to BO Admin with: approvals, sessions and the sign-in audit trail." />
+      <PageHeader eyebrow="Baracel Unyt" title="Tokenization users" subtitle="The accounts people sign in to the back office with: approvals, sessions and the sign-in audit trail." />
 
       {act.error && <NotePanel tone="danger" className="mb-4">{act.error}</NotePanel>}
 

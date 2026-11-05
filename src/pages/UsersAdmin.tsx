@@ -65,7 +65,7 @@ function InviteModal({ open, onClose, onInvited }: { open: boolean; onClose: () 
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Janet Wambui" invalid={!!errors.name} autoFocus />
         </Field>
         <Field label="Work email" required error={errors.email}>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@investcent.co.ke" invalid={!!errors.email} />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@ktda.example" invalid={!!errors.email} />
         </Field>
         <Field label="Role" hint="Determines exactly which pages they can reach — see the permission matrix tab.">
           <Dropdown

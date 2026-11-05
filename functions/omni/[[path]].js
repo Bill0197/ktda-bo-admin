@@ -46,7 +46,7 @@ export async function onRequest({ request, env }) {
   // nothing unless the caller holds a live BO Admin (tokenization) session.
   const session = await signedIn(request, env);
   if (session === null) return unavailable();
-  if (!session) return json(401, { error: "Sign in to BO Admin first." });
+  if (!session) return json(401, { error: "Sign in to the back office first." });
 
   const target = env.OMNI_TARGET + url.pathname.replace(/^\/omni/, "") + url.search;
 

@@ -132,7 +132,7 @@ function panelSpans(defs: PanelDef[], cols = 3): Record<string, string> {
 
 export default function Dashboard() {
   const { role, canAccess } = useAuth();
-  const subtitle = useContentField("dashboard", "subtitle", "Investcent Investment Bank");
+  const subtitle = useContentField("dashboard", "subtitle", "KTDA Digital Tea Payment Solution");
 
   const showApprovals = canAccess("/approvals");
   const showAudit = canAccess("/audit-log");

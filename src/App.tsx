@@ -214,7 +214,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ErrorBoundary appName="Investcent BO Admin">
+    <ErrorBoundary appName="KTDA Back Office">
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

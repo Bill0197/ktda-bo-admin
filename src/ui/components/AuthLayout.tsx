@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { AmbientBackdrop } from "./Ambient";
-import { InvestcentLockup } from "./Brand";
+import { BrandLockup } from "./Brand";
 import { versionLabel, versionTitle } from "../../lib/version";
 
-/** Split-screen shell for every login/auth screen — a soft IC Blue brand
+/** Split-screen shell for every login/auth screen — a soft brand-tinted
  * panel on desktop (hidden on mobile, where the form panel takes the full
  * screen), and a form panel on the right. Keeps the five apps' auth
  * screens visually consistent without duplicating the layout five times. */
@@ -25,7 +25,7 @@ export function AuthLayout({
       <div className="hidden lg:flex lg:w-[42%] xl:w-[38%] relative overflow-hidden bg-primary-50 flex-col justify-between p-12 xl:p-14">
         <AmbientBackdrop />
         <div className="relative z-10 animate-float-slow">
-          <InvestcentLockup size={52} />
+          <BrandLockup size={52} />
         </div>
         <div className="relative z-10">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-600 mb-4">{eyebrow}</div>
