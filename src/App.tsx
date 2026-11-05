@@ -25,7 +25,6 @@ const Approvals = lazy(() => import("./pages/Approvals"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 const UnallocatedFunds = lazy(() => import("./pages/UnallocatedFunds"));
-const BondLadder = lazy(() => import("./pages/BondLadder"));
 const UsersAdmin = lazy(() => import("./pages/UsersAdmin"));
 const Reports = lazy(() => import("./pages/Reports"));
 const PlatformSettings = lazy(() => import("./pages/PlatformSettings"));
@@ -98,7 +97,6 @@ function AppRoutes() {
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/reconciliation" element={<ProtectedRoute><Reconciliation /></ProtectedRoute>} />
       <Route path="/unallocated-funds" element={<ProtectedRoute><UnallocatedFunds /></ProtectedRoute>} />
-      <Route path="/bond-ladder" element={<ProtectedRoute><BondLadder /></ProtectedRoute>} />
       <Route path="/catalogue" element={<ProtectedRoute><Catalogue /></ProtectedRoute>} />
       <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
       <Route path="/enquiries" element={<ProtectedRoute><Enquiries /></ProtectedRoute>} />

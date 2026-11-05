@@ -48,9 +48,9 @@ test.describe("signed in", () => {
   });
 
   test("a hidden page still opens by its address", async ({ page }) => {
-    await page.goto("/bond-ladder");
+    await page.goto("/token-console/policies");
     await expect(page.getByText("Access denied")).toHaveCount(0);
-    await expect(page.locator("main h1").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Accrual & distribution policies", level: 1 })).toBeVisible();
   });
 
   test("only one menu item is called Farmers: the demo register is hidden", async ({ page }) => {
