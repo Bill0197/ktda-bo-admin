@@ -26,7 +26,7 @@ type PageCase = {
 
 const PAGES: PageCase[] = [
   { path: "overview", heading: "Overview", empty: "Nothing posted yet", data: ["Subscription by Wanjiru Kamau", "Balanced"], fails: "tok" },
-  { path: "investors", heading: "Investors", empty: "No investors on the register yet", data: [IDS.investorName, "Otieno Ochieng"], fails: "tok" },
+  { path: "investors", heading: "Farmers", empty: "No farmers on the register yet", data: [IDS.investorName, "Otieno Ochieng"], fails: "tok" },
   { path: "accounts", heading: "Accounts", empty: "No accounts open", data: [IDS.fundContract, IDS.loanContract], fails: "tok" },
   { path: "journals", heading: "Journals", empty: "Nothing posted yet", data: ["Subscription by Wanjiru Kamau"], fails: "tok" },
   { path: "trial-balance", heading: "Trial balance", empty: "No balances", data: ["Investor principal", "-250,000.00"], fails: "tok" },

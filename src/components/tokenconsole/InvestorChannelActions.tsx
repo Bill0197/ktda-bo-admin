@@ -11,7 +11,7 @@ import type { Investor } from "../../lib/tokenConsole/types.gen";
 export function InvestorChannelActions({ investor, onClose }: { investor: Investor; onClose: () => void }) {
   const toast = useToast();
   const id = investor.investorId ?? "";
-  const who = investor.displayName ?? investor.externalRef ?? "this investor";
+  const who = investor.displayName ?? investor.externalRef ?? "this farmer";
   const issue = useAction(omniApi.issueLinkCode);
   const notify = useAction(omniApi.notifyInvestor);
   const [code, setCode] = useState<LinkCode | null>(null);
@@ -39,7 +39,7 @@ export function InvestorChannelActions({ investor, onClose }: { investor: Invest
       <section>
         <h3 className="text-[13px] font-semibold text-text">Link code</h3>
         <p className="mt-1 mb-3 text-sm text-text-soft">
-          A one-time code the investor enters in the app to connect it to this record. Read it to them on a verified call.
+          A one-time code the farmer enters in the app to connect it to this record. Read it to them on a verified call.
         </p>
         {code ? (
           <div className="rounded-md border border-border bg-surface-sunken px-4 py-3">
@@ -56,7 +56,7 @@ export function InvestorChannelActions({ investor, onClose }: { investor: Invest
 
       <section className="mt-6 border-t border-border pt-5">
         <h3 className="text-[13px] font-semibold text-text">Send a message</h3>
-        <p className="mt-1 mb-3 text-sm text-text-soft">Delivered to the investor's app inbox. Only works once the app is linked.</p>
+        <p className="mt-1 mb-3 text-sm text-text-soft">Delivered to the farmer's app inbox. Only works once the app is linked.</p>
         <div className="grid gap-3">
           <Field label="Title" required>
             <Input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Your statement is ready" />

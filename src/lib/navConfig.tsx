@@ -114,6 +114,7 @@ const ALL_NAV_DEFS: NavDef[] = [
 /** KTDA's names for pages it keeps, by route. */
 const KTDA_LABELS: Record<string, string> = {
   "/clients": "Farmers",
+  "/token-console/investors": "Farmers",
 };
 /** KTDA's names for sections, where the source's do not fit. */
 const KTDA_SECTIONS: Record<string, string> = {

@@ -32,12 +32,12 @@ export default function TokenConsoleInvestors() {
     <div>
       <PageHeader
         eyebrow="Baracel Unyt"
-        title="Investors"
-        subtitle="Everyone on the token register, and where each one sits in its lifecycle. Select one for their holdings, cash and movements."
-        actions={<Button size="sm" onClick={() => setOnboarding(true)}><Plus size={14} /> Onboard investor</Button>}
+        title="Farmers"
+        subtitle="Every farmer on the register, and where each one sits in its lifecycle. Select one for their holdings, cash and movements."
+        actions={<Button size="sm" onClick={() => setOnboarding(true)}><Plus size={14} /> Onboard farmer</Button>}
       />
       <ConsoleTable<Investor>
-        what="investors"
+        what="farmers"
         newest={(r) => r.onboardedAt}
         source={investors}
         rows={rows}
@@ -45,8 +45,8 @@ export default function TokenConsoleInvestors() {
         onRowClick={(r) => setOpen(r)}
         actions={<SearchInput value={q} onChange={setQ} placeholder="Name or reference…" className="w-64" />}
         title="Register"
-        description={investors.data ? `${rows.length} of ${investors.data.length} investors` : undefined}
-        emptyLabel={term ? "No investor matches that" : "No investors on the register yet"}
+        description={investors.data ? `${rows.length} of ${investors.data.length} farmers` : undefined}
+        emptyLabel={term ? "No farmer matches that" : "No farmers on the register yet"}
         columns={[
           { key: "name", header: "Name", render: (r) => <span className="text-text font-medium">{r.displayName ?? "—"}</span> },
           { key: "ref", header: "Reference", render: (r) => <Code>{r.externalRef}</Code> },
@@ -54,13 +54,13 @@ export default function TokenConsoleInvestors() {
           { key: "status", header: "Status", render: (r) => <StatusBadge status={r.lifecycleStatus} /> },
           { key: "onboarded", header: "Onboarded", render: (r) => <span className="tabular text-xs text-text-soft">{dateOf(r.onboardedAt)}</span>, hideOnMobile: true },
           { key: "app", header: "", className: "text-right", render: (r) => r.investorId ? (
-            <Button size="sm" variant="ghost" aria-label={`App channel for ${r.displayName ?? r.externalRef ?? "investor"}`} onClick={(e) => { e.stopPropagation(); setChannel(r); }}>
+            <Button size="sm" variant="ghost" aria-label={`App channel for ${r.displayName ?? r.externalRef ?? "farmer"}`} onClick={(e) => { e.stopPropagation(); setChannel(r); }}>
               App channel
             </Button>
           ) : null },
         ]}
       />
-      <Modal open={!!open} onClose={() => setOpen(null)} title={open?.displayName ?? open?.externalRef ?? "Investor"} size="lg">
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open?.displayName ?? open?.externalRef ?? "Farmer"} size="lg">
         {open?.investorId && <InvestorPanel key={open.investorId} investorId={open.investorId} onChanged={() => void investors.reload()} />}
       </Modal>
       {onboarding && (
@@ -117,7 +117,7 @@ function OnboardModal({ onClose, onDone }: { onClose: () => void; onDone: (messa
 
   return (
     <ActionModal
-      title="Onboard an investor"
+      title="Onboard a farmer"
       description="Low risk and KYC verified clears straight away; anything else opens a review on the KYC desk."
       submitLabel="Onboard"
       problem={problem}
