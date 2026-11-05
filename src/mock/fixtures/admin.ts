@@ -28,13 +28,13 @@ export const ROLE_LABELS: Record<AdminRole, string> = {
  * architecture artifact. A route not listed for a role is not just
  * hidden from nav, ProtectedRoute below refuses it outright. */
 const ALL_ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
-  bd_officer: ["/", "/clients", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/reports"],
+  bd_officer: ["/", "/clients", "/enquiries", "/tasks", "/campaigns", "/reports"],
   // Client Services reaches the customer-facing desk and nothing behind it:
   // no cases, no screening, no AML alerts, no pipeline. The redaction on
   // compliance-flagged interactions is the second half of that boundary —
   // route access alone would not stop a case reason reaching a call script.
   client_services: ["/", "/clients", "/enquiries", "/tasks", "/complaints"],
-  head_of_bd: ["/", "/clients", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/complaints", "/reports"],
+  head_of_bd: ["/", "/clients", "/enquiries", "/tasks", "/campaigns", "/complaints", "/reports"],
   // Institutional Investment Compliance belongs to this seat, not the analyst's.
   // The holder is the Institutional Funds Compliance Manager, and a mandate
   // breach carries a cure decision and a client-notification obligation —
@@ -53,7 +53,7 @@ const ALL_ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
   // Users & roles, Feature flags, Platform settings and System: an executive
   // who can silently change an approval route is a control weakness, not a
   // convenience.
-  ceo: ["/", "/clients", "/complaints", "/pipeline", "/bd-performance", "/nav", "/distributions", "/liquidity", "/ledger", "/bond-ladder", "/approvals", "/reports", "/audit-log"],
+  ceo: ["/", "/clients", "/complaints", "/nav", "/distributions", "/liquidity", "/ledger", "/bond-ladder", "/approvals", "/reports", "/audit-log"],
   operations: ["/", "/clients", "/transactions", "/reconciliation", "/unallocated-funds", "/ledger", "/complaints", "/approvals", "/reports"],
   head_of_finance: ["/", "/nav", "/distributions", "/approvals", "/liquidity", "/ledger", "/catalogue", "/reports", "/settings"],
   // Investment Manager runs the mandate day to day: products, orders, the book,
@@ -66,7 +66,7 @@ const ALL_ROLE_PAGE_ACCESS: Record<AdminRole, string[]> = {
   // where it actually holds: `canSeeCase` filters restricted cases seam-side by
   // role, so opening the Cases page to System Admin shows the register without
   // suspicious-activity matters — the control is on the data, not the route.
-  system_admin: ["/", "/bulk/onboarding", "/bulk/payments", "/clients", "/complaints", "/kyc-queue", "/kyc-periodic", "/kyc-dynamic", "/aml-alerts", "/cases", "/fraud-alerts", "/fraud-cases", "/screening", "/approvals", "/transactions", "/reconciliation", "/unallocated-funds", "/enquiries", "/tasks", "/coverage", "/campaigns", "/pipeline", "/bd-performance", "/nav", "/distributions", "/liquidity", "/bond-ladder", "/ledger", "/catalogue", "/reports", "/settings", "/feature-flags", "/users", "/system", "/audit-log", "/tokenization/issuance", "/tokenization/lifecycle", "/tokenization/smart-contracts", "/token-console/overview", "/token-console/investors", "/token-console/accounts", "/token-console/offerings", "/token-console/products", "/token-console/market", "/token-console/journals", "/token-console/trial-balance", "/token-console/unit-ledger", "/token-console/reconciliation", "/token-console/runs", "/token-console/policies", "/token-console/compliance", "/token-console/funds", "/token-console/tariffs", "/token-console/configuration", "/token-console/changes", "/token-console/loans", "/token-console/kyc", "/token-console/customers", "/token-console/customer-approvals", "/token-console/transactions", "/token-console/users", "/token-console/nav", "/token-console/assets", "/market-conduct/market-abuse", "/market-conduct/conflicts", "/market-conduct/employee-trading", "/institutional-compliance/breaches", "/institutional-compliance/restrictions", "/institutional-compliance/counterparties", "/institutional-compliance/clients", "/investment/products", "/investment/orders", "/investment/portfolio", "/investment/holdings", "/investment/valuations", "/investment/redemptions", "/investment/corporate-actions", "/investment/ic-approvals", "/investment/mandates", "/institutional/clients", "/institutional/mandates", "/institutional/portfolios", "/institutional/fees", "/institutional/reporting"],
+  system_admin: ["/", "/bulk/onboarding", "/bulk/payments", "/clients", "/complaints", "/kyc-queue", "/kyc-periodic", "/kyc-dynamic", "/aml-alerts", "/cases", "/fraud-alerts", "/fraud-cases", "/screening", "/approvals", "/transactions", "/reconciliation", "/unallocated-funds", "/enquiries", "/tasks", "/campaigns", "/nav", "/distributions", "/liquidity", "/bond-ladder", "/ledger", "/catalogue", "/reports", "/settings", "/feature-flags", "/users", "/system", "/audit-log", "/tokenization/issuance", "/tokenization/lifecycle", "/tokenization/smart-contracts", "/token-console/overview", "/token-console/investors", "/token-console/accounts", "/token-console/offerings", "/token-console/products", "/token-console/market", "/token-console/journals", "/token-console/trial-balance", "/token-console/unit-ledger", "/token-console/reconciliation", "/token-console/runs", "/token-console/policies", "/token-console/compliance", "/token-console/funds", "/token-console/tariffs", "/token-console/configuration", "/token-console/changes", "/token-console/loans", "/token-console/kyc", "/token-console/customers", "/token-console/customer-approvals", "/token-console/transactions", "/token-console/users", "/token-console/nav", "/token-console/assets", "/market-conduct/market-abuse", "/market-conduct/conflicts", "/market-conduct/employee-trading", "/institutional-compliance/breaches", "/institutional-compliance/restrictions", "/institutional-compliance/counterparties", "/institutional-compliance/clients", "/investment/products", "/investment/orders", "/investment/portfolio", "/investment/holdings", "/investment/valuations", "/investment/redemptions", "/investment/corporate-actions", "/investment/ic-approvals", "/investment/mandates", "/institutional/clients", "/institutional/mandates", "/institutional/portfolios", "/institutional/fees", "/institutional/reporting"],
 };
 
 /** What each role reaches in the KTDA back office: the lists above without

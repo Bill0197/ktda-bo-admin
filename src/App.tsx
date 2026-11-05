@@ -39,10 +39,7 @@ const Catalogue = lazy(() => import("./pages/Catalogue"));
 const Ledger = lazy(() => import("./pages/Ledger"));
 const Enquiries = lazy(() => import("./pages/Enquiries"));
 const Tasks = lazy(() => import("./pages/Tasks"));
-const Coverage = lazy(() => import("./pages/Coverage"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
-const Pipeline = lazy(() => import("./pages/Pipeline"));
-const BdPerformance = lazy(() => import("./pages/BdPerformance"));
 const TokenIssuance = lazy(() => import("./pages/tokenization/TokenIssuance"));
 const TokenLifecycle = lazy(() => import("./pages/tokenization/TokenLifecycle"));
 const SmartContracts = lazy(() => import("./pages/tokenization/SmartContracts"));
@@ -130,10 +127,7 @@ function AppRoutes() {
       <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
       <Route path="/enquiries" element={<ProtectedRoute><Enquiries /></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-      <Route path="/coverage" element={<ProtectedRoute><Coverage /></ProtectedRoute>} />
       <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
-      <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
-      <Route path="/bd-performance" element={<ProtectedRoute><BdPerformance /></ProtectedRoute>} />
       <Route path="/tokenization/issuance" element={<ProtectedRoute><TokenIssuance /></ProtectedRoute>} />
       <Route path="/tokenization/lifecycle" element={<ProtectedRoute><TokenLifecycle /></ProtectedRoute>} />
       <Route path="/tokenization/smart-contracts" element={<ProtectedRoute><SmartContracts /></ProtectedRoute>} />

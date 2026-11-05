@@ -1,14 +1,5 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2,
-  Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog,
-  FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog,
-  MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity,
-  UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign,
-  Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint,
-  BookOpenCheck, PackageSearch, Inbox, ListChecks, Contact, Megaphone, Target, Gauge,
-  Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart,
-  PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2,
-  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2, Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog, FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog, MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity, UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign, Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint, BookOpenCheck, PackageSearch, Inbox, ListChecks, Megaphone, Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart, PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2, Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -26,10 +17,7 @@ const ALL_NAV_DEFS: NavDef[] = [
   { label: "Enquiries", to: "/enquiries", section: "Client Services", icon: Inbox },
   { label: "Follow-ups", to: "/tasks", section: "Client Services", icon: ListChecks },
   { label: "Complaints", to: "/complaints", section: "Client Services", icon: MessageSquareWarning },
-  { label: "Coverage", to: "/coverage", section: "Business Development", icon: Contact },
-  { label: "Pipeline", to: "/pipeline", section: "Business Development", icon: Target },
   { label: "Campaigns", to: "/campaigns", section: "Business Development", icon: Megaphone },
-  { label: "BD performance", to: "/bd-performance", section: "Business Development", icon: Gauge },
   { label: "KYC Onboarding", to: "/kyc-queue", section: "KYC Review", icon: FileCheck2 },
   { label: "KYC Periodic Review", to: "/kyc-periodic", section: "KYC Review", icon: CalendarCheck2 },
   { label: "Dynamic Review", to: "/kyc-dynamic", section: "KYC Review", icon: Activity },
