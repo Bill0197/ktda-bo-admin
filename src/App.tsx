@@ -7,15 +7,12 @@ import Login from "./pages/Login";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Clients = lazy(() => import("./pages/Clients"));
-const Leads = lazy(() => import("./pages/Leads"));
-const Suitability = lazy(() => import("./pages/Suitability"));
 const KycQueue = lazy(() => import("./pages/KycQueue"));
 const KycPeriodic = lazy(() => import("./pages/KycPeriodic"));
 const KycDynamic = lazy(() => import("./pages/KycDynamic"));
 const KycOnboardingDetail = lazy(() => import("./pages/KycOnboardingDetail"));
 const KycPeriodicDetail = lazy(() => import("./pages/KycPeriodicDetail"));
 const KycDynamicDetail = lazy(() => import("./pages/KycDynamicDetail"));
-const SuitabilityDetail = lazy(() => import("./pages/SuitabilityDetail"));
 const ClientDetail = lazy(() => import("./pages/ClientDetail"));
 const Cases = lazy(() => import("./pages/Cases"));
 const CaseDetail = lazy(() => import("./pages/CaseDetail"));
@@ -107,15 +104,12 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
-      <Route path="/suitability" element={<ProtectedRoute><Suitability /></ProtectedRoute>} />
       <Route path="/kyc-queue" element={<ProtectedRoute><KycQueue /></ProtectedRoute>} />
       <Route path="/kyc-queue/:id" element={<ProtectedRoute><KycOnboardingDetail /></ProtectedRoute>} />
       <Route path="/kyc-periodic" element={<ProtectedRoute><KycPeriodic /></ProtectedRoute>} />
       <Route path="/kyc-periodic/:id" element={<ProtectedRoute><KycPeriodicDetail /></ProtectedRoute>} />
       <Route path="/kyc-dynamic" element={<ProtectedRoute><KycDynamic /></ProtectedRoute>} />
       <Route path="/kyc-dynamic/:id" element={<ProtectedRoute><KycDynamicDetail /></ProtectedRoute>} />
-      <Route path="/suitability/:id" element={<ProtectedRoute><SuitabilityDetail /></ProtectedRoute>} />
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
       <Route path="/cases" element={<ProtectedRoute><Cases /></ProtectedRoute>} />
       <Route path="/cases/:id" element={<ProtectedRoute><CaseDetail /></ProtectedRoute>} />

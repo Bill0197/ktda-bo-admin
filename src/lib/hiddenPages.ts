@@ -10,7 +10,7 @@ export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   // under Baracel Unyt (/token-console/investors, labelled Farmers).
   "/clients",
   // Client Services and Business Development: investment sales
-  "/leads", "/suitability", "/coverage", "/pipeline", "/bd-performance",
+  "/coverage", "/pipeline", "/bd-performance",
   // Tokenization Compliance
   "/tokenization/issuance", "/tokenization/lifecycle", "/tokenization/smart-contracts",
   // Baracel Unyt: the investment products and their pricing

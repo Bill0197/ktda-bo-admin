@@ -6,7 +6,7 @@ import {
 } from "../mock";
 import {
   getApprovalQueue, getClients, getSubFunds, getAuditLog, getFundFlows, getAumTrend,
-  getCouponCalendar, getOpsSnapshot, getLeads,
+  getCouponCalendar, getOpsSnapshot,
 } from "../lib/api";
 import {
   PageHeader, StatCard, Card, Badge, Skeleton, formatDateTime, formatDate,
@@ -30,16 +30,6 @@ const KES = (n: number) => `KES ${compactNumber(n)}`;
    turns a scale into a leaderboard. */
 const RISK_ORDER = ["low", "medium", "high"] as const;
 
-/* Funnel order, not fixture order — a pipeline read out of sequence is not a
-   pipeline. `lost` sits at the end because it is an exit, not a stage. */
-const LEAD_STAGES = ["new", "contacted", "discovery_scheduled", "converted", "lost"] as const;
-const LEAD_STAGE_LABELS: Record<(typeof LEAD_STAGES)[number], string> = {
-  new: "New",
-  contacted: "Contacted",
-  discovery_scheduled: "Discovery scheduled",
-  converted: "Converted",
-  lost: "Lost",
-};
 const SEVERITY_ORDER = ["low", "medium", "high"] as const;
 
 function PanelSkeleton({ rows = 4 }: { rows?: number }) {
@@ -142,13 +132,11 @@ export default function Dashboard() {
   const showCompliance = canAccess("/kyc-queue") || canAccess("/aml-alerts") || canAccess("/cases");
   // The demo farmer register is hidden (lib/hiddenPages.ts), so no tile leads to it.
   const showClients = canAccess("/clients") && !isHiddenPage("/clients");
-  const showLeads = canAccess("/leads");
-  const showSuitability = canAccess("/suitability");
 
   const [flowRange, setFlowRange] = useState<14 | 30>(30);
 
   const { data: approvals, loading: approvalsLoading } = useAsyncData(
-    () => (showApprovals || showSuitability ? getApprovalQueue() : Promise.resolve([])),
+    () => (showApprovals ? getApprovalQueue() : Promise.resolve([])),
   );
   const { data: clients, loading: clientsLoading } = useAsyncData(() => (showClients ? getClients() : Promise.resolve([])));
   const { data: funds, loading: fundsLoading } = useAsyncData(getSubFunds);
@@ -157,7 +145,6 @@ export default function Dashboard() {
   const { data: coupons, loading: couponsLoading } = useAsyncData(() => (showFund ? getCouponCalendar(12) : Promise.resolve([])));
   const { data: snapshot, loading: snapshotLoading } = useAsyncData(() => (role ? getOpsSnapshot(role) : Promise.resolve(null)));
   const { data: audit, loading: auditLoading } = useAsyncData(() => (showAudit ? getAuditLog() : Promise.resolve([])));
-  const { data: leads, loading: leadsLoading } = useAsyncData(() => (showLeads ? getLeads() : Promise.resolve([])));
   const { data: facilities } = useAsyncData(async () => {
     if (!canAccess("/liquidity")) return {} as Record<string, FacilityState>;
     const fs = await getSubFunds();
@@ -166,10 +153,6 @@ export default function Dashboard() {
   });
 
   const pending = useMemo(() => (approvals ?? []).filter((a) => a.status === "pending"), [approvals]);
-  const suitabilityQueue = useMemo(
-    () => (approvals ?? []).filter((a) => a.status === "pending" && a.kind === "kyc_exception"),
-    [approvals],
-  );
   const totalAum = (funds ?? []).reduce((sum, f) => sum + f.aum, 0);
   const avgUtilisation = funds && funds.length
     ? funds.reduce((s, f) => s + f.liquidityUsed / (f.aum * 0.1), 0) / funds.length
@@ -197,8 +180,6 @@ export default function Dashboard() {
     { key: "approvals", span: 1, show: showApprovals },
     { key: "caseload", span: 1, show: canAccess("/cases"), grow: true },
     { key: "newclients", span: 1, show: showClients },
-    { key: "suitability", span: 1, show: showSuitability && !showApprovals, grow: true },
-    { key: "leads", span: 1, show: showLeads, grow: true },
     { key: "exceptions", span: 1, show: canAccess("/reconciliation") || canAccess("/unallocated-funds"), grow: true },
     { key: "audit", span: 3, show: showAudit, grow: true },
   ];
@@ -271,16 +252,6 @@ export default function Dashboard() {
         icon={<Users size={18} />}
         hint="on the register"
         to="/clients"
-      />
-    ),
-    showLeads && (
-      <StatCard
-        key="leads"
-        label="Leads in pipeline"
-        value={(leads ?? []).filter((l) => l.stage !== "converted" && l.stage !== "lost").length}
-        icon={<Users size={18} />}
-        hint="still open with BD"
-        to="/leads"
       />
     ),
   ].filter(Boolean);
@@ -620,76 +591,6 @@ export default function Dashboard() {
                 formatValue={(v) => String(Math.round(v))}
                 series={[{ label: "New files", values: (snapshot?.newClientsByMonth ?? []).map((m) => m.count), colorIndex: 3 }]}
               />
-            )}
-          </ChartFrame>
-        )}
-
-        {/* ---- the manual bridge until a simplified pathway is approved ---- */}
-        {shown.suitability && (
-          <ChartFrame
-            className={span.suitability}
-            title="Suitability exceptions"
-            subtitle="Applications held for a manual conduct check rather than auto-activated."
-          >
-            {approvalsLoading ? (
-              <PanelSkeleton rows={3} />
-            ) : (
-              <>
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="font-display text-2xl font-semibold tabular text-text">{suitabilityQueue.length}</span>
-                  <span className="text-xs text-text-faint">waiting on a decision</span>
-                </div>
-                <ul className="flex flex-col divide-y divide-border">
-                  {suitabilityQueue.slice(0, 4).map((a) => (
-                    <li key={a.id} className="flex items-center gap-2 py-2 text-xs first:pt-0">
-                      <span className="text-text truncate min-w-0">{a.title.replace("Suitability exception — ", "")}</span>
-                      <span className="text-text-faint ml-auto shrink-0">{formatDate(a.proposedAt)}</span>
-                    </li>
-                  ))}
-                  {suitabilityQueue.length === 0 && <li className="text-sm text-text-faint py-1">Nothing waiting.</li>}
-                </ul>
-                <Link to="/suitability" className="mt-3 inline-block text-xs text-primary-600 font-medium">Open the queue</Link>
-              </>
-            )}
-          </ChartFrame>
-        )}
-
-        {/* ---- pipeline: what Business Development is working ---- */}
-        {shown.leads && (
-          <ChartFrame
-            className={span.leads}
-            title="Lead pipeline"
-            subtitle="The manual register BD works from until a CRM exists."
-            table={{
-              columns: ["Stage", "Leads"],
-              rows: LEAD_STAGES.map((st) => [LEAD_STAGE_LABELS[st], (leads ?? []).filter((l) => l.stage === st).length]),
-            }}
-          >
-            {leadsLoading ? (
-              <PanelSkeleton rows={5} />
-            ) : (
-              <>
-                <BulletBar
-                  formatValue={(v) => String(v)}
-                  rows={LEAD_STAGES.map((st, i) => ({
-                    label: LEAD_STAGE_LABELS[st],
-                    value: (leads ?? []).filter((l) => l.stage === st).length,
-                    colorIndex: i,
-                    tone: st === "lost" ? "danger" : st === "converted" ? "success" : undefined,
-                  }))}
-                />
-                <div className="mt-4 pt-3 border-t border-border flex items-baseline justify-between">
-                  <span className="text-xs text-text-soft">Converted to date</span>
-                  <span className="text-sm font-semibold tabular text-text">
-                    {(() => {
-                      const all = leads ?? [];
-                      const won = all.filter((l) => l.stage === "converted").length;
-                      return all.length ? `${won}/${all.length} · ${Math.round((won / all.length) * 100)}%` : "—";
-                    })()}
-                  </span>
-                </div>
-                <Link to="/leads" className="mt-3 inline-block text-xs text-primary-600 font-medium">Open the register</Link>
-              </>
             )}
           </ChartFrame>
         )}
