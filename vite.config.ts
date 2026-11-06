@@ -123,6 +123,9 @@ function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets):
       changeOrigin: true,
       secure: false,
       rewrite: (path) => path.replace(/^\/omni/, ""),
+      // Investing features KTDA does not offer (currency exchange, the market
+      // and its content): refused here as in functions/omni and nginx.
+      bypass: (req) => (/^\/omni\/api\/operator\/(fx|market|content)(\/|\?|$)/.test(req.url ?? "") ? false : undefined),
       // Omnichannel's CORS list is localhost:5173-5178 only and it 403s any
       // other Origin — same-origin needs none, so drop it (as functions/omni does).
       configure: (p) => {

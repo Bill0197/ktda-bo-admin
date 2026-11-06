@@ -25,7 +25,7 @@ export class OmniApiError extends Error {
 }
 
 /** A 401 from omnichannel or the proxy in front of it: the BO Admin session
- *  has ended, or the call did not say who is acting (the market and payment
+ *  has ended, or the call did not say who is acting (the payment
  *  decisions refuse to act for nobody). Either way signing in again fixes it;
  *  the raw message ("No authenticated subject") would not tell anyone that. */
 const SIGN_IN_AGAIN = "Omnichannel could not tell who you are, so nothing was done. Please sign out, sign in again and retry.";
@@ -332,143 +332,6 @@ export type SentMessage = {
   createdAt: string;
 };
 
-/** What the relay deals by now (BRD FR-ADM-01). `source` "defaults" means no
- *  change has been approved yet and the environment's values apply;
- *  "change" means the approved change `changeId`, in force `since`, approved
- *  by `decidedBy`. */
-export type MarketSettings = {
-  tradingOpen: string;
-  tradingClose: string;
-  zone: string;
-  weekendsOpen: boolean;
-  halted: boolean;
-  /** Offering ids halted on their own. */
-  haltedOfferings: string[];
-  source: "defaults" | "change" | string;
-  changeId: string | null;
-  since: string | null;
-  /** Who approved the change in force, and their note; null on the defaults. */
-  decidedBy?: string | null;
-  decisionNote?: string | null;
-};
-
-/** One proposed market-settings change: the whole setting as it would be
- *  after it, and who proposed and decided it. */
-export type MarketChange = {
-  id: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | string;
-  tradingOpen: string;
-  tradingClose: string;
-  weekendsOpen: boolean;
-  halted: boolean;
-  haltedOfferings: string[];
-  note: string | null;
-  proposedBy: string;
-  proposedAt: string;
-  decidedBy: string | null;
-  decidedAt: string | null;
-  decisionNote: string | null;
-};
-
-export type MarketOverview = { settings: MarketSettings; pending: MarketChange | null };
-
-/** What customers' conversions are priced by now (BRD FR-WAL-04). Rates are KES
- *  per USD; `marginPct` is the whole spread, half of it either side of the mid;
- *  amounts are in KES whichever way a customer converts; a null cap is none.
- *  `source` "defaults" means no change has been approved yet. */
-export type FxSettings = {
-  base: string;
-  quote: string;
-  midRate: number | null;
-  rateAsOf: string | null;
-  rateValidUntil: string | null;
-  rateSource: string | null;
-  marginPct: number;
-  marginFloorPct: number;
-  quoteTtlSeconds: number;
-  minAmount: number | null;
-  perConversion: number | null;
-  perDay: number | null;
-  suspended: boolean;
-  source: "defaults" | "change" | string;
-  changeId: string | null;
-  since: string | null;
-  decidedBy?: string | null;
-  decisionNote?: string | null;
-};
-
-/** One proposed FX change: the whole setting as it would be after it. */
-export type FxChange = {
-  id: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | string;
-  midRate: number | null;
-  rateAsOf: string | null;
-  rateValidUntil: string | null;
-  marginPct: number;
-  marginFloorPct: number;
-  quoteTtlSeconds: number;
-  minAmount: number | null;
-  perConversion: number | null;
-  perDay: number | null;
-  suspended: boolean;
-  note: string | null;
-  proposedBy: string;
-  proposedAt: string;
-  decidedBy: string | null;
-  decidedAt: string | null;
-  decisionNote: string | null;
-};
-
-export type FxOverview = { settings: FxSettings; pending: FxChange | null };
-
-/** A proposal: a field left out keeps its current value. A new `midRate`
- *  without `rateValidUntil` is good until the end of the market's day. */
-export type FxProposal = {
-  midRate?: number;
-  rateValidUntil?: string;
-  marginPct?: number;
-  marginFloorPct?: number;
-  quoteTtlSeconds?: number;
-  minAmount?: number;
-  perConversion?: number;
-  perDay?: number;
-  suspended?: boolean;
-  note?: string;
-};
-
-/** One customer quote or conversion in the book (ConversionService.Entry). */
-export type FxBookEntry = {
-  profileId: string;
-  investorId: string | null;
-  quote: {
-    id: string;
-    from: string;
-    to: string;
-    sellAmount: number;
-    buyAmount: number;
-    rate: number;
-    midRate: number | null;
-    spreadPct: number | null;
-    expiresAt: string | null;
-    /** QUOTED, EXPIRED, CONVERTING, CONVERTED or FAILED. */
-    status: string;
-    createdAt: string | null;
-    convertedAt: string | null;
-    reference: string | null;
-    failureReason: string | null;
-  };
-};
-
-/** A proposal: a field left out keeps its current value. Times are HH:mm. */
-export type MarketProposal = {
-  tradingOpen?: string;
-  tradingClose?: string;
-  weekendsOpen?: boolean;
-  halted?: boolean;
-  haltedOfferings?: string[];
-  note?: string;
-};
-
 /** A payment as omnichannel holds it (M-Pesa, or a bank transfer). */
 export type PaymentView = {
   id: string;
@@ -570,8 +433,6 @@ export const omniCall = {
   post,
 };
 
-const marketChangePath = (id: string) => `/market/settings/changes/${encodeURIComponent(id)}`;
-const fxChangePath = (id: string) => `/fx/settings/changes/${encodeURIComponent(id)}`;
 const paymentPath = (id: string) => `/payments/${encodeURIComponent(id)}`;
 const interventionPath = (id: string) => `/customers/interventions/${encodeURIComponent(id)}`;
 const reportingPath = "/reporting";
@@ -703,42 +564,6 @@ export const omniApi = {
    *  narrowed to what `q` finds in the reference and the subject. */
   tickets: (q: string, page: number, size = 20) =>
     getPage<DeskTicket>(`/support/tickets?q=${encodeURIComponent(q)}`, page, size),
-  /** What the relay deals by now, and the change waiting for a decision. */
-  marketSettings: () => getOne<MarketOverview>("/market/settings"),
-  /** The market-settings change log, newest first; omnichannel caps `limit`
-   *  at 200 and does not page it. */
-  marketChanges: async (limit = 50): Promise<MarketChange[]> => {
-    const res = await send("GET", `/market/settings/changes?limit=${limit}`);
-    if (!res.ok) throw await failure(res);
-    return listOf<MarketChange>(res);
-  },
-  /** Waits as PENDING until someone else approves it. 409 CHANGE_PENDING while
-   *  another waits; 400 on a bad time or a close not after the open. */
-  proposeMarketChange: (proposal: MarketProposal) => post<MarketChange>("/market/settings/changes", proposal),
-  /** 409 SECOND_APPROVER_REQUIRED for the proposer; CHANGE_DECIDED when gone. */
-  approveMarketChange: (id: string, note?: string) =>
-    post<MarketChange>(`${marketChangePath(id)}/approve`, note ? { note } : {}),
-  /** Anyone may reject, the proposer included. */
-  rejectMarketChange: (id: string, note?: string) =>
-    post<MarketChange>(`${marketChangePath(id)}/reject`, note ? { note } : {}),
-  /** The FX rate and limits customers convert by now, and the change waiting for a decision. */
-  fxSettings: () => getOne<FxOverview>("/fx/settings"),
-  /** The FX change log, newest first; not paged. */
-  fxChanges: async (limit = 50): Promise<FxChange[]> => {
-    const res = await send("GET", `/fx/settings/changes?limit=${limit}`);
-    if (!res.ok) throw await failure(res);
-    return listOf<FxChange>(res);
-  },
-  /** Waits as PENDING until someone else approves it. 409 CHANGE_PENDING while
-   *  another waits; 400 with a `field` on a value the service refuses. */
-  proposeFxChange: (proposal: FxProposal) => post<FxChange>("/fx/settings/changes", proposal),
-  /** 409 SECOND_APPROVER_REQUIRED for the proposer; CHANGE_DECIDED when gone. */
-  approveFxChange: (id: string, note?: string) => post<FxChange>(`${fxChangePath(id)}/approve`, note ? { note } : {}),
-  /** Anyone may reject, the proposer included. */
-  rejectFxChange: (id: string, note?: string) => post<FxChange>(`${fxChangePath(id)}/reject`, note ? { note } : {}),
-  /** One page of the book of quotes and conversions, newest first; `status` narrows it. */
-  fxBook: (page: number, size = 25, status?: string) =>
-    getPage<FxBookEntry>(`/fx/conversions${status ? `?status=${encodeURIComponent(status)}` : ""}`, page, size),
   /** Refused payouts and transfers unmatched after the wait, oldest first,
    *  every page. Omnichannel lists at most 500 of each kind and says so with
    *  `X-Truncated: true`; without the header (older omnichannel too) the

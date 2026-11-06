@@ -73,3 +73,18 @@ test("the back office may read its own institution, and nothing else about insti
   expect(write.res.status).toBe(404);
   expect(write.upstream).toBeUndefined();
 });
+
+test("currency exchange, the market and its content are not reachable at all", async () => {
+  for (const [method, path] of [
+    ["GET", "/omni/api/operator/fx/settings"],
+    ["GET", "/omni/api/operator/fx/conversions"],
+    ["POST", "/omni/api/operator/fx/settings/changes"],
+    ["GET", "/omni/api/operator/market/settings"],
+    ["POST", "/omni/api/operator/market/settings/changes"],
+    ["GET", "/omni/api/operator/content"],
+  ]) {
+    const { res, upstream } = await call(path, { method, env: { OMNI_INSTITUTION_ID: KTDA } });
+    expect(res.status, `${method} ${path}`).toBe(404);
+    expect(upstream, `${method} ${path}`).toBeUndefined();
+  }
+});
