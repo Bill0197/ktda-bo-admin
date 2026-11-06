@@ -143,3 +143,13 @@ test("a payment run's release and exception report pass, and the actor is the se
   expect(rows.upstream?.url).toBe(`https://omni.test/api/operator/bulk-loads/${run}/rows?outcome=REFUSED`);
   expect(rows.upstream?.headers.get("accept")).toBe("text/csv");
 });
+
+test("an unconfirmed payout's two confirmations pass; nothing else under a payment does", async () => {
+  const id = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  for (const action of ["confirm-sent", "confirm-not-sent"]) {
+    const { res, upstream } = await call(`/omni/api/operator/payments/${id}/${action}`, { method: "POST" });
+    expect(res.status, action).toBe(200);
+    expect(upstream?.url).toBe(`https://omni.test/api/operator/payments/${id}/${action}`);
+  }
+  expect((await call(`/omni/api/operator/payments/${id}/confirm-maybe`, { method: "POST" })).res.status).toBe(404);
+});

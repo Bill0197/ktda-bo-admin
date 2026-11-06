@@ -97,8 +97,10 @@ export type BulkRun = {
 } & LedgerRefusals;
 
 /** What the ledger refused of the lines it was sent (a grower with no wallet,
- *  say): accounting PR tokenization-project#52, passed on by omnichannel. Absent
- *  on an older core; the page then reconciles as it always has. */
+ *  say): accounting tokenization-project#52, passed on by omnichannel #98 on
+ *  the run and the reconciliation. Refused lines are also in /exceptions as
+ *  LEDGER_REFUSED. Absent on an older core; the page then reconciles as it
+ *  always has. */
 export type LedgerRefusals = {
   refusedCount?: number | null;
   /** KES. */
@@ -165,6 +167,8 @@ export type BulkReconciliation = {
   checksNotRun?: string | null;
   /* With refusedCount/refusedAmount (LedgerRefusals) the core's matchesExpected
      is posted + already applied + refused == expected; without them, as before. */
+  /** The ledger's match rule in words, when it states one. */
+  matchRule?: string | null;
 } & LedgerRefusals;
 
 /** Payments at or over this need approval, so the backend refuses them here. */
@@ -250,14 +254,15 @@ export const bulkLoads = {
   /** A SAP pay file's exception report (CSV): every line held, with its rule
    *  code and reason, or paid by BANK or SACCO. 409 for any other run. */
   exceptions: (runId: string): Promise<CsvDownload> => omniCall.download(`${runPath(runId)}/exceptions`, `${runId}-exceptions.csv`),
-  /** The run's ledger rows with one outcome, as CSV (lineNo, grower_no,
-   *  payment_ref, amount, outcome, reason): the core's
-   *  GET /api/accounting/wallet-loads/{runId}/rows?outcome=, through
-   *  omnichannel. A 404/405 means this environment does not pass it on yet. */
+  /** The run's ledger rows with one outcome, streamed as CSV (lineNo,
+   *  grower_no, payment_ref, amount, outcome, reason): omnichannel's
+   *  GET /bulk-loads/{runId}/rows?outcome= with Accept: text/csv (JSON pages
+   *  otherwise). 404 when the run has not reached the ledger, or the core
+   *  keeps no per-line results; 400 for another outcome. */
   rows: (runId: string, outcome: RowOutcome): Promise<CsvDownload> =>
     omniCall.download(`${runPath(runId)}/rows?outcome=${outcome}`, `${runId}-${outcome.toLowerCase()}.csv`, "text/csv").catch((e: unknown) => {
       if (e instanceof OmniApiError && (e.status === 404 || e.status === 405 || e.status === 501)) {
-        throw new OmniApiError(e.status, "This environment's omnichannel does not hand out the ledger's rows yet. The counts above are still the ledger's.");
+        throw new OmniApiError(e.status, "The ledger's line results are not available for this run: it has not reached the ledger, or this environment's accounting keeps counts only. The counts above are still the ledger's.");
       }
       throw e;
     }),

@@ -723,7 +723,8 @@ function ReconPanel({ recon, institutionName }: { recon: BulkReconciliation; ins
       </div>
       {payment && hasRefusals(recon) && recon.expectedTotal != null && (
         <p className="mb-3 text-[12.5px] text-text-soft" data-testid="recon-rule">
-          The ledger checks posted + already applied + refused against the expected total, so a line it refuses (a grower with no wallet, say) is accounted for, not a mismatch.
+          {recon.matchRule ? `The ledger's rule: ${recon.matchRule}.` : "The ledger checks posted + already applied + refused against the expected total."}
+          {" "}A line it refuses (a grower with no wallet, say) is accounted for, not a mismatch.
         </p>
       )}
       <dl className="grid gap-x-6 gap-y-2 text-[13px] sm:grid-cols-2">

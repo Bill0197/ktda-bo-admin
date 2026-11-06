@@ -256,14 +256,20 @@ GET  /bulk-loads/{runId}/exceptions → text/csv line_no,grower_no,name,pay_to,a
   wallet-line sum (integer cents) where omnichannel sends none (the plain file: rows that will be credited).
 - **Maker-checker:** the uploader sees Release disabled with the reason; a different signed-in operator releases.
   A SAP file on an omnichannel whose run has no `fileFormat` is stored but not started.
-- **Ledger refusals** (accounting tokenization-project#52, being added; omnichannel to pass them on): optional
-  `refusedCount`/`refusedAmount` on the run and the reconciliation, with the core's `matchesExpected` =
-  posted + already applied + refused == expected. The result shows refused lines as their own total, apart from
-  held and bank/SACCO, with a "Refused lines" download from `GET …/bulk-loads/{runId}/rows?outcome=REFUSED` with
-  `Accept: text/csv` (columns `lineNo,grower_no,payment_ref,amount,outcome,reason`). **The omnichannel path for
-  the rows is assumed here; confirm it when omnichannel adds it** (a 404 says "not available yet"). Without the
-  fields the page reconciles as before. Newer omnichannel also sends `warningCount` (W01, paid) and
+- **Ledger refusals** (accounting tokenization-project#52, passed on by omnichannel #98 commit 9ffefef):
+  `refusedCount`/`refusedAmount` on the run and the reconciliation, and `matchRule` on the reconciliation; the
+  core's `matchesExpected` is posted + already applied + refused == expected. The result shows refused lines as
+  their own total, apart from held and bank/SACCO, with a "Refused lines" download from
+  `GET …/bulk-loads/{runId}/rows?outcome=REFUSED` with `Accept: text/csv`
+  (`lineNo,grower_no,payment_ref,amount,outcome,reason`; JSON pages of ≤100 otherwise; 404 when the run has not
+  reached the ledger or the core keeps counts only). Refused lines are also in `/exceptions` as `LEDGER_REFUSED`.
+  Without the fields the page reconciles as before. omnichannel also sends `warningCount` (W01, paid) and
   `checksNotRun` (e.g. E05), shown under its check of the file.
+- **Payment issues:** `GET /payments/issues` has the kind `PAYOUT_UNCONFIRMED` (a payout still PENDING with no
+  gateway answer after `PAYMENT_UNCONFIRMED_AFTER`, 30 min). Token console → Transactions → Issues shows it as
+  "may or may not have been paid: check with the gateway first" with Confirm sent (`POST /payments/{id}/confirm-sent`
+  `{receipt}` → SENT) and Confirm not sent (`/confirm-not-sent` `{note}` → FAILED, then a PAYOUT_FAILED to retry or
+  resolve), each behind a confirmation dialog with the text required; no Retry (omnichannel refuses one, 409).
 - **Farmers:** state `CLASH` (phone already another farmer's login) with `clashReason`; `/farmers/summary` has
   `clash`. The Farmers page has a Clash tab where omnichannel counts them; a registration run's result and the
   journey page link to it.

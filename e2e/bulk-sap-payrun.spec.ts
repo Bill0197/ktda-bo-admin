@@ -446,7 +446,7 @@ test("ledger refusals: their own total and download, and the reconciliation matc
   const done = finished({ processedCount: 3, failureCount: 1, totalAmount: 4500.75, refusedCount: 1, refusedAmount: 499.25, warningCount: 1, checksNotRun: "E05_WALLET_MISMATCH" });
   const sent = await stubOmni(page, {
     recent: [done], polls: [done],
-    reconciliation: { ...reconciled, processedCount: 3, failureCount: 1, creditedTotal: 4500.75, refusedCount: 1, refusedAmount: 499.25, matchesExpected: true, warningCount: 1, checksNotRun: "E05_WALLET_MISMATCH" },
+    reconciliation: { ...reconciled, processedCount: 3, failureCount: 1, creditedTotal: 4500.75, refusedCount: 1, refusedAmount: 499.25, matchesExpected: true, warningCount: 1, checksNotRun: "E05_WALLET_MISMATCH", matchRule: "posted + already applied + refused == expected" },
   });
   const accepts: string[] = [];
   await page.route(new RegExp(`/bulk-loads/${RUN}/rows\\?outcome=REFUSED$`), (route) => {
@@ -460,7 +460,7 @@ test("ledger refusals: their own total and download, and the reconciliation matc
   await expect(page.getByText("Completed, with lines the ledger refused")).toBeVisible();
   await expect(panel).toContainText("Matches the expected total");
   await expect(panel).toContainText("Refused by the ledger1 · KES 499.25");
-  await expect(page.getByTestId("recon-rule")).toContainText("posted + already applied + refused");
+  await expect(page.getByTestId("recon-rule")).toContainText("The ledger's rule: posted + already applied + refused == expected.");
   const refused = page.getByTestId("refused-lines");
   await expect(page.getByTestId("refused-total")).toHaveText("1 line · KES 499.25");
   // Separate from held and bank/SACCO.
@@ -487,12 +487,12 @@ test("ledger refusals with a total that still does not add up: shown as not matc
   await expect(page.getByTestId("refused-lines").getByRole("button", { name: "Refused lines" })).toHaveCount(0);
 });
 
-test("refused lines where omnichannel does not pass the ledger's rows on yet: says so", async ({ page }) => {
+test("refused lines where the ledger keeps no line results for the run (404): says so", async ({ page }) => {
   await signInAs(page, "brian@baracel.ae", "Brian Checker");
   const done = finished({ refusedCount: 1, refusedAmount: 499.25 });
   await stubOmni(page, { recent: [done], polls: [done], reconciliation: { ...reconciled, refusedCount: 1, refusedAmount: 499.25 } });
   await page.goto("/bulk/payments");
   await page.getByRole("row").filter({ hasText: NAME }).click();
   await page.getByTestId("refused-lines").getByRole("button", { name: "Refused lines" }).click();
-  await expect(page.getByTestId("refused-error")).toContainText("does not hand out the ledger's rows yet");
+  await expect(page.getByTestId("refused-error")).toContainText("has not reached the ledger, or this environment's accounting keeps counts only");
 });

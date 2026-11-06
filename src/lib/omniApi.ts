@@ -360,15 +360,20 @@ export type PaymentView = {
   failureReason: string | null;
   createdAt: string;
   completedAt: string | null;
+  /** Whether the customer was prompted in the app (newer omnichannel). */
+  promptInApp?: boolean | null;
 };
 
 /** Something on the payments side that needs a person (BRD FR-STL-05):
- *  a payout the provider refused, or a reported transfer still unmatched
- *  after the wait. `why` is written to be read. */
+ *  a payout the provider refused, a reported transfer still unmatched after
+ *  the wait, or a payout still PENDING with no answer from the gateway after
+ *  PAYMENT_UNCONFIRMED_AFTER (PAYOUT_UNCONFIRMED: it may or may not have been
+ *  paid, so it is confirmed sent or not sent after checking with the gateway,
+ *  never retried first). `why` is written to be read. */
 export type PaymentIssue = {
   profileId: string;
   payment: PaymentView;
-  kind: "PAYOUT_FAILED" | "TRANSFER_WAITING" | string;
+  kind: "PAYOUT_FAILED" | "TRANSFER_WAITING" | "PAYOUT_UNCONFIRMED" | string;
   why: string;
 };
 
@@ -610,6 +615,12 @@ export const omniApi = {
   matchTransfer: (id: string, bankReference: string) => post<PaymentView>(`${paymentPath(id)}/match`, { bankReference }),
   /** The transfer never came: FAILED with the reason the customer reads. */
   markTransferUnmatched: (id: string, reason: string) => post<PaymentView>(`${paymentPath(id)}/unmatched`, { reason }),
+  /** A payout the gateway never answered for, which the gateway says it paid:
+   *  SENT with its receipt (at most 64 characters). 409 unless still PENDING. */
+  confirmPayoutSent: (id: string, receipt: string) => post<PaymentView>(`${paymentPath(id)}/confirm-sent`, { receipt }),
+  /** …which the gateway says it did not pay: FAILED, then a PAYOUT_FAILED to
+   *  retry or resolve. The note (at most 300) says how it was confirmed. */
+  confirmPayoutNotSent: (id: string, note: string) => post<PaymentView>(`${paymentPath(id)}/confirm-not-sent`, { note }),
   /** FAILED needs a note: the customer receives it as a message. 409 when it
    *  is no longer pending (someone else decided). */
   reviewDocument: (id: string, decision: "PASSED" | "FAILED", note?: string) =>
