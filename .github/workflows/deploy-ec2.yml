@@ -112,4 +112,5 @@ jobs:
           echo "$inst" | grep -q "2d878f14-0d76-4aa0-b9d7-ffe4ace1562e"
 
       - name: Summary
-        run: echo "Deployed **${{ env.SITE }}** -> UAT box :${{ env.PORT }} under ${{ env.PREFIX }}/ (ALB: https://ktda-apps-lb-1116460916.us-east-1.elb.amazonaws.com${{ env.PREFIX }}/)" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "Deployed **${{ env.SITE }}** -> UAT box :${{ env.PORT }} under ${{ env.PREFIX }}/ (ALB: https://ktda-apps-lb-1116460916.us-east-1.elb.amazonaws.com${{ env.PREFIX }}/)" >> "$GITHUB_STEP_SUMMARY"
