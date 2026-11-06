@@ -110,6 +110,8 @@ test.describe("signed in", () => {
     await expect(page.getByRole("option", { name: /Reconciliation/ })).toBeVisible();
     await search.press("Enter");
     await expect(page).toHaveURL(/\/token-console\/reconciliation$/);
+    // The shell is rebuilt with each page: let the new one settle before typing again.
+    await expect(page.locator("main h1")).toBeVisible();
 
     await search.fill("GN-104233");
     await expect(page.getByRole("option").first()).toContainText("Farmer GN-104233");
