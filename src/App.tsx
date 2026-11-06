@@ -46,6 +46,7 @@ const BulkLoad = lazy(() => import("./pages/ktda/BulkLoad"));
 const Institution = lazy(() => import("./pages/ktda/Institution"));
 const Journey = lazy(() => import("./pages/ktda/Journey"));
 const FarmersByStage = lazy(() => import("./pages/ktda/FarmersByStage"));
+const FarmerDetail = lazy(() => import("./pages/ktda/FarmerDetail"));
 const TokenConsolePolicies = lazy(() => import("./pages/tokenconsole/Policies"));
 const TokenConsoleCompliance = lazy(() => import("./pages/tokenconsole/Compliance"));
 const TokenConsoleChanges = lazy(() => import("./pages/tokenconsole/Changes"));
@@ -106,6 +107,7 @@ function AppRoutes() {
       <Route path="/journey/register" element={<ProtectedRoute><BulkLoad key="registration" flow="REGISTRATION" /></ProtectedRoute>} />
       <Route path="/journey/activate" element={<ProtectedRoute><BulkLoad key="activation" flow="ACTIVATION" /></ProtectedRoute>} />
       <Route path="/farmers" element={<ProtectedRoute><FarmersByStage /></ProtectedRoute>} />
+      <Route path="/farmers/:growerNo" element={<ProtectedRoute><FarmerDetail /></ProtectedRoute>} />
       <Route path="/token-console/runs" element={<ProtectedRoute><TokenConsoleRuns /></ProtectedRoute>} />
       <Route path="/token-console/policies" element={<ProtectedRoute><TokenConsolePolicies /></ProtectedRoute>} />
       <Route path="/token-console/compliance" element={<ProtectedRoute><TokenConsoleCompliance /></ProtectedRoute>} />

@@ -127,6 +127,9 @@ export type Farmer = {
   registeredAt: string | null;
   activatedAt: string | null;
   lastFundedAt: string | null;
+  /** The farmer's omnichannel profile, once they have one (the Customer
+   *  desk's id); null before. Older omnichannel leaves it out. */
+  customerId?: string | null;
 };
 
 /** GET /farmers/summary: over the whole institution, not a filtered list.
@@ -148,6 +151,30 @@ export const FARMERS_PATH = "/farmers";
 export const FARMERS_SUMMARY_PATH = "/farmers/summary";
 export const farmerPath = (growerNo: string) => `${FARMERS_PATH}/${encodeURIComponent(growerNo)}`;
 export const FARMERS_MAX_SIZE = 100;
+
+/** GET /farmers/{growerNo}/wallet. `balances` is empty and `walletOpen` false
+ *  for a farmer who is only registered; 404 for a grower that is not this
+ *  institution's. */
+export type FarmerWallet = {
+  growerNo: string;
+  status: FarmerState;
+  walletOpen: boolean;
+  balances: { currency: string; available: number; updatedAt: string | null }[];
+};
+
+/** GET /farmers/{growerNo}/wallet/movements?currency=&page=&size= : a plain
+ *  array, newest first, paged by the X-Total-* headers; empty before the
+ *  wallet is open. The amount is always positive: `type` says CREDIT (in) or
+ *  DEBIT (out). currency defaults to KES on omnichannel's side. */
+export type WalletMovement = {
+  reference: string;
+  type: "CREDIT" | "DEBIT";
+  event: string | null;
+  amount: number;
+  currency: string;
+  description: string | null;
+  occurredAt: string;
+};
 
 /* ---- Not on this environment yet ---- */
 
