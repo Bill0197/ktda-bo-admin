@@ -1,164 +1,89 @@
 import {
-  LayoutDashboard, Users, UserPlus, ClipboardCheck, ShieldAlert, FileCheck2,
-  Receipt, GitCompareArrows, Wallet, TrendingUp, Banknote, Droplets, Landmark, UserCog,
-  FileBarChart2, SlidersHorizontal, ToggleLeft, ScrollText, ServerCog,
-  MessageSquareWarning, FolderSearch, Radar, CalendarCheck2, Activity,
-  UsersRound, ShieldCheck, Siren, Scale, Stamp, Workflow, CircleDollarSign,
-  Briefcase, BarChart3, Settings, Shield, TriangleAlert, FileSearch, Fingerprint,
-  BookOpenCheck, PackageSearch, Inbox, ListChecks, Contact, Megaphone, Target, Gauge,
-  Coins, Blocks, FileCode2, LineChart, Handshake, UserRoundCheck, Boxes, ShoppingCart,
-  PieChart, Layers, Calculator, Undo2, CalendarClock, Vote, FileSignature, Building2,
-  Percent, Send, ShieldX, Gavel, ScanEye, BadgeCheck, LifeBuoy, HandCoins, KeyRound, ArrowLeftRight, ChartCandlestick, UserCheck, Tag, FileSpreadsheet,
+  LayoutDashboard, Layers, ClipboardCheck, UsersRound, Users, FileCheck2, UserPlus, Megaphone, BadgeCheck, LifeBuoy,
+  UserCheck, Inbox, ListChecks, CalendarCheck2, Activity, Radar, Wallet, ArrowLeftRight, MessageSquareWarning,
+  GitCompareArrows, TriangleAlert, FileBarChart2, BookOpenCheck, Scale, CalendarClock, HandCoins, Landmark,
+  FileSpreadsheet, FileSearch, ShieldAlert, FolderSearch, ShieldCheck, Siren, Settings, SlidersHorizontal, ServerCog,
+  UserCog, ScrollText, Percent, KeyRound, ToggleLeft,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
 import { isHiddenPage } from "./hiddenPages";
 
-type NavDef = Omit<NavItem, "icon"> & { icon: typeof LayoutDashboard };
+type NavDef = Omit<NavItem, "icon" | "badge"> & { icon: typeof LayoutDashboard };
 
-/** Every page as the source back office lists it. Kept whole so its changes
- *  still merge; KTDA trims and relabels it below. */
-const ALL_NAV_DEFS: NavDef[] = [
+/* KTDA's navigation: four top-level items and three groups (People, Money,
+   Admin), after the prototype back office (docs/ktda). Each group lists the
+   prototype's pages first, then the pages this back office already has that
+   fit there. Prototype pages not built yet (Partner payments, Merchants,
+   Agents, Input vouchers, Custody & liquidity, Integrations) join the menu
+   when their page lands. */
+const KTDA_NAV: NavDef[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
-  { label: "Bulk onboarding", to: "/bulk/onboarding", section: "Farmer Payments", icon: UserPlus },
-  { label: "Bulk payments", to: "/bulk/payments", section: "Farmer Payments", icon: HandCoins },
-  { label: "Clients", to: "/clients", section: "Client Services", icon: Users },
-  { label: "Enquiries", to: "/enquiries", section: "Client Services", icon: Inbox },
-  { label: "Leads", to: "/leads", section: "Client Services", icon: UserPlus },
-  { label: "Follow-ups", to: "/tasks", section: "Client Services", icon: ListChecks },
-  { label: "Suitability queue", to: "/suitability", section: "Client Services", icon: ClipboardCheck },
-  { label: "Complaints", to: "/complaints", section: "Client Services", icon: MessageSquareWarning },
-  { label: "Coverage", to: "/coverage", section: "Business Development", icon: Contact },
-  { label: "Pipeline", to: "/pipeline", section: "Business Development", icon: Target },
-  { label: "Campaigns", to: "/campaigns", section: "Business Development", icon: Megaphone },
-  { label: "BD performance", to: "/bd-performance", section: "Business Development", icon: Gauge },
-  { label: "KYC Onboarding", to: "/kyc-queue", section: "KYC Review", icon: FileCheck2 },
-  { label: "KYC Periodic Review", to: "/kyc-periodic", section: "KYC Review", icon: CalendarCheck2 },
-  { label: "Dynamic Review", to: "/kyc-dynamic", section: "KYC Review", icon: Activity },
-  { label: "Alerts", to: "/aml-alerts", section: "Transaction Monitoring", icon: ShieldAlert },
-  { label: "Case management", to: "/cases", section: "Transaction Monitoring", icon: FolderSearch },
-  { label: "Fraud alerts", to: "/fraud-alerts", section: "Fraud Reporting", icon: TriangleAlert },
-  { label: "Fraud cases", to: "/fraud-cases", section: "Fraud Reporting", icon: FileSearch },
-  { label: "Screening", to: "/screening", section: "Compliance", icon: Radar },
-  { label: "Token issuance", to: "/tokenization/issuance", section: "Tokenization Compliance", icon: Coins },
-  { label: "Token lifecycle", to: "/tokenization/lifecycle", section: "Tokenization Compliance", icon: Blocks },
-  { label: "Smart contract management", to: "/tokenization/smart-contracts", section: "Tokenization Compliance", icon: FileCode2 },
-  { label: "Overview", to: "/token-console/overview", section: "Baracel Unyt", icon: LayoutDashboard },
-  { label: "Investors", to: "/token-console/investors", section: "Baracel Unyt", icon: Users },
-  { label: "Accounts", to: "/token-console/accounts", section: "Baracel Unyt", icon: Wallet },
-  { label: "Offerings", to: "/token-console/offerings", section: "Baracel Unyt", icon: ShoppingCart },
-  { label: "Assets", to: "/token-console/assets", section: "Baracel Unyt", icon: Landmark },
-  { label: "Products", to: "/token-console/products", section: "Baracel Unyt", icon: Boxes },
-  { label: "Market", to: "/token-console/market", section: "Baracel Unyt", icon: ChartCandlestick },
-  { label: "Bond prices", to: "/token-console/prices", section: "Baracel Unyt", icon: Tag },
-  { label: "FX rates", to: "/token-console/fx", section: "Baracel Unyt", icon: ArrowLeftRight },
-  { label: "Journals", to: "/token-console/journals", section: "Baracel Unyt", icon: BookOpenCheck },
-  { label: "Trial balance", to: "/token-console/trial-balance", section: "Baracel Unyt", icon: Scale },
-  { label: "Unit ledger", to: "/token-console/unit-ledger", section: "Baracel Unyt", icon: Layers },
-  { label: "Reconciliation", to: "/token-console/reconciliation", section: "Baracel Unyt", icon: GitCompareArrows },
-  { label: "NAV", to: "/token-console/nav", section: "Baracel Unyt", icon: TrendingUp },
-  { label: "Batch runs", to: "/token-console/runs", section: "Baracel Unyt", icon: CalendarClock },
-  { label: "Policies", to: "/token-console/policies", section: "Baracel Unyt", icon: FileSignature },
-  { label: "Loans", to: "/token-console/loans", section: "Baracel Unyt", icon: HandCoins },
-  { label: "KYC desk", to: "/token-console/kyc", section: "Baracel Unyt", icon: BadgeCheck },
-  { label: "Customer desk", to: "/token-console/customers", section: "Baracel Unyt", icon: LifeBuoy },
-  { label: "Customer approvals", to: "/token-console/customer-approvals", section: "Baracel Unyt", icon: UserCheck },
-  { label: "Transactions", to: "/token-console/transactions", section: "Baracel Unyt", icon: ArrowLeftRight },
-  { label: "Review queue", to: "/token-console/compliance", section: "Baracel Unyt", icon: ShieldCheck },
-  { label: "Surveillance", to: "/token-console/surveillance", section: "Baracel Unyt", icon: Siren },
-  { label: "Reports", to: "/token-console/reports", section: "Baracel Unyt", icon: FileSpreadsheet },
-  { label: "Funds", to: "/token-console/funds", section: "Baracel Unyt", icon: Landmark },
-  { label: "Tariffs", to: "/token-console/tariffs", section: "Baracel Unyt", icon: Percent },
-  { label: "Configuration", to: "/token-console/configuration", section: "Baracel Unyt", icon: SlidersHorizontal },
-  { label: "Change approvals", to: "/token-console/changes", section: "Baracel Unyt", icon: ClipboardCheck },
-  { label: "Tokenization users", to: "/token-console/users", section: "Baracel Unyt", icon: KeyRound },
-  { label: "Market abuse", to: "/market-conduct/market-abuse", section: "Market Conduct", icon: ScanEye },
-  { label: "Conflicts of interest", to: "/market-conduct/conflicts", section: "Market Conduct", icon: Handshake },
-  { label: "Employee trading", to: "/market-conduct/employee-trading", section: "Market Conduct", icon: UserRoundCheck },
-  { label: "Mandate breaches", to: "/institutional-compliance/breaches", section: "Institutional Investment Compliance", icon: ShieldX },
-  { label: "Investment restrictions", to: "/institutional-compliance/restrictions", section: "Institutional Investment Compliance", icon: Gavel },
-  { label: "Counterparty due diligence", to: "/institutional-compliance/counterparties", section: "Institutional Investment Compliance", icon: Building2 },
-  { label: "Institutional client compliance", to: "/institutional-compliance/clients", section: "Institutional Investment Compliance", icon: FileSignature },
-  { label: "Approvals", to: "/approvals", section: "Controls", icon: ClipboardCheck },
-  { label: "Transactions", to: "/transactions", section: "Operations", icon: Receipt },
-  { label: "Reconciliation", to: "/reconciliation", section: "Operations", icon: GitCompareArrows },
-  { label: "Unallocated funds", to: "/unallocated-funds", section: "Operations", icon: Wallet },
-  { label: "NAV", to: "/nav", section: "Finance", icon: TrendingUp },
-  { label: "Distributions", to: "/distributions", section: "Finance", icon: Banknote },
-  { label: "Liquidity & gate", to: "/liquidity", section: "Finance", icon: Droplets },
-  { label: "General ledger", to: "/ledger", section: "Finance", icon: BookOpenCheck },
-  { label: "Bond ladder", to: "/bond-ladder", section: "Investments", icon: Landmark },
-  { label: "Products & funds", to: "/investment/products", section: "Investment Management", icon: Boxes },
-  { label: "Orders & subscriptions", to: "/investment/orders", section: "Investment Management", icon: ShoppingCart },
-  { label: "Portfolio management", to: "/investment/portfolio", section: "Investment Management", icon: PieChart },
-  { label: "Holdings & positions", to: "/investment/holdings", section: "Investment Management", icon: Layers },
-  { label: "Valuations & NAV", to: "/investment/valuations", section: "Investment Management", icon: Calculator },
-  { label: "Redemptions", to: "/investment/redemptions", section: "Investment Management", icon: Undo2 },
-  { label: "Corporate actions", to: "/investment/corporate-actions", section: "Investment Management", icon: CalendarClock },
-  { label: "Investment Committee approval queue", to: "/investment/ic-approvals", section: "Investment Management", icon: Vote },
-  { label: "Investment mandates", to: "/investment/mandates", section: "Investment Management", icon: FileSignature },
-  { label: "Institutional clients", to: "/institutional/clients", section: "Institutional Funds", icon: Building2 },
-  { label: "Mandates & restrictions", to: "/institutional/mandates", section: "Institutional Funds", icon: Gavel },
-  { label: "Segregated portfolios", to: "/institutional/portfolios", section: "Institutional Funds", icon: LineChart },
-  { label: "Fee schedules", to: "/institutional/fees", section: "Institutional Funds", icon: Percent },
-  { label: "Institutional reporting", to: "/institutional/reporting", section: "Institutional Funds", icon: Send },
-  { label: "Reports", to: "/reports", section: "Reporting", icon: FileBarChart2 },
-  { label: "Product catalogue", to: "/catalogue", section: "Platform", icon: PackageSearch },
-  { label: "Platform settings", to: "/settings", section: "Platform", icon: SlidersHorizontal },
-  { label: "Feature flags", to: "/feature-flags", section: "Platform", icon: ToggleLeft },
+  { label: "Payment runs", to: "/bulk/payments", icon: Layers },
+  { label: "Approvals", to: "/approvals", icon: ClipboardCheck },
+
+  { label: "Farmers", to: "/token-console/investors", section: "People", icon: Users },
+  { label: "Onboarding review", to: "/kyc-queue", section: "People", icon: FileCheck2 },
+  { label: "Messages", to: "/campaigns", section: "People", icon: Megaphone },
+  { label: "Bulk onboarding", to: "/bulk/onboarding", section: "People", icon: UserPlus },
+  { label: "KYC desk", to: "/token-console/kyc", section: "People", icon: BadgeCheck },
+  { label: "Customer desk", to: "/token-console/customers", section: "People", icon: LifeBuoy },
+  { label: "Customer approvals", to: "/token-console/customer-approvals", section: "People", icon: UserCheck },
+  { label: "Enquiries", to: "/enquiries", section: "People", icon: Inbox },
+  { label: "Follow-ups", to: "/tasks", section: "People", icon: ListChecks },
+  { label: "KYC periodic review", to: "/kyc-periodic", section: "People", icon: CalendarCheck2 },
+  { label: "Dynamic review", to: "/kyc-dynamic", section: "People", icon: Activity },
+  { label: "Screening", to: "/screening", section: "People", icon: Radar },
+
+  { label: "Transactions", to: "/token-console/transactions", section: "Money", icon: ArrowLeftRight },
+  { label: "Disputes", to: "/complaints", section: "Money", icon: MessageSquareWarning },
+  { label: "Reconciliation", to: "/token-console/reconciliation", section: "Money", icon: GitCompareArrows },
+  { label: "Fraud alerts", to: "/fraud-alerts", section: "Money", icon: TriangleAlert },
+  { label: "Reports", to: "/reports", section: "Money", icon: FileBarChart2 },
+  { label: "Fraud cases", to: "/fraud-cases", section: "Money", icon: FileSearch },
+  { label: "AML alerts", to: "/aml-alerts", section: "Money", icon: ShieldAlert },
+  { label: "Case management", to: "/cases", section: "Money", icon: FolderSearch },
+  { label: "Review queue", to: "/token-console/compliance", section: "Money", icon: ShieldCheck },
+  { label: "Surveillance", to: "/token-console/surveillance", section: "Money", icon: Siren },
+  { label: "Accounts", to: "/token-console/accounts", section: "Money", icon: Wallet },
+  { label: "Journals", to: "/token-console/journals", section: "Money", icon: BookOpenCheck },
+  { label: "Trial balance", to: "/token-console/trial-balance", section: "Money", icon: Scale },
+  { label: "Batch runs", to: "/token-console/runs", section: "Money", icon: CalendarClock },
+  { label: "Loans", to: "/token-console/loans", section: "Money", icon: HandCoins },
+  { label: "Institutions", to: "/token-console/funds", section: "Money", icon: Landmark },
+  { label: "Unallocated funds", to: "/unallocated-funds", section: "Money", icon: Wallet },
+  { label: "General ledger", to: "/ledger", section: "Money", icon: BookOpenCheck },
+  { label: "Engine reports", to: "/token-console/reports", section: "Money", icon: FileSpreadsheet },
+
+  { label: "Configuration", to: "/token-console/configuration", section: "Admin", icon: SlidersHorizontal },
+  { label: "System health", to: "/system", section: "Admin", icon: ServerCog },
   { label: "Users & roles", to: "/users", section: "Admin", icon: UserCog },
-  { label: "System", to: "/system", section: "Admin", icon: ServerCog },
   { label: "Audit log", to: "/audit-log", section: "Admin", icon: ScrollText },
+  { label: "Tariffs", to: "/token-console/tariffs", section: "Admin", icon: Percent },
+  { label: "Change approvals", to: "/token-console/changes", section: "Admin", icon: ClipboardCheck },
+  { label: "Engine users", to: "/token-console/users", section: "Admin", icon: KeyRound },
+  { label: "Platform settings", to: "/settings", section: "Admin", icon: Settings },
+  { label: "Feature flags", to: "/feature-flags", section: "Admin", icon: ToggleLeft },
+  { label: "Engine overview", to: "/token-console/overview", section: "Admin", icon: LayoutDashboard },
 ];
 
-/** KTDA's names for pages it keeps, by route. */
-const KTDA_LABELS: Record<string, string> = {
-  "/clients": "Farmers",
-  "/token-console/investors": "Farmers",
-};
-/** KTDA's names for sections, where the source's do not fit. */
-const KTDA_SECTIONS: Record<string, string> = {
-  "Client Services": "Farmer Services",
-};
+/* Routes that stay registered but have no menu entry: the hidden pages
+   (hiddenPages.ts), and the demo Transactions and Reconciliation pages, which
+   the live ones above replace in the menu. */
+export const NAV_DEFS: NavDef[] = KTDA_NAV.filter((n) => !isHiddenPage(n.to));
 
-/** The navigation KTDA shows: investment-only pages hidden (hiddenPages.ts),
- *  and the rest relabelled where KTDA's word differs. */
-export const NAV_DEFS: NavDef[] = ALL_NAV_DEFS
-  .filter((n) => !isHiddenPage(n.to))
-  .map((n) => ({
-    ...n,
-    label: KTDA_LABELS[n.to] ?? n.label,
-    section: n.section ? KTDA_SECTIONS[n.section] ?? n.section : n.section,
-  }));
-
-export function navForRole(allowedPaths: string[]): NavItem[] {
+/** The menu for these paths, with a count beside the entries `badges` names. */
+export function navForRole(allowedPaths: string[], badges: Record<string, number> = {}): NavItem[] {
   return NAV_DEFS.filter((n) => allowedPaths.includes(n.to)).map((n) => ({
     ...n,
     icon: <n.icon size={16} />,
+    badge: badges[n.to],
   }));
 }
 
 /** Parent-menu icons, one per `section` used above. */
 export const SECTION_ICONS: Record<string, ReactNode> = {
-  "Client Services": <UsersRound size={16} />,
-  "Farmer Services": <UsersRound size={16} />,
-  "Business Development": <Briefcase size={16} />,
-  "KYC Review": <ShieldCheck size={16} />,
-  "Transaction Monitoring": <Siren size={16} />,
-  "Fraud Reporting": <Fingerprint size={16} />,
-  Compliance: <Scale size={16} />,
-  "Tokenization Compliance": <Coins size={16} />,
-  "Farmer Payments": <HandCoins size={16} />,
-  "Baracel Unyt": <Blocks size={16} />,
-  "Market Conduct": <Gavel size={16} />,
-  "Institutional Investment Compliance": <ShieldX size={16} />,
-  Controls: <Stamp size={16} />,
-  Operations: <Workflow size={16} />,
-  Finance: <CircleDollarSign size={16} />,
-  Investments: <Briefcase size={16} />,
-  "Investment Management": <LineChart size={16} />,
-  "Institutional Funds": <Building2 size={16} />,
-  Reporting: <BarChart3 size={16} />,
-  Platform: <Settings size={16} />,
-  Admin: <Shield size={16} />,
+  People: <UsersRound size={16} />,
+  Money: <Wallet size={16} />,
+  Admin: <Settings size={16} />,
 };

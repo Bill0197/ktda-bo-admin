@@ -10,6 +10,12 @@
 // this proxy checks lives on the engine at TOK_TARGET (the one functions/tok
 // uses). Neither has a default: until both are set every call answers 503
 // saying so. Same certificate caveat as functions/tok.
+//
+// OMNI_INSTITUTION_ID (Pages environment variable) is the institution this
+// back office works for. Omnichannel scopes every operator call to the
+// institution in X-Dev-Institution; this proxy sets it from that variable and
+// never forwards a browser's. Unset, no header goes and omnichannel answers
+// for its own default institution.
 
 const UUID = "[0-9a-fA-F-]+";
 // What each method may reach: actions on an investor record, and compliance's
@@ -22,10 +28,11 @@ const UUID = "[0-9a-fA-F-]+";
 // Surveillance (the CSV reports, the alert queue with assign and close, and the
 // snapshot and rule runs), and the bulk onboarding and payment runs (a CSV
 // upload, Process, the run, the recent runs, its reconciliation, and whether
-// onboarding has completed for an institution).
+// onboarding has completed for an institution), and this back office's own
+// institution (omnichannel lists only the caller's).
 const ALLOWED = {
   POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject)|fx/settings/changes|fx/settings/changes/${UUID}/(approve|reject)|reporting/alerts/${UUID}/(assign|close)|reporting/runs/(snapshot|surveillance)|bulk-loads/upload|bulk-loads/${UUID}/process)$`),
-  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs|bulk-loads|bulk-loads/onboarding-status|bulk-loads/${UUID}(/reconciliation)?)$`),
+  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs|bulk-loads|bulk-loads/onboarding-status|bulk-loads/${UUID}(/reconciliation)?|institutions)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.
@@ -58,6 +65,10 @@ export async function onRequest({ request, env }) {
   // Omnichannel's audit (reviewedBy) names who acted. UAT takes it from this
   // header; it is set here from the verified session, never from the browser.
   if (session.email) headers.set("x-dev-subject", `staff:${session.email}`);
+  // Which institution this back office works for: from configuration only
+  // (FORWARDED never carries a browser's x-dev-institution).
+  const institution = (env.OMNI_INSTITUTION_ID ?? "").trim();
+  if (institution) headers.set("x-dev-institution", institution);
 
   let upstream;
   try {

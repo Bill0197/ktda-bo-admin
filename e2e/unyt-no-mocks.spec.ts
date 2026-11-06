@@ -101,7 +101,7 @@ const unytPages = [...read(path.join(SRC, "App.tsx")).matchAll(/lazy\(\(\) => im
   .map((m) => resolve(path.join(SRC, "App.tsx"), `./${m[1]}`)!);
 
 test("App.tsx lazy-loads every Unyt page", () => {
-  expect(unytPages.length).toBeGreaterThanOrEqual(27);
+  expect(unytPages.length).toBeGreaterThanOrEqual(21);
   expect(unytPages.every(Boolean)).toBe(true);
   expect(tokenConsoleExports.has("tokenConsole")).toBe(true);
   expect(authFromMock.size).toBeGreaterThan(0);

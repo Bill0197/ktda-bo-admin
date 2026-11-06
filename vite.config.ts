@@ -41,13 +41,23 @@ function appVersion() {
    tests need nothing more) and every /tok or /omni call answers 503 saying
    which variable to set. `secure: false` because test load balancers often
    present self-signed certificates — acceptable only on a developer machine;
-   the deployed proxies cannot do this. */
-type Targets = { tok: string | null; omni: string | null };
+   the deployed proxies cannot do this.
+
+   OMNI_INSTITUTION_ID is the institution this back office works for.
+   Omnichannel scopes every operator call to the institution in
+   X-Dev-Institution; the proxy sets that header from this value and drops any
+   the browser sent, so the browser never chooses it. Unset, no header goes
+   and omnichannel falls back to its own default institution. */
+type Targets = { tok: string | null; omni: string | null; institution: string | null };
 
 function targetsFor(mode: string): Targets {
-  // Only these two names are read; neither reaches the browser (that needs VITE_).
-  const env = loadEnv(mode, process.cwd(), ["TOK_TARGET", "OMNI_TARGET"]);
-  return { tok: env.TOK_TARGET?.trim() || null, omni: env.OMNI_TARGET?.trim() || null };
+  // Only these names are read; none reaches the browser (that needs VITE_).
+  const env = loadEnv(mode, process.cwd(), ["TOK_TARGET", "OMNI_TARGET", "OMNI_INSTITUTION_ID"]);
+  return {
+    tok: env.TOK_TARGET?.trim() || null,
+    omni: env.OMNI_TARGET?.trim() || null,
+    institution: env.OMNI_INSTITUTION_ID?.trim() || null,
+  };
 }
 
 /* One pooled, kept-alive connection set per backend. Without it every proxied
@@ -59,7 +69,7 @@ const pool = (target: string) =>
 
 /** Answers /tok and /omni with 503 when their target is not set, so a call
  *  never goes anywhere by default. */
-function unsetTargets({ tok, omni }: Targets): Plugin {
+function unsetTargets({ tok, omni, institution }: Targets): Plugin {
   const missing: [string, string][] = [];
   if (!tok) missing.push(["/tok/", "TOK_TARGET"]);
   if (!omni) missing.push(["/omni/", "OMNI_TARGET"]);
@@ -68,6 +78,11 @@ function unsetTargets({ tok, omni }: Targets): Plugin {
     configureServer(server) {
       if (missing.length) {
         server.config.logger.warn(`Dev proxy: ${missing.map(([, v]) => v).join(" and ")} not set; those calls will answer 503.`);
+      }
+      if (omni && !institution) {
+        server.config.logger.warn(
+          "Dev proxy: OMNI_INSTITUTION_ID not set; omnichannel calls carry no institution, so omnichannel answers for its default institution, not this back office's.",
+        );
       }
       server.middlewares.use((req, res, next) => {
         const hit = missing.find(([prefix]) => req.url?.startsWith(prefix));
@@ -80,7 +95,7 @@ function unsetTargets({ tok, omni }: Targets): Plugin {
   };
 }
 
-function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET }: Targets): Record<string, ProxyOptions> {
+function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets): Record<string, ProxyOptions> {
   const proxy: Record<string, ProxyOptions> = {};
   if (TOK_TARGET) {
     // Anchored with a trailing slash: Vite matches keys as plain prefixes,
@@ -111,7 +126,12 @@ function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET }: Targets): Record<strin
       // Omnichannel's CORS list is localhost:5173-5178 only and it 403s any
       // other Origin — same-origin needs none, so drop it (as functions/omni does).
       configure: (p) => {
-        p.on("proxyReq", (req) => req.removeHeader("origin"));
+        p.on("proxyReq", (req) => {
+          req.removeHeader("origin");
+          // The institution is this server's to say, never the browser's.
+          req.removeHeader("x-dev-institution");
+          if (institution) req.setHeader("X-Dev-Institution", institution);
+        });
       },
     };
   }

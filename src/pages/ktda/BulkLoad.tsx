@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, FileUp, Play, XCircle } from "lucide-react";
-import { Badge, Button, Field, GlassPanel, NotePanel, PageHeader, ProgressBar, SectionTitle, Select, Skeleton, StatCard } from "../../ui";
+import { Badge, Button, Field, GlassPanel, NotePanel, PageHeader, ProgressBar, SectionTitle, Skeleton, StatCard } from "../../ui";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import { dateTime, money, units } from "../../lib/tokenConsole/format";
@@ -11,10 +11,11 @@ import {
   type BulkFlow, type BulkReconciliation, type BulkRun, type FileSummary,
 } from "../../lib/api.bulkLoad";
 import { ConsoleTable, SourceError, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
-import type { Institution } from "../../lib/tokenConsole/types.gen";
 
 /* Bulk onboarding and bulk payment for an institution's farmers (section 1A of
-   the KTDA handoff). Four steps: the institution, the file, Process (upload,
+   the KTDA handoff). The institution is not a choice: omnichannel scopes every
+   operator call to the one this back office is configured for (the proxy sets
+   it), and lists only that one. Four steps: the institution, the file, Process (upload,
    start, then a poll about once a second while RUNNING), and the result with
    the reconciliation, read once when the run ends. Payments open only once an
    onboarding run has completed for the institution; omnichannel refuses a
@@ -37,16 +38,19 @@ const COPY: Record<BulkFlow, { title: string; subtitle: string; processed: strin
   },
 };
 
-/** The KTDA institution when there is one, else the first. */
-function defaultInstitution(list: Institution[]): string {
-  const ktda = list.find((i) => i.name?.toUpperCase().includes("KTDA"));
-  return (ktda ?? list[0])?.institutionId ?? "";
+/** Why the page cannot name its institution, from omnichannel's list of the
+ *  caller's own (one entry when scoping works). */
+function institutionProblem(count: number): string | null {
+  if (count === 1) return null;
+  if (count === 0) return "Omnichannel did not name an institution for this back office, so no file can be loaded.";
+  return `Omnichannel listed ${count} institutions instead of this back office's own, so it is not separating institutions yet. No file can be loaded until it does.`;
 }
 
 export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   const copy = COPY[flow];
-  const institutions = useAsyncData(() => tokenConsole.institutions());
-  const [institutionId, setInstitutionId] = useState("");
+  const own = useAsyncData(() => bulkLoads.ownInstitution());
+  // The engine's names, for an institution omnichannel has no name for yet.
+  const engine = useAsyncData(() => tokenConsole.institutions());
   const [file, setFile] = useState<File | null>(null);
   const [summary, setSummary] = useState<FileSummary | null>(null);
   const [run, setRunState] = useState<BulkRun | null>(null);
@@ -67,11 +71,11 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   const [reconTick, setReconTick] = useState(0);
   const [fileInputKey, setFileInputKey] = useState(0);
 
-  const list = useMemo(() => institutions.data ?? [], [institutions.data]);
-  useEffect(() => {
-    if (!institutionId && list.length) setInstitutionId(defaultInstitution(list));
-  }, [list, institutionId]);
-  const nameOf = (id: string | null | undefined) => list.find((i) => i.institutionId === id)?.name ?? null;
+  const mine = useMemo(() => own.data ?? [], [own.data]);
+  const problem = own.data ? institutionProblem(mine.length) : null;
+  const institutionId = !problem ? mine[0]?.id ?? "" : "";
+  const nameOf = (id: string | null | undefined) =>
+    (id && mine.find((i) => i.id === id)?.name) || (engine.data ?? []).find((i) => i.institutionId === id)?.name || null;
 
   const history = useAsyncData(() => bulkLoads.recent());
   const gate = useAsyncData(async () => (flow === "PAYMENT" && institutionId ? bulkLoads.onboardingStatus(institutionId) : null));
@@ -123,8 +127,8 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   }, [finishedId, reconTick]);
 
   const upload = useAction(async () => {
-    if (!file || !institutionId) throw new Error("Pick the institution and the file first.");
-    return bulkLoads.upload(flow, institutionId, file);
+    if (!file || !institutionId) throw new Error("Choose the file first.");
+    return bulkLoads.upload(flow, institutionId, file, nameOf(institutionId));
   });
   const process = useAction((runId: string) => bulkLoads.process(runId));
 
@@ -172,7 +176,6 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   /** A run from the history, reopened (a page reload mid-run, say). */
   const open = (r: BulkRun) => {
     startAgain();
-    setInstitutionId(r.institutionId);
     setRun(r);
     setStarted(true);
   };
@@ -194,19 +197,18 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Step n={1} title="Institution">
-          {institutions.error ? (
-            <SourceError what="the institutions" error={institutions.error} onRetry={institutions.reload} className="" />
-          ) : institutions.loading && !institutions.data ? (
+          {own.error ? (
+            <SourceError what="this back office's institution" error={own.error} onRetry={own.reload} className="" />
+          ) : own.loading && !own.data ? (
             <Skeleton className="h-11" />
+          ) : problem ? (
+            <div data-testid="institution-problem"><NotePanel tone="danger">{problem}</NotePanel></div>
           ) : (
-            <Field label="Institution">
-              <Select value={institutionId} disabled={busy} onChange={(e) => setInstitutionId(e.target.value)}>
-                {list.length === 0 && <option value="">No institutions</option>}
-                {list.map((i) => (
-                  <option key={i.institutionId} value={i.institutionId}>{i.name ?? i.institutionId}</option>
-                ))}
-              </Select>
-            </Field>
+            <div data-testid="institution">
+              <div className="text-[15px] font-semibold text-text">{nameOf(institutionId) ?? "Unnamed institution"}</div>
+              <div className="mt-0.5 font-mono text-[11.5px] text-text-faint">{institutionId}</div>
+              <p className="mt-2 text-[12.5px] text-text-soft">Set for this back office. Every run here is for this institution.</p>
+            </div>
           )}
           {flow === "PAYMENT" && institutionId && <PaymentGate gate={gate} />}
         </Step>

@@ -30,13 +30,22 @@ export class OmniApiError extends Error {
  *  the raw message ("No authenticated subject") would not tell anyone that. */
 const SIGN_IN_AGAIN = "Omnichannel could not tell who you are, so nothing was done. Please sign out, sign in again and retry.";
 
+/** Omnichannel's 403 for a call that names no institution: every operator
+ *  call is scoped to one, which the proxy in front of it sets from this back
+ *  office's configuration (OMNI_INSTITUTION_ID). */
+export const INSTITUTION_REQUIRED = "OPERATOR_INSTITUTION_REQUIRED";
+const NO_INSTITUTION =
+  "This back office has no institution configured, so omnichannel answered nothing. Ask whoever runs it to set OMNI_INSTITUTION_ID.";
+
 /** The error for a failed response, from omnichannel's envelope
  *  ({message, code, field}) or the proxies' ({error}). */
 function errorFrom(status: number, data: unknown): OmniApiError {
   const env = (data && typeof data === "object" ? data : {}) as {
     error?: string; message?: string; detail?: string; field?: string; code?: string;
   };
-  const message = status === 401 ? SIGN_IN_AGAIN : env.detail ?? env.message ?? env.error ?? `Request failed (${status}).`;
+  const message = status === 401 ? SIGN_IN_AGAIN
+    : env.code === INSTITUTION_REQUIRED ? NO_INSTITUTION
+    : env.detail ?? env.message ?? env.error ?? `Request failed (${status}).`;
   return new OmniApiError(status, message, env.field ?? null, env.code ?? null);
 }
 

@@ -11,7 +11,7 @@
  * grower who was never onboarded is rejected, and payment_ref makes each row
  * safe to send twice. A PAYMENT upload is refused with 409 until an ONBOARDING
  * run has completed for the institution. */
-import { omniCall } from "./omniApi";
+import { OmniApiError, omniCall } from "./omniApi";
 
 export type BulkFlow = "ONBOARDING" | "PAYMENT";
 export type RunStatus = "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
@@ -74,16 +74,44 @@ export const MAX_PAYMENT_KES = 1_000_000;
 const BASE = "/bulk-loads";
 const runPath = (runId: string) => `${BASE}/${encodeURIComponent(runId)}`;
 
+/** An institution as omnichannel knows it. `name` and the rest are null for
+ *  an institution omnichannel has not loaded a file for yet. */
+export type OmniInstitution = {
+  id: string;
+  name: string | null;
+  localCurrency: string | null;
+  country: string | null;
+  status: string | null;
+};
+
+/** Omnichannel refuses (403, with no code) an upload or onboarding check for
+ *  an institution that is not this back office's own. The page only ever sends
+ *  the one omnichannel named, so this means the configuration changed under it. */
+const NOT_OURS = "Omnichannel refused this: the institution is not this back office's. Reload the page and try again.";
+function plainForbidden<T>(call: Promise<T>): Promise<T> {
+  return call.catch((e: unknown) => {
+    if (e instanceof OmniApiError && e.status === 403 && !e.code) throw new OmniApiError(403, NOT_OURS);
+    throw e;
+  });
+}
+
 export const bulkLoads = {
+  /** The institution this back office works for. Omnichannel answers only
+   *  the caller's own, which the proxy sets from configuration; the browser
+   *  never names it. */
+  ownInstitution: () => omniCall.get<OmniInstitution[]>("/institutions"),
   /** Stores the file and returns the RUNNING run (202). 409 for a PAYMENT
    *  file before onboarding has completed; 400 for an empty file. */
-  upload: (flow: BulkFlow, institutionId: string, file: File, currency = "KES") => {
+  upload: (flow: BulkFlow, institutionId: string, file: File, institutionName?: string | null, currency = "KES") => {
     const form = new FormData();
     form.append("file", file, file.name);
     form.append("flow", flow);
     form.append("institutionId", institutionId);
+    // Optional: omnichannel keeps its own copy of the institution, made on the
+    // first upload, and names it from this field.
+    if (institutionName) form.append("institutionName", institutionName);
     form.append("currency", currency);
-    return omniCall.post<BulkRun>(`${BASE}/upload`, form);
+    return plainForbidden(omniCall.post<BulkRun>(`${BASE}/upload`, form));
   },
   /** Starts the durable job for an uploaded run. */
   process: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/process`, {}),
@@ -96,7 +124,7 @@ export const bulkLoads = {
     ),
   /** Whether payments are open for the institution. */
   onboardingStatus: (institutionId: string) =>
-    omniCall.get<{ onboardingCompleted: boolean }>(`${BASE}/onboarding-status?institutionId=${encodeURIComponent(institutionId)}`),
+    plainForbidden(omniCall.get<{ onboardingCompleted: boolean }>(`${BASE}/onboarding-status?institutionId=${encodeURIComponent(institutionId)}`)),
 };
 
 /* A light read of the file before it is sent: the backend validates every
