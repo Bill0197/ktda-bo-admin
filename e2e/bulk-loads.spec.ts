@@ -3,7 +3,9 @@ import { envelope, json, signIn } from "./stubs";
 
 /* Bulk onboarding and bulk payment (KTDA): omnichannel's operator bulk-loads
  * API, stubbed. A run is uploaded, started with Process, polled while
- * RUNNING, and its reconciliation read once it ends. */
+ * RUNNING, and its reconciliation read once it ends. The institution is the
+ * one omnichannel names for this back office (GET /institutions answers only
+ * the caller's own), never a choice in the browser. */
 
 const KTDA = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
@@ -27,11 +29,15 @@ const recon = (over: Run = {}): Run => ({
   depositDebitTotal: 0, depositCreditTotal: 0, doubleEntryBalanced: true, expectedTotal: null, matchesExpected: null, ...over,
 });
 
+const ownKtda = (over: Run = {}): Run => ({ id: KTDA, name: "KTDA Holdings", localCurrency: "KES", country: "KE", status: "ACTIVE", ...over });
+
 type Sent = { method: string; path: string; query: URLSearchParams; contentType?: string; body: string | null };
 
 /** Answers the bulk-loads calls. `polls` are the run as each GET of it
  *  returns, the last one repeating. */
 async function stubBulk(page: Page, opts: {
+  /** What omnichannel's GET /institutions answers: the caller's own. */
+  own?: { status: number; body: unknown };
   onboarded?: boolean | ((institutionId: string) => boolean);
   upload?: { status: number; body: unknown };
   polls?: Run[];
@@ -44,6 +50,10 @@ async function stubBulk(page: Page, opts: {
     { institutionId: OTHER, name: "Other Institution", localCurrency: "KES" },
     { institutionId: KTDA, name: "KTDA Holdings", localCurrency: "KES" },
   ]));
+  await page.route(/\/omni\/api\/operator\/institutions$/, (route) => {
+    const out = opts.own ?? { status: 200, body: [ownKtda()] };
+    return json(route, out.body, out.status);
+  });
   await page.route(R, (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -78,7 +88,7 @@ test.beforeEach(async ({ page }) => {
   await signIn(page);
 });
 
-test("onboarding: picks KTDA, uploads, processes, polls to COMPLETED and shows the reconciliation", async ({ page }) => {
+test("onboarding: uses the configured institution, uploads, processes, polls to COMPLETED and shows the reconciliation", async ({ page }) => {
   const sent = await stubBulk(page, {
     polls: [
       run(),
@@ -88,7 +98,10 @@ test("onboarding: picks KTDA, uploads, processes, polls to COMPLETED and shows t
   });
   await page.goto("/bulk/onboarding");
   await expect(page.getByRole("heading", { name: "Bulk onboarding" })).toBeVisible();
-  await expect(page.getByLabel("Institution")).toHaveValue(KTDA);
+  await expect(page.getByTestId("institution")).toContainText("KTDA Holdings");
+  await expect(page.getByTestId("institution")).toContainText(KTDA);
+  // Nothing to pick: the institution is not the browser's choice.
+  await expect(page.getByRole("combobox", { name: "Institution" })).toHaveCount(0);
 
   const process = page.getByRole("button", { name: "Process" });
   await expect(process).toBeDisabled();
@@ -127,17 +140,61 @@ test("a file with the wrong header is stopped before upload", async ({ page }) =
   expect(sent.some((s) => s.method === "POST")).toBe(false);
 });
 
-test("payments stay closed until onboarding has completed for the institution", async ({ page }) => {
-  await stubBulk(page, { onboarded: (id) => id === OTHER });
+test("payments stay closed until onboarding has completed for this back office's institution", async ({ page }) => {
+  const sent = await stubBulk(page, { onboarded: (id) => id === OTHER });
   await page.goto("/bulk/payments");
-  await expect(page.getByLabel("Institution")).toHaveValue(KTDA);
+  await expect(page.getByTestId("institution")).toContainText("KTDA Holdings");
   await expect(page.getByText("Payments are closed")).toBeVisible();
   await expect(page.getByLabel("CSV file")).toBeDisabled();
   await expect(page.getByRole("button", { name: "Process" })).toBeDisabled();
+  const gate = sent.find((x) => x.path === "/onboarding-status")!;
+  expect(gate.query.get("institutionId")).toBe(KTDA);
+});
 
-  await page.getByLabel("Institution").selectOption(OTHER);
-  await expect(page.getByText("Onboarding has completed. Payments are open.")).toBeVisible();
-  await expect(page.getByLabel("CSV file")).toBeEnabled();
+test("an institution omnichannel has no name for yet takes the engine's name, and sends it on upload", async ({ page }) => {
+  const sent = await stubBulk(page, { own: { status: 200, body: [ownKtda({ name: null, localCurrency: null, country: null, status: null })] } });
+  await page.goto("/bulk/onboarding");
+  await expect(page.getByTestId("institution")).toContainText("KTDA Holdings");
+  await page.getByLabel("CSV file").setInputFiles(csv("farmers.csv", ONBOARDING_CSV));
+  await page.getByRole("button", { name: "Process" }).click();
+  await expect(page.getByTestId("run-progress")).toBeVisible();
+  const upload = sent.find((x) => x.method === "POST" && x.path === "/upload")!;
+  expect(upload.body).toContain(`name="institutionId"\r\n\r\n${KTDA}`);
+  expect(upload.body).toContain(`name="institutionName"\r\n\r\nKTDA Holdings`);
+});
+
+test("no institution configured: omnichannel's 403 is explained, and nothing can be loaded", async ({ page }) => {
+  const sent = await stubBulk(page, {
+    own: { status: 403, body: envelope(403, "No institution on this request", "OPERATOR_INSTITUTION_REQUIRED") },
+  });
+  await page.goto("/bulk/onboarding");
+  await expect(page.getByText("This back office has no institution configured")).toBeVisible();
+  await page.getByLabel("CSV file").setInputFiles(csv("farmers.csv", ONBOARDING_CSV));
+  await expect(page.getByRole("button", { name: "Process" })).toBeDisabled();
+  expect(sent.some((x) => x.method === "POST")).toBe(false);
+});
+
+test("an omnichannel that lists more than one institution is not trusted to pick one", async ({ page }) => {
+  await stubBulk(page, { own: { status: 200, body: [ownKtda(), ownKtda({ id: OTHER, name: "Other Institution" })] } });
+  await page.goto("/bulk/onboarding");
+  await expect(page.getByTestId("institution-problem")).toContainText("Omnichannel listed 2 institutions");
+  await page.getByLabel("CSV file").setInputFiles(csv("farmers.csv", ONBOARDING_CSV));
+  await expect(page.getByRole("button", { name: "Process" })).toBeDisabled();
+});
+
+test("a run omnichannel says does not exist (another institution's) is an ordinary not-found", async ({ page }) => {
+  const missing = `Unknown bulk-load run ${RUN}`;
+  const sent = await stubBulk(page, { recent: [run()] });
+  await page.unroute(R);
+  await page.route(R, (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/omni\/api\/operator\/bulk-loads/, "");
+    sent.push({ method: route.request().method(), path, query: new URLSearchParams(), body: null });
+    if (path === "") return json(route, [run()]);
+    return json(route, envelope(404, missing), 404);
+  });
+  await page.goto("/bulk/onboarding");
+  await page.getByRole("row").filter({ hasText: "farmers.csv" }).click();
+  await expect(page.getByText(missing).first()).toBeVisible();
 });
 
 test("payment: a PARTIAL run shows its message in amber and checks the file total", async ({ page }) => {

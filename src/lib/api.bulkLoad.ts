@@ -74,7 +74,21 @@ export const MAX_PAYMENT_KES = 1_000_000;
 const BASE = "/bulk-loads";
 const runPath = (runId: string) => `${BASE}/${encodeURIComponent(runId)}`;
 
+/** An institution as omnichannel knows it. `name` and the rest are null for
+ *  an institution omnichannel has not loaded a file for yet. */
+export type OmniInstitution = {
+  id: string;
+  name: string | null;
+  localCurrency: string | null;
+  country: string | null;
+  status: string | null;
+};
+
 export const bulkLoads = {
+  /** The institution this back office works for. Omnichannel answers only
+   *  the caller's own, which the proxy sets from configuration; the browser
+   *  never names it. */
+  ownInstitution: () => omniCall.get<OmniInstitution[]>("/institutions"),
   /** Stores the file and returns the RUNNING run (202). 409 for a PAYMENT
    *  file before onboarding has completed; 400 for an empty file. */
   upload: (flow: BulkFlow, institutionId: string, file: File, institutionName?: string | null, currency = "KES") => {
