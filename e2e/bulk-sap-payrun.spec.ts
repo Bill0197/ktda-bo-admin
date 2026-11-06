@@ -297,6 +297,10 @@ test("a second operator opens the submitted run, releases it, and gets the recon
   expect(d.suggestedFilename()).toBe(`${RUN}-exceptions.csv`);
   expect(readFileSync(await d.path(), "utf8")).toContain("ROUTED_BANK");
 
+  // A core without ledger refusals: no refused panel, reconciled as before.
+  await expect(page.getByTestId("refused-lines")).toHaveCount(0);
+  await expect(page.getByTestId("recon-rule")).toHaveCount(0);
+
   const rel = sent.find((s) => s.method === "POST" && s.path === `/${RUN}/release`)!;
   expect(rel.subject).toBe(OTHER);
   // What omnichannel says it sends to the wallets is what is reconciled against.
@@ -434,4 +438,61 @@ test("farmers: the Clash tab lists the held farmers with omnichannel's reason", 
   await expect(row).toContainText("Clash");
   await expect(row.getByTestId("clash-reason")).toHaveText("Phone +254700000001 is already the login of grower KG-000001");
   expect(new URL(sent.at(-1)!).searchParams.get("state")).toBe("CLASH");
+});
+
+test("ledger refusals: their own total and download, and the reconciliation matched by posted + applied + refused", async ({ page }) => {
+  await signInAs(page, "brian@baracel.ae", "Brian Checker");
+  // The ledger refused one wallet line (a grower with no wallet): KES 499.25 of the 5,000.00 sent.
+  const done = finished({ processedCount: 3, failureCount: 1, totalAmount: 4500.75, refusedCount: 1, refusedAmount: 499.25, warningCount: 1, checksNotRun: "E05_WALLET_MISMATCH" });
+  const sent = await stubOmni(page, {
+    recent: [done], polls: [done],
+    reconciliation: { ...reconciled, processedCount: 3, failureCount: 1, creditedTotal: 4500.75, refusedCount: 1, refusedAmount: 499.25, matchesExpected: true, warningCount: 1, checksNotRun: "E05_WALLET_MISMATCH" },
+  });
+  const accepts: string[] = [];
+  await page.route(new RegExp(`/bulk-loads/${RUN}/rows\\?outcome=REFUSED$`), (route) => {
+    accepts.push(route.request().headers()["accept"] ?? "");
+    return route.fulfill({ status: 200, contentType: "text/csv", headers: { "content-disposition": `attachment; filename="${RUN}-refused.csv"` }, body: "lineNo,grower_no,payment_ref,amount,outcome,reason\n10,KG-000010,KTDA:2026-10:10:KG-000010,499.25,REFUSED,No KES wallet for this grower\n" });
+  });
+  await page.goto("/bulk/payments");
+  await page.getByRole("row").filter({ hasText: NAME }).click();
+
+  const panel = page.getByTestId("recon-panel");
+  await expect(page.getByText("Completed, with lines the ledger refused")).toBeVisible();
+  await expect(panel).toContainText("Matches the expected total");
+  await expect(panel).toContainText("Refused by the ledger1 · KES 499.25");
+  await expect(page.getByTestId("recon-rule")).toContainText("posted + already applied + refused");
+  const refused = page.getByTestId("refused-lines");
+  await expect(page.getByTestId("refused-total")).toHaveText("1 line · KES 499.25");
+  // Separate from held and bank/SACCO.
+  await expect(page.getByTestId("run-checks").locator('tr[data-row="held"]')).toContainText("6");
+  await expect(page.getByTestId("run-checks").locator('tr[data-row="warning"]')).toContainText("1");
+  await expect(page.getByTestId("checks-not-run")).toContainText("Wallet ID belongs to a different grower");
+  const download = page.waitForEvent("download");
+  await refused.getByRole("button", { name: "Refused lines" }).click();
+  const d = await download;
+  expect(d.suggestedFilename()).toBe(`${RUN}-refused.csv`);
+  expect(readFileSync(await d.path(), "utf8")).toContain("No KES wallet for this grower");
+  expect(accepts).toEqual(["text/csv"]);
+  expect(sent.find((s) => s.path === `/${RUN}/reconciliation`)!.query.get("expectedTotal")).toBe("5000.00");
+});
+
+test("ledger refusals with a total that still does not add up: shown as not matching", async ({ page }) => {
+  await signInAs(page, "brian@baracel.ae", "Brian Checker");
+  const done = finished({ refusedCount: 0, refusedAmount: 0 });
+  await stubOmni(page, { recent: [done], polls: [done], reconciliation: { ...reconciled, creditedTotal: 4000, refusedCount: 0, refusedAmount: 0, matchesExpected: false } });
+  await page.goto("/bulk/payments");
+  await page.getByRole("row").filter({ hasText: NAME }).click();
+  await expect(page.getByTestId("recon-panel")).toContainText("Does not match the expected total");
+  await expect(page.getByTestId("refused-total")).toHaveText("0 lines · KES 0.00");
+  await expect(page.getByTestId("refused-lines").getByRole("button", { name: "Refused lines" })).toHaveCount(0);
+});
+
+test("refused lines where omnichannel does not pass the ledger's rows on yet: says so", async ({ page }) => {
+  await signInAs(page, "brian@baracel.ae", "Brian Checker");
+  const done = finished({ refusedCount: 1, refusedAmount: 499.25 });
+  await stubOmni(page, { recent: [done], polls: [done], reconciliation: { ...reconciled, refusedCount: 1, refusedAmount: 499.25 } });
+  await page.goto("/bulk/payments");
+  await page.getByRole("row").filter({ hasText: NAME }).click();
+  await page.getByTestId("refused-lines").getByRole("button", { name: "Refused lines" }).click();
+  await expect(page.getByTestId("refused-error")).toContainText("does not hand out the ledger's rows yet");
 });

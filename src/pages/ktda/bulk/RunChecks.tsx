@@ -5,6 +5,7 @@ import { useAction } from "../../../lib/tokenConsole/useAction";
 import { CHECK_TEXT, type CheckCode } from "../../../lib/bulk-file";
 import { bulkLoads, heldCodesOf, type BulkReconciliation, type BulkRun } from "../../../lib/api.bulkLoad";
 import { MiniTable } from "./shared";
+import { saveBlob } from "./rules";
 
 /* What omnichannel's checks did with a SAP pay file at upload: lines sent to
    the wallets, lines paid by bank or SACCO (not paid to wallets by this run),
@@ -12,19 +13,12 @@ import { MiniTable } from "./shared";
    reason, is in omnichannel's exception report, downloaded from it here.
    Shown only for a run omnichannel read as a SAP file. */
 
-type Checks = Pick<BulkRun, "payableCount" | "payableAmount" | "routedCount" | "routedAmount" | "heldCount" | "heldAmount" | "heldCodes" | "fileFormat">;
+type Checks = Pick<BulkRun, "payableCount" | "payableAmount" | "routedCount" | "routedAmount" | "heldCount" | "heldAmount" | "heldCodes" | "fileFormat" | "warningCount" | "checksNotRun">;
 
 export function RunChecks({ runId, checks, currency }: { runId: string; checks: Checks | BulkReconciliation; currency: string }) {
   const report = useAction(async () => {
     const { filename, blob } = await bulkLoads.exceptions(runId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveBlob(filename, blob);
   });
   if (checks.fileFormat !== "SAP") return null;
   const codes = heldCodesOf(checks.heldCodes);
@@ -66,7 +60,20 @@ export function RunChecks({ runId, checks, currency }: { runId: string; checks: 
             <td />
           </tr>
         ))}
+        {(checks.warningCount ?? 0) > 0 && (
+          <tr className="border-t border-border/60" data-row="warning">
+            <td className="px-3 py-2"><Badge tone="warning">Warning</Badge></td>
+            <td className="px-3 py-2 text-text-soft">{CHECK_TEXT.W01_NAME_DIFFERS}: paid to the wallet, worth a look</td>
+            <td className="px-3 py-2 text-right tabular">{units(checks.warningCount)}</td>
+            <td />
+          </tr>
+        )}
       </MiniTable>
+      {checks.checksNotRun && (
+        <p className="mt-2 text-[12px] text-text-faint" data-testid="checks-not-run">
+          Not checked by omnichannel on this file: {checks.checksNotRun.split(",").map((c) => c.trim()).filter(Boolean).map((c) => CHECK_TEXT[c as CheckCode] ?? c).join("; ")}.
+        </p>
+      )}
       {report.error && <p role="alert" className="mt-2 text-[12.5px] text-danger" data-testid="exceptions-error">Could not download the exception report: {report.error}</p>}
     </div>
   );

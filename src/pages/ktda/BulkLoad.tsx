@@ -7,7 +7,7 @@ import { useAction } from "../../lib/tokenConsole/useAction";
 import { dateTime, money, units } from "../../lib/tokenConsole/format";
 import { tokenConsole } from "../../lib/api.tokenConsole";
 import {
-  BULK_COLUMNS, ERR, MAX_PAYMENT_KES, MAX_UPLOAD_MB, bulkLoads, earlierRunIn, hasApproval, readsSapFiles, summariseCsv,
+  BULK_COLUMNS, ERR, MAX_PAYMENT_KES, MAX_UPLOAD_MB, bulkLoads, earlierRunIn, hasApproval, hasRefusals, readsSapFiles, summariseCsv,
   type BulkFlow, type BulkReconciliation, type BulkRun, type FileSummary,
 } from "../../lib/api.bulkLoad";
 import { formatProblem, paymentFormatOf, periodFromName, type PaymentFormat } from "../../lib/sapPaymentFile";
@@ -18,6 +18,7 @@ import { SapFileCheck } from "./bulk/SapFileCheck";
 import { useControlSheet, useSapCheck } from "./bulk/useSapCheck";
 import { RunApproval } from "./bulk/RunApproval";
 import { RunChecks } from "./bulk/RunChecks";
+import { RefusedLines } from "./bulk/RefusedLines";
 import { Check, Row } from "./bulk/shared";
 import { kesCents, sapBlocker, sizeBlocker } from "./bulk/rules";
 import { ConsoleTable, SourceError, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
@@ -527,6 +528,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
         <Step n={4} title="Result" className="mb-6">
           <Outcome run={run} />
           <RunChecks runId={run.runId} checks={recon?.fileFormat ? recon : run} currency={run.currency} />
+          {flow === "PAYMENT" && <RefusedLines runId={run.runId} refusals={hasRefusals(recon) ? recon : run} currency={run.currency} />}
           {flow === "REGISTRATION" && clashes != null && clashes > 0 && (
             <div className="mt-4" data-testid="clash-note">
               <NotePanel tone="warning" title={`${units(clashes)} farmer${clashes === 1 ? "" : "s"} held as a clash`}>
@@ -694,8 +696,13 @@ function Outcome({ run }: { run: BulkRun }) {
   const partial = run.status === "PARTIAL";
   // A SAP run with held lines ends PARTIAL even when every line sent was paid.
   const onlyHeld = partial && run.failureCount === 0 && (run.heldCount ?? 0) > 0;
+  // Every failure is a line the ledger refused and reported (each with its reason below).
+  const onlyRefused = partial && run.refusedCount != null && run.failureCount > 0 && run.failureCount === run.refusedCount;
+  const title = onlyHeld ? "Completed, with held lines"
+    : onlyRefused ? "Completed, with lines the ledger refused"
+    : partial ? "Partly completed: some rows failed" : "Failed";
   return (
-    <NotePanel tone={partial ? "warning" : "danger"} title={onlyHeld ? "Completed, with held lines" : partial ? "Partly completed: some rows failed" : "Failed"}>
+    <NotePanel tone={partial ? "warning" : "danger"} title={title}>
       <span className="whitespace-pre-wrap" data-testid="run-message">{run.message ?? "The service gave no reason."}</span>
     </NotePanel>
   );
@@ -714,6 +721,11 @@ function ReconPanel({ recon, institutionName }: { recon: BulkReconciliation; ins
           )}
         </div>
       </div>
+      {payment && hasRefusals(recon) && recon.expectedTotal != null && (
+        <p className="mb-3 text-[12.5px] text-text-soft" data-testid="recon-rule">
+          The ledger checks posted + already applied + refused against the expected total, so a line it refuses (a grower with no wallet, say) is accounted for, not a mismatch.
+        </p>
+      )}
       <dl className="grid gap-x-6 gap-y-2 text-[13px] sm:grid-cols-2">
         <Row k="Institution" v={institutionName ?? recon.institutionId} />
         <Row k="Wallets held" v={units(recon.walletCount)} />
@@ -723,6 +735,7 @@ function ReconPanel({ recon, institutionName }: { recon: BulkReconciliation; ins
         {payment && (
           <>
             <Row k="Credited by this run" v={money(recon.creditedTotal, "KES")} />
+            {hasRefusals(recon) && <Row k="Refused by the ledger" v={`${units(recon.refusedCount)} · ${money(recon.refusedAmount ?? 0, "KES")}`} />}
             <Row k={recon.fileFormat === "SAP" ? "Expected (wallet lines that pass)" : "Expected (rows that will be credited)"} v={recon.expectedTotal == null ? "Not checked" : money(recon.expectedTotal, "KES")} />
             <Row k="Deposit debits" v={money(recon.depositDebitTotal, "KES")} />
             <Row k="Deposit credits" v={money(recon.depositCreditTotal, "KES")} />

@@ -80,7 +80,7 @@ export function SapFileCheck({ check, control, onRetry, onControl, disabled, per
           ))}
         </MiniTable>
         <p className="text-[12px] text-text-faint">
-          Not checked here or by omnichannel: {REGISTER_CODES.map((code) => CHECK_TEXT[code].toLowerCase()).join("; ")}. Those need KTDA&apos;s wallet register; the ledger refuses a grower with no wallet, and the run counts it as failed.
+          Not checked here: {REGISTER_CODES.map((code) => CHECK_TEXT[code].toLowerCase()).join("; ")}. Those need the farmer register: omnichannel checks what it can against its register at upload and says on the run which checks it could not make, and the ledger refuses a grower with no wallet (shown after the run as refused).
         </p>
         </div>
         <div className="space-y-4">

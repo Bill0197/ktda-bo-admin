@@ -88,11 +88,12 @@ export function staffName(subject: string | null | undefined): string {
 
 /** A FormData body goes as multipart: the browser sets Content-Type with
  *  its boundary, so it is never set here. Anything else goes as JSON. */
-async function send(method: "GET" | "POST", path: string, body?: unknown): Promise<Response> {
+async function send(method: "GET" | "POST", path: string, body?: unknown, accept?: string): Promise<Response> {
   const form = body instanceof FormData;
   const headers: Record<string, string> = {};
   if (body !== undefined && !form) headers["Content-Type"] = "application/json";
   if (operatorSubject) headers[OPERATOR_HEADER] = operatorSubject;
+  if (accept) headers.Accept = accept;
   try {
     return await fetch(`${BASE}${path}`, {
       method,
@@ -438,9 +439,10 @@ async function getOne<T>(path: string): Promise<T> {
  *  upload. */
 export const omniCall = {
   get: getOne,
-  /** A file omnichannel answers with (a CSV), named as its Content-Disposition says. */
-  download: async (path: string, fallbackName: string): Promise<CsvDownload> => {
-    const res = await send("GET", path);
+  /** A file omnichannel answers with (a CSV), named as its Content-Disposition says.
+   *  `accept` asks a path that answers JSON or CSV for the CSV. */
+  download: async (path: string, fallbackName: string, accept?: string): Promise<CsvDownload> => {
+    const res = await send("GET", path, undefined, accept);
     if (!res.ok) throw await failure(res);
     return { filename: filenameOf(res.headers.get("Content-Disposition")) ?? fallbackName, blob: await res.blob() };
   },

@@ -256,6 +256,14 @@ GET  /bulk-loads/{runId}/exceptions → text/csv line_no,grower_no,name,pay_to,a
   wallet-line sum (integer cents) where omnichannel sends none (the plain file: rows that will be credited).
 - **Maker-checker:** the uploader sees Release disabled with the reason; a different signed-in operator releases.
   A SAP file on an omnichannel whose run has no `fileFormat` is stored but not started.
+- **Ledger refusals** (accounting tokenization-project#52, being added; omnichannel to pass them on): optional
+  `refusedCount`/`refusedAmount` on the run and the reconciliation, with the core's `matchesExpected` =
+  posted + already applied + refused == expected. The result shows refused lines as their own total, apart from
+  held and bank/SACCO, with a "Refused lines" download from `GET …/bulk-loads/{runId}/rows?outcome=REFUSED` with
+  `Accept: text/csv` (columns `lineNo,grower_no,payment_ref,amount,outcome,reason`). **The omnichannel path for
+  the rows is assumed here; confirm it when omnichannel adds it** (a 404 says "not available yet"). Without the
+  fields the page reconciles as before. Newer omnichannel also sends `warningCount` (W01, paid) and
+  `checksNotRun` (e.g. E05), shown under its check of the file.
 - **Farmers:** state `CLASH` (phone already another farmer's login) with `clashReason`; `/farmers/summary` has
   `clash`. The Farmers page has a Clash tab where omnichannel counts them; a registration run's result and the
   journey page link to it.

@@ -14,7 +14,12 @@ export function kesCents(cents: number): string {
 
 /** Saves text as a file in the browser (an exception report, say). */
 export function downloadText(name: string, text: string, type = "text/csv;charset=utf-8") {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+  saveBlob(name, new Blob([text], { type }));
+}
+
+/** Saves a file a service answered with. */
+export function saveBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = name;

@@ -137,4 +137,9 @@ test("a payment run's release and exception report pass, and the actor is the se
   expect(report.res.status).toBe(200);
   expect(report.upstream?.url).toBe(`https://omni.test/api/operator/bulk-loads/${run}/exceptions`);
   expect((await call(`/omni/api/operator/bulk-loads/${run}/exceptions`, { method: "POST" })).res.status).toBe(404);
+  // The ledger's rows by outcome (CSV with Accept: text/csv) are a read too.
+  const rows = await call(`/omni/api/operator/bulk-loads/${run}/rows?outcome=REFUSED`, { headers: { accept: "text/csv" } });
+  expect(rows.res.status).toBe(200);
+  expect(rows.upstream?.url).toBe(`https://omni.test/api/operator/bulk-loads/${run}/rows?outcome=REFUSED`);
+  expect(rows.upstream?.headers.get("accept")).toBe("text/csv");
 });

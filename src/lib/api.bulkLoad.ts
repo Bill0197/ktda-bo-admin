@@ -90,7 +90,26 @@ export type BulkRun = {
   heldAmount?: number | null;
   /** Held lines per rule, "E01_MALFORMED=1,E03_DUPLICATE=2". */
   heldCodes?: string | null;
+  /** Lines paid with a warning (W01 name differs), where omnichannel checks the register. */
+  warningCount?: number | null;
+  /** Checks omnichannel could not run on this file (E05_WALLET_MISMATCH, ...), comma separated. */
+  checksNotRun?: string | null;
+} & LedgerRefusals;
+
+/** What the ledger refused of the lines it was sent (a grower with no wallet,
+ *  say): accounting PR tokenization-project#52, passed on by omnichannel. Absent
+ *  on an older core; the page then reconciles as it always has. */
+export type LedgerRefusals = {
+  refusedCount?: number | null;
+  /** KES. */
+  refusedAmount?: number | null;
 };
+
+/** Which rows of a run the ledger refused, posted, or found already applied. */
+export type RowOutcome = "REFUSED" | "POSTED" | "ALREADY_APPLIED";
+
+/** The ledger refused lines and reported them. */
+export const hasRefusals = (r: LedgerRefusals | null | undefined) => r?.refusedCount != null;
 
 /** A payment run from an omnichannel with maker-checker. (Every run there
  *  carries submittedBy; only a payment run is released.) */
@@ -142,7 +161,11 @@ export type BulkReconciliation = {
   heldCount?: number | null;
   heldAmount?: number | null;
   heldCodes?: string | null;
-};
+  warningCount?: number | null;
+  checksNotRun?: string | null;
+  /* With refusedCount/refusedAmount (LedgerRefusals) the core's matchesExpected
+     is posted + already applied + refused == expected; without them, as before. */
+} & LedgerRefusals;
 
 /** Payments at or over this need approval, so the backend refuses them here. */
 export const MAX_PAYMENT_KES = 1_000_000;
@@ -227,6 +250,17 @@ export const bulkLoads = {
   /** A SAP pay file's exception report (CSV): every line held, with its rule
    *  code and reason, or paid by BANK or SACCO. 409 for any other run. */
   exceptions: (runId: string): Promise<CsvDownload> => omniCall.download(`${runPath(runId)}/exceptions`, `${runId}-exceptions.csv`),
+  /** The run's ledger rows with one outcome, as CSV (lineNo, grower_no,
+   *  payment_ref, amount, outcome, reason): the core's
+   *  GET /api/accounting/wallet-loads/{runId}/rows?outcome=, through
+   *  omnichannel. A 404/405 means this environment does not pass it on yet. */
+  rows: (runId: string, outcome: RowOutcome): Promise<CsvDownload> =>
+    omniCall.download(`${runPath(runId)}/rows?outcome=${outcome}`, `${runId}-${outcome.toLowerCase()}.csv`, "text/csv").catch((e: unknown) => {
+      if (e instanceof OmniApiError && (e.status === 404 || e.status === 405 || e.status === 501)) {
+        throw new OmniApiError(e.status, "This environment's omnichannel does not hand out the ledger's rows yet. The counts above are still the ledger's.");
+      }
+      throw e;
+    }),
   run: (runId: string) => omniCall.get<BulkRun>(runPath(runId)),
   /** The latest 50 runs, every institution and flow, newest first. */
   recent: () => omniCall.list<BulkRun>(BASE),
