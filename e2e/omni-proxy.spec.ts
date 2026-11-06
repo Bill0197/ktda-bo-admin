@@ -120,7 +120,7 @@ test("the farmer journey's reads, a farmer's wallet and the single register pass
   expect(deeper.upstream).toBeUndefined();
 });
 
-test("a payment run's release passes, and the actor is the session's, never the operator the browser names", async () => {
+test("a payment run's release and exception report pass, and the actor is the session's, never the operator the browser names", async () => {
   const run = "44444444-4444-4444-8444-444444444444";
   const { res, upstream } = await call(`/omni/api/operator/bulk-loads/${run}/release`, {
     method: "POST",
@@ -132,4 +132,9 @@ test("a payment run's release passes, and the actor is the session's, never the 
   expect(upstream?.headers.has("x-operator-subject")).toBe(false);
   const deeper = await call(`/omni/api/operator/bulk-loads/${run}/release/x`, { method: "POST" });
   expect(deeper.res.status).toBe(404);
+  // A SAP run's exception report (CSV) is a read; its file name comes back.
+  const report = await call(`/omni/api/operator/bulk-loads/${run}/exceptions`);
+  expect(report.res.status).toBe(200);
+  expect(report.upstream?.url).toBe(`https://omni.test/api/operator/bulk-loads/${run}/exceptions`);
+  expect((await call(`/omni/api/operator/bulk-loads/${run}/exceptions`, { method: "POST" })).res.status).toBe(404);
 });

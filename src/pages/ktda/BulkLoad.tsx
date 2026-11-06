@@ -7,18 +7,19 @@ import { useAction } from "../../lib/tokenConsole/useAction";
 import { dateTime, money, units } from "../../lib/tokenConsole/format";
 import { tokenConsole } from "../../lib/api.tokenConsole";
 import {
-  BULK_COLUMNS, MAX_PAYMENT_KES, bulkLoads, earlierRunIn, hasApproval, summariseCsv,
+  BULK_COLUMNS, ERR, MAX_PAYMENT_KES, MAX_UPLOAD_MB, bulkLoads, earlierRunIn, hasApproval, readsSapFiles, summariseCsv,
   type BulkFlow, type BulkReconciliation, type BulkRun, type FileSummary,
 } from "../../lib/api.bulkLoad";
-import { formatProblem, paymentFormatOf, type PaymentFormat } from "../../lib/sapPaymentFile";
+import { formatProblem, paymentFormatOf, periodFromName, type PaymentFormat } from "../../lib/sapPaymentFile";
+import { farmersApi } from "../../lib/api.farmers";
 import { useAuth } from "../../lib/auth";
 import { omniSubjectFor, staffName } from "../../lib/omniApi";
 import { SapFileCheck } from "./bulk/SapFileCheck";
 import { useControlSheet, useSapCheck } from "./bulk/useSapCheck";
 import { RunApproval } from "./bulk/RunApproval";
-import { RunExceptions } from "./bulk/RunExceptions";
+import { RunChecks } from "./bulk/RunChecks";
 import { Check, Row } from "./bulk/shared";
-import { kesCents, sapBlocker } from "./bulk/rules";
+import { kesCents, sapBlocker, sizeBlocker } from "./bulk/rules";
 import { ConsoleTable, SourceError, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 import { OmniApiError } from "../../lib/omniApi";
 import {
@@ -103,6 +104,12 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   const control = useControlSheet();
   /** A SAP file this omnichannel took but cannot read yet: stored, not started. */
   const [sapNotTaken, setSapNotTaken] = useState(false);
+  /** A SAP file's pay period (YYYY-MM), sent with it; from the file name when it carries one. */
+  const [period, setPeriod] = useState("");
+  /** REGISTRATION: farmers held as CLASH after the run (the phone is another farmer's). */
+  const [clashes, setClashes] = useState<number | null>(null);
+  /** Omnichannel's error code for a refused upload. */
+  const [uploadCode, setUploadCode] = useState<string | null>(null);
   const [run, setRunState] = useState<BulkRun | null>(null);
   /** When the run was last read, for the throughput of a run still going. */
   const [seenAt, setSeenAt] = useState(0);
@@ -173,9 +180,9 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
 
   // Once the run ends: the reconciliation, once, and fresh history and gate.
   const finishedId = run && TERMINAL.has(run.status) ? run.runId : null;
-  // Omnichannel's own expected total (it also holds lines on its register
-  // checks) wins over the browser's; cents from its KES amount.
-  const runExpected = run?.expectedTotal != null ? Math.round(run.expectedTotal * 100) : null;
+  // What omnichannel says the run sends to the wallets (a SAP file) wins over
+  // the browser's own sum; cents from its exact KES amount.
+  const runExpected = run?.payableAmount != null ? Math.round(run.payableAmount * 100) : null;
   useEffect(() => {
     if (!finishedId) return;
     let stopped = false;
@@ -185,6 +192,20 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     if (gateKey) void reloadGate();
     if (!HAS_RECONCILIATION[flow]) {
       setNoRecon("A registration run posts nothing to the ledger, so it has no reconciliation.");
+      // Farmers whose phone is already another farmer's are held as CLASH.
+      if (flow === "REGISTRATION") {
+        farmersApi.summary().then(
+          (s) => { if (!stopped) setClashes(s.available ? s.data.clash ?? null : null); },
+          () => { if (!stopped) setClashes(null); },
+        );
+      }
+      return () => {
+        stopped = true;
+      };
+    }
+    // A SAP file with no line for a wallet ends at upload: nothing reached the ledger.
+    if (run?.fileFormat === "SAP" && run.payableCount === 0) {
+      setNoRecon("No line of this file was sent to the wallets, so the ledger has nothing to reconcile. The exception report says why.");
       return;
     }
     bulkLoads.reconciliation(finishedId, flow === "PAYMENT" ? runExpected ?? expectedCents : null).then(
@@ -208,7 +229,14 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
 
   const upload = useAction(async () => {
     if (!file || !institutionId) throw new Error("Choose the file first.");
-    return bulkLoads.upload(flow, institutionId, file, nameOf(institutionId));
+    setUploadCode(null);
+    try {
+      return await bulkLoads.upload(flow, institutionId, file, nameOf(institutionId), "KES", format === "SAP" ? period : null);
+    } catch (e) {
+      // The page acts on omnichannel's code (DUPLICATE_FILE), not only its words.
+      setUploadCode(e instanceof OmniApiError ? e.code : null);
+      throw e;
+    }
   });
   const process = useAction((runId: string) => bulkLoads.process(runId));
   const release = useAction((runId: string) => bulkLoads.release(runId));
@@ -235,6 +263,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     const kind = paymentFormatOf(first);
     setFormat(kind);
     if (kind === "SAP") {
+      setPeriod(periodFromName(f.name) ?? "");
       setSummary({ rows: 0, total: null, problem: null, warnings: [] });
       sap.start(f);
     } else if (kind === "SIMPLE") {
@@ -269,8 +298,13 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     // An omnichannel without the SAP adapter answers like it always has; it
     // would read the SAP columns as the accounting file's, so the run is
     // left unstarted and nothing is paid.
-    if (format === "SAP" && !hasApproval(staged)) {
+    if (format === "SAP" && !readsSapFiles(staged) && staged.status !== "SUBMITTED") {
       setSapNotTaken(true);
+      return;
+    }
+    // Ended at upload already (a SAP file with no line for a wallet): nothing to start.
+    if (TERMINAL.has(staged.status)) {
+      setStarted(true);
       return;
     }
     // Submitted on upload already: it waits for its release.
@@ -298,6 +332,9 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     setPollError(null);
     setExpectedCents(null);
     picked.current = null;
+    setPeriod("");
+    setClashes(null);
+    setUploadCode(null);
     setFile(null);
     setSummary(null);
     setFormat(null);
@@ -317,14 +354,20 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     setStarted(true);
   };
 
-  const sapWhy = format === "SAP" ? sapBlocker(sap.state, control.state) : null;
+  const sapWhy = sizeBlocker(file, MAX_UPLOAD_MB) ?? (format === "SAP" ? sapBlocker(sap.state, control.state, period) : null);
   // While a run waits for its release the file is already in; sending it
   // again would only be refused as the same file.
   const canProcess = !!institutionId && !!file && !!summary && !summary.problem && !paymentsClosed && !busy && !waiting
     && !upload.pending && !process.pending && !sapWhy;
   // A "same file" refusal names the run that already has it.
   const earlier = upload.error ? earlierRunIn(upload.error) : null;
-  const earlierRun = earlier ? (history.data ?? []).find((r) => r.runId === earlier) ?? null : null;
+  const duplicate = uploadCode === ERR.DUPLICATE_FILE;
+  /** Opens the run a "same file" refusal names, from the list or read on its own (it may be older than the list). */
+  const openEarlier = async (runId: string) => {
+    const listed = (history.data ?? []).find((r) => r.runId === runId);
+    const r = listed ?? (await bulkLoads.run(runId).catch(() => null));
+    if (r) open(r);
+  };
   const myRuns = (history.data ?? []).filter((r) => r.flow === flow && (!institutionId || r.institutionId === institutionId));
 
   return (
@@ -421,6 +464,8 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
             onRetry={() => sap.start(file)}
             onControl={(f) => void control.pick(f)}
             disabled={busy || paymentsClosed}
+            period={period}
+            onPeriod={setPeriod}
           />
         </GlassPanel>
       )}
@@ -439,7 +484,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
           {run && !busy && <Button variant="outline" onClick={startAgain}><FileUp size={14} /> Start another</Button>}
           {run && <span className="tabular text-xs text-text-faint">Run {run.runId}</span>}
         </div>
-        {sapWhy && file && sap.state.kind !== "idle" && !run && (
+        {sapWhy && file && !run && (
           <p id="process-why" className="mt-2 text-[12.5px] text-text-soft" data-testid="process-blocked">{sapWhy}</p>
         )}
         {upload.error === NOT_AVAILABLE ? (
@@ -449,7 +494,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
         ) : upload.error && (
           <div role="alert" className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-danger" data-testid="upload-error">
             <span>{upload.error}</span>
-            {earlierRun && <Button size="sm" variant="outline" onClick={() => open(earlierRun)}>Open the earlier run</Button>}
+            {duplicate && earlier && <Button size="sm" variant="outline" onClick={() => void openEarlier(earlier)}>Open the earlier run</Button>}
           </div>
         )}
         {sapNotTaken && run && (
@@ -475,22 +520,21 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
           <RunApproval run={run} me={me} pending={release.pending} error={release.error} onRelease={() => void onRelease()} />
         )}
         {run && !sapNotTaken && !waiting && <Progress run={run} seenAt={seenAt} processedLabel={copy.processed} skippedHint={stepFor(flow)?.skipped ?? "Already applied"} />}
-        {run && !TERMINAL.has(run.status) && !sapNotTaken && (
-          <RunExceptions flow={flow} lines={run.heldLines} heldCount={run.heldCount} clashCount={run.clashCount} currency={run.currency} sourceName={run.sourceName} />
-        )}
+        {run && !TERMINAL.has(run.status) && !sapNotTaken && <RunChecks runId={run.runId} checks={run} currency={run.currency} />}
       </Step>
 
       {run && TERMINAL.has(run.status) && (
         <Step n={4} title="Result" className="mb-6">
           <Outcome run={run} />
-          <RunExceptions
-            flow={flow}
-            lines={recon?.heldLines ?? run.heldLines}
-            heldCount={recon?.heldCount ?? run.heldCount}
-            clashCount={recon?.clashCount ?? run.clashCount}
-            currency={run.currency}
-            sourceName={run.sourceName}
-          />
+          <RunChecks runId={run.runId} checks={recon?.fileFormat ? recon : run} currency={run.currency} />
+          {flow === "REGISTRATION" && clashes != null && clashes > 0 && (
+            <div className="mt-4" data-testid="clash-note">
+              <NotePanel tone="warning" title={`${units(clashes)} farmer${clashes === 1 ? "" : "s"} held as a clash`}>
+                Their phone is already another farmer&apos;s login, so they were put on the register with no login and cannot be activated or paid until the phone is put right.{" "}
+                <Link className="font-medium text-primary-600 hover:text-primary-700" to="/farmers?state=CLASH">See who and why</Link>.
+              </NotePanel>
+            </div>
+          )}
           {noRecon ? (
             <p className="mt-4 text-[12.5px] text-text-soft" data-testid="no-recon">{noRecon}</p>
           ) : reconError ? (
@@ -602,9 +646,10 @@ function RunBadge({ status }: { status: string }) {
 
 function Progress({ run, seenAt, processedLabel, skippedHint }: { run: BulkRun; seenAt: number; processedLabel: string; skippedHint: string }) {
   const counted = run.processedCount + run.skippedCount + run.failureCount;
-  // Held lines are dealt with too, unless omnichannel already counts them as failures.
-  const held = run.heldCount ?? 0;
-  const done = held > 0 && counted + held <= run.totalRows ? counted + held : counted;
+  // Held and bank/SACCO lines never go to the ledger, so they are settled at
+  // upload; counted unless that would pass the file (they are failures there).
+  const aside = (run.heldCount ?? 0) + (run.routedCount ?? 0);
+  const done = aside > 0 && counted + aside <= run.totalRows ? counted + aside : counted;
   const end = run.completedAt ? Date.parse(run.completedAt) : seenAt;
   const seconds = Math.max(0, (end - Date.parse(run.startedAt)) / 1000);
   const rate = seconds >= 1 ? Math.round(done / seconds) : null;
@@ -617,13 +662,17 @@ function Progress({ run, seenAt, processedLabel, skippedHint }: { run: BulkRun; 
         <span className="tabular">{Math.floor(pct)}%</span>
       </div>
       <ProgressBar value={pct} tone={tone} />
-      <div className={`mt-4 grid grid-cols-2 gap-3 ${run.heldCount != null || run.clashCount != null ? "md:grid-cols-3 xl:grid-cols-6" : "md:grid-cols-5"}`}>
+      <div className={`mt-4 grid grid-cols-2 gap-3 ${readsSapFiles(run) && run.fileFormat === "SAP" ? "md:grid-cols-4 xl:grid-cols-7" : "md:grid-cols-5"}`}>
         <StatCard label="Rows read" value={units(run.totalRows)} />
         <StatCard label={processedLabel} value={units(run.processedCount)} />
         <StatCard label="Skipped" value={units(run.skippedCount)} hint={skippedHint} />
         <StatCard label="Failed" value={units(run.failureCount)} />
-        {run.heldCount != null && <StatCard label="Held" value={units(run.heldCount)} hint={run.heldTotal != null ? `${money(run.heldTotal, run.currency)}, not paid` : "Not paid"} />}
-        {run.clashCount != null && <StatCard label="Clashes" value={units(run.clashCount)} hint="Phone already another farmer's" />}
+        {run.fileFormat === "SAP" && (
+          <>
+            <StatCard label="Bank or SACCO" value={units(run.routedCount)} hint={`${money(run.routedAmount, run.currency)}, not paid to wallets by this run`} />
+            <StatCard label="Held" value={units(run.heldCount)} hint={`${money(run.heldAmount, run.currency)}, never paid`} />
+          </>
+        )}
         <StatCard label="Throughput" value={rate == null ? "—" : `${units(rate)}/s`} hint={run.flow === "PAYMENT" ? money(run.totalAmount, run.currency) : undefined} />
       </div>
     </div>
@@ -635,16 +684,18 @@ function Outcome({ run }: { run: BulkRun }) {
   if (run.status === "COMPLETED") {
     return (
       <NotePanel tone="success" title="Completed">
-        {run.heldCount
-          ? `Every line that passed the checks was applied or had been already; ${run.heldCount.toLocaleString()} held line${run.heldCount === 1 ? " was" : "s were"} not paid.`
+        {run.fileFormat === "SAP"
+          ? "Every line sent to the wallets was applied or had been already."
           : "Every row was applied or had been already."}
         {run.message ? ` ${run.message}` : ""}
       </NotePanel>
     );
   }
   const partial = run.status === "PARTIAL";
+  // A SAP run with held lines ends PARTIAL even when every line sent was paid.
+  const onlyHeld = partial && run.failureCount === 0 && (run.heldCount ?? 0) > 0;
   return (
-    <NotePanel tone={partial ? "warning" : "danger"} title={partial ? "Partly completed: some rows failed" : "Failed"}>
+    <NotePanel tone={partial ? "warning" : "danger"} title={onlyHeld ? "Completed, with held lines" : partial ? "Partly completed: some rows failed" : "Failed"}>
       <span className="whitespace-pre-wrap" data-testid="run-message">{run.message ?? "The service gave no reason."}</span>
     </NotePanel>
   );
@@ -652,9 +703,6 @@ function Outcome({ run }: { run: BulkRun }) {
 
 function ReconPanel({ recon, institutionName }: { recon: BulkReconciliation; institutionName: string | null }) {
   const payment = recon.flow === "PAYMENT";
-  // Newer omnichannel reconciles this run on its own (what it posted against
-  // its expected total and line count), not only the institution's books.
-  const runOnly = recon.runPostedTotal != null || recon.runPostedCount != null;
   return (
     <div className="mt-4 rounded-[var(--radius-lg)] border border-border p-4" data-testid="recon-panel">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -663,9 +711,6 @@ function ReconPanel({ recon, institutionName }: { recon: BulkReconciliation; ins
           <Check ok={recon.doubleEntryBalanced} yes="Double entry balanced" no="Double entry not balanced" />
           {payment && recon.matchesExpected != null && (
             <Check ok={recon.matchesExpected} yes="Matches the expected total" no="Does not match the expected total" />
-          )}
-          {payment && recon.matchesExpectedCount != null && (
-            <Check ok={recon.matchesExpectedCount} yes="Line count matches" no="Line count does not match" />
           )}
         </div>
       </div>
@@ -677,11 +722,8 @@ function ReconPanel({ recon, institutionName }: { recon: BulkReconciliation; ins
         <Row k="Failed" v={units(recon.failureCount)} />
         {payment && (
           <>
-            <Row k={runOnly ? "Credited (institution)" : "Credited by this run"} v={money(recon.creditedTotal, "KES")} />
-            <Row k="Expected (file less held lines)" v={recon.expectedTotal == null ? "Not checked" : money(recon.expectedTotal, "KES")} />
-            {recon.runPostedTotal != null && <Row k="Posted by this run" v={money(recon.runPostedTotal, "KES")} />}
-            {recon.runPostedCount != null && <Row k="Lines posted by this run" v={`${units(recon.runPostedCount)}${recon.expectedCount != null ? ` of ${units(recon.expectedCount)} expected` : ""}`} />}
-            {recon.heldCount != null && <Row k="Held, not paid" v={`${units(recon.heldCount)}${recon.heldTotal != null ? ` · ${money(recon.heldTotal, "KES")}` : ""}`} />}
+            <Row k="Credited by this run" v={money(recon.creditedTotal, "KES")} />
+            <Row k={recon.fileFormat === "SAP" ? "Expected (wallet lines that pass)" : "Expected (rows that will be credited)"} v={recon.expectedTotal == null ? "Not checked" : money(recon.expectedTotal, "KES")} />
             <Row k="Deposit debits" v={money(recon.depositDebitTotal, "KES")} />
             <Row k="Deposit credits" v={money(recon.depositCreditTotal, "KES")} />
           </>

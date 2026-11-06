@@ -12,18 +12,23 @@
  * safe to send twice. A PAYMENT upload is refused with 409 until an ONBOARDING
  * run has completed for the institution.
  *
- * PAYMENT also takes KTDA's SAP export (16 columns, sapPaymentFile.ts) where
- * omnichannel has the SAP adapter: it derives the accounting file itself and
- * holds the lines that fail a check, with the reason. There a PAYMENT run
- * stops at SUBMITTED after Process and waits for a different operator to
- * release it (maker-checker). Both are read from the run omnichannel answers,
- * never assumed: a run without the approval fields is an omnichannel without
- * them, and the page keeps today's one-step behaviour.
+ * PAYMENT also takes KTDA's SAP export (sapPaymentFile.ts) where omnichannel
+ * has the SAP pay file (tokenization-omnichannel #98): it checks the file at
+ * upload, sends only the WALLET lines that pass to the ledger, and reports
+ * what it held (with rule codes) and what is paid by bank or SACCO instead,
+ * with every such line in GET /{runId}/exceptions (CSV). There a PAYMENT run
+ * is SUBMITTED at upload and starts only when a different operator releases
+ * it (POST /{runId}/release; 403 MAKER_CHECKER for the uploader, 409
+ * RELEASE_REQUIRED for /process). The same payment file twice is 409
+ * DUPLICATE_FILE naming the earlier run; a file over the limit is 413
+ * FILE_TOO_LARGE. All read from omnichannel's answers, never assumed: a run
+ * without these fields is an older omnichannel, and the page keeps today's
+ * one-step behaviour.
  *
  * REGISTRATION and ACTIVATION are the farmer journey's flows
  * (journeyContract.ts): not on every environment yet, and said so plainly
  * where omnichannel refuses one. */
-import { OmniApiError, omniCall } from "./omniApi";
+import { OmniApiError, omniCall, type CsvDownload } from "./omniApi";
 import { formatKes, parseKes } from "./bulk-file";
 import { institutionApi } from "./api.institution";
 import { BULK_COLUMNS, COLUMNS, NEW_FLOWS, NOT_AVAILABLE, notBuiltYet, type BulkFlow, type OnboardingStatus } from "./journeyContract";
@@ -32,19 +37,6 @@ export { BULK_COLUMNS, type BulkFlow };
 /** SUBMITTED: a PAYMENT run waiting for a second operator to release it
  *  (an omnichannel with maker-checker only). */
 export type RunStatus = "SUBMITTED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
-
-/** A line omnichannel held instead of paying (a SAP file), or would not
- *  register (CLASH: the phone belongs to another farmer). */
-export type HeldLine = {
-  lineNo: number;
-  growerNo: string | null;
-  /** The rule (E02_UNKNOWN_GROWER, CLASH, ...), when omnichannel names one. */
-  code: string | null;
-  reason: string;
-  /** KES; absent for a registration row. */
-  amount?: number | null;
-  phone?: string | null;
-};
 
 export type BulkRun = {
   runId: string;
@@ -71,31 +63,49 @@ export type BulkRun = {
   /** A summary with sample failures; always shown on PARTIAL and FAILED. */
   message: string | null;
 
-  /* Maker-checker (PAYMENT, an omnichannel that has it). Absent elsewhere:
-     the run then starts on Process, as it always has. */
-  /** Who uploaded and submitted it (omnichannel's subject, "staff:<email>"). */
+  /* Maker-checker (PAYMENT, an omnichannel that has it). Absent on an older
+     one: the run then starts on Process, as it always has. */
+  /** Who uploaded it (omnichannel's subject, "staff:<email>"); null for a run without a named uploader. */
   submittedBy?: string | null;
   submittedAt?: string | null;
-  /** Who released it; must differ from submittedBy (omnichannel answers 409 otherwise). */
+  /** Who released it; never submittedBy (omnichannel answers 403 MAKER_CHECKER). */
   releasedBy?: string | null;
   releasedAt?: string | null;
+  /** SHA-256 of the uploaded bytes: the same file is not paid twice. */
+  fileSha256?: string | null;
 
-  /* What omnichannel's own checks set aside (the SAP adapter, CLASH rows). */
-  /** Lines held, never paid (SAP file). */
+  /* A KTDA SAP pay file (fileFormat "SAP"): what omnichannel's checks found at
+     upload. Null for any other file. Amounts in KES. */
+  fileFormat?: string | null;
+  /** The pay period, YYYY-MM. */
+  period?: string | null;
+  /** Lines that pass and are PayTo=WALLET: what the run sends to the wallets. */
+  payableCount?: number | null;
+  payableAmount?: number | null;
+  /** Lines paid by BANK or SACCO: not paid to wallets by this run. */
+  routedCount?: number | null;
+  routedAmount?: number | null;
+  /** Lines held by a check, never paid. */
   heldCount?: number | null;
-  /** Their net, KES. */
-  heldTotal?: number | null;
-  /** What this run should credit: the file less the held lines, KES. */
-  expectedTotal?: number | null;
-  expectedCount?: number | null;
-  /** Registration rows refused because the phone is another farmer's. */
-  clashCount?: number | null;
-  /** The held lines and CLASH rows themselves (omnichannel may send the first few only). */
-  heldLines?: HeldLine[] | null;
+  heldAmount?: number | null;
+  /** Held lines per rule, "E01_MALFORMED=1,E03_DUPLICATE=2". */
+  heldCodes?: string | null;
 };
 
-/** The run comes from an omnichannel with maker-checker. */
-export const hasApproval = (r: BulkRun) => r.status === "SUBMITTED" || "submittedBy" in r || "releasedBy" in r;
+/** A payment run from an omnichannel with maker-checker. (Every run there
+ *  carries submittedBy; only a payment run is released.) */
+export const hasApproval = (r: BulkRun) => r.flow === "PAYMENT" && (r.status === "SUBMITTED" || "submittedBy" in r || "releasedBy" in r);
+
+/** The run comes from an omnichannel that reads the SAP pay file. */
+export const readsSapFiles = (r: BulkRun) => "fileFormat" in r;
+
+/** "E01_MALFORMED=1,E03_DUPLICATE=2" as [code, count] pairs; [] for none. */
+export function heldCodesOf(codes: string | null | undefined): [string, number][] {
+  return (codes ?? "").split(",").map((p) => p.trim()).filter(Boolean).map((p) => {
+    const [code, n] = p.split("=");
+    return [code.trim(), Number(n) || 0] as [string, number];
+  });
+}
 
 /** The earlier run a "same file" 409 names, when its message carries the id. */
 export function earlierRunIn(message: string | null | undefined): string | null {
@@ -123,21 +133,33 @@ export type BulkReconciliation = {
   /** creditedTotal equals expectedTotal to the cent; null without one. */
   matchesExpected: boolean | null;
 
-  /* This run on its own, where accounting compares it (newer omnichannel):
-     the totals above are the institution's, these are what this run posted. */
-  runPostedTotal?: number | null;
-  runPostedCount?: number | null;
-  expectedCount?: number | null;
-  /** runPostedCount equals expectedCount; null without one. */
-  matchesExpectedCount?: boolean | null;
+  /* A SAP pay file's checks, as on the run (null for any other file). */
+  fileFormat?: string | null;
+  payableCount?: number | null;
+  payableAmount?: number | null;
+  routedCount?: number | null;
+  routedAmount?: number | null;
   heldCount?: number | null;
-  heldTotal?: number | null;
-  clashCount?: number | null;
-  heldLines?: HeldLine[] | null;
+  heldAmount?: number | null;
+  heldCodes?: string | null;
 };
 
 /** Payments at or over this need approval, so the backend refuses them here. */
 export const MAX_PAYMENT_KES = 1_000_000;
+
+/** The largest upload this site passes on: the UAT nginx's limit for the
+ *  upload path (deploy/nginx/ktda-bo-admin.conf). Omnichannel's own is larger
+ *  (200 MB). A 600,000-line SAP file is about 85 MB. */
+export const MAX_UPLOAD_MB = 100;
+const TOO_LARGE = `The file is over the ${MAX_UPLOAD_MB} MB this site accepts. Split it by factory and send each part.`;
+
+/** Omnichannel's error codes this page acts on. */
+export const ERR = {
+  MAKER_CHECKER: "MAKER_CHECKER",
+  DUPLICATE_FILE: "DUPLICATE_FILE",
+  RELEASE_REQUIRED: "RELEASE_REQUIRED",
+  FILE_TOO_LARGE: "FILE_TOO_LARGE",
+} as const;
 
 const BASE = "/bulk-loads";
 const runPath = (runId: string) => `${BASE}/${encodeURIComponent(runId)}`;
@@ -160,9 +182,12 @@ export const bulkLoads = {
    *  the caller's own, which the proxy sets from configuration; the browser
    *  never names it. */
   ownInstitution: institutionApi.own,
-  /** Stores the file and returns the RUNNING run (202). 409 for a PAYMENT
-   *  file before onboarding has completed; 400 for an empty file. */
-  upload: (flow: BulkFlow, institutionId: string, file: File, institutionName?: string | null, currency = "KES") => {
+  /** Stores the file and returns the run (202): RUNNING, or SUBMITTED for a
+   *  PAYMENT file where omnichannel has maker-checker. 409 for a PAYMENT file
+   *  before onboarding has completed, or the same file again (DUPLICATE_FILE,
+   *  naming the earlier run); 400 for an empty or unreadable file (BAD_FILE);
+   *  413 over the size limit. `period` (YYYY-MM) is a SAP pay file's period. */
+  upload: (flow: BulkFlow, institutionId: string, file: File, institutionName?: string | null, currency = "KES", period?: string | null) => {
     const form = new FormData();
     form.append("file", file, file.name);
     form.append("flow", flow);
@@ -171,7 +196,14 @@ export const bulkLoads = {
     // first upload, and names it from this field.
     if (institutionName) form.append("institutionName", institutionName);
     form.append("currency", currency);
-    const sent = plainForbidden(omniCall.post<BulkRun>(`${BASE}/upload`, form));
+    if (period) form.append("period", period);
+    const sent = plainForbidden(omniCall.post<BulkRun>(`${BASE}/upload`, form)).catch((e: unknown) => {
+      // nginx answers its own 413 as an HTML page; omnichannel's names its limit.
+      if (e instanceof OmniApiError && e.status === 413) {
+        throw new OmniApiError(413, e.code === ERR.FILE_TOO_LARGE ? `${e.message.replace(/\.?$/, ".")} Split the file by factory and send each part.` : TOO_LARGE, e.field, e.code);
+      }
+      throw e;
+    });
     // A flow this omnichannel does not have yet says so; nothing is retried
     // under another flow.
     return NEW_FLOWS.has(flow)
@@ -181,12 +213,20 @@ export const bulkLoads = {
       })
       : sent;
   },
-  /** Starts the durable job for an uploaded run; a PAYMENT run on an
-   *  omnichannel with maker-checker answers SUBMITTED instead. */
-  process: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/process`, {}),
-  /** The second operator's release of a SUBMITTED run: it then runs. 409
-   *  when the caller is the one who submitted it. */
+  /** Starts the durable job for an uploaded run. A PAYMENT run where
+   *  omnichannel has maker-checker starts on its release instead (409
+   *  RELEASE_REQUIRED): the run is read again, and waits as it is. */
+  process: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/process`, {}).catch((e: unknown) => {
+    if (e instanceof OmniApiError && e.code === ERR.RELEASE_REQUIRED) return omniCall.get<BulkRun>(runPath(runId));
+    throw e;
+  }),
+  /** A second operator's release of a SUBMITTED payment run, which starts it.
+   *  403 MAKER_CHECKER for the operator who uploaded it; 409 when it is not
+   *  waiting for release. */
   release: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/release`, {}),
+  /** A SAP pay file's exception report (CSV): every line held, with its rule
+   *  code and reason, or paid by BANK or SACCO. 409 for any other run. */
+  exceptions: (runId: string): Promise<CsvDownload> => omniCall.download(`${runPath(runId)}/exceptions`, `${runId}-exceptions.csv`),
   run: (runId: string) => omniCall.get<BulkRun>(runPath(runId)),
   /** The latest 50 runs, every institution and flow, newest first. */
   recent: () => omniCall.list<BulkRun>(BASE),

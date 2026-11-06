@@ -43,11 +43,12 @@ export function RunApproval({ run, me, pending, error, onRelease }: {
 
       {waiting && (
         <div className="mt-4 space-y-3">
-          {(run.expectedTotal != null || run.heldCount != null) && (
+          {run.payableAmount != null && (
             <p className="text-[12.5px] text-text-soft" data-testid="release-summary">
               Releasing credits{" "}
-              <span className="font-medium text-text tabular">{run.expectedCount != null ? `${units(run.expectedCount)} lines, ` : ""}{run.expectedTotal != null ? money(run.expectedTotal, run.currency) : "the file"}</span>
-              {run.heldCount != null && <>; {units(run.heldCount)} held line{run.heldCount === 1 ? " is" : "s are"} not paid</>}.
+              <span className="font-medium text-text tabular">{run.payableCount != null ? `${units(run.payableCount)} lines, ` : ""}{money(run.payableAmount, run.currency)}</span> to wallets
+              {(run.routedCount ?? 0) > 0 && <>; {units(run.routedCount!)} bank or SACCO line{run.routedCount === 1 ? " is" : "s are"} not paid to wallets by this run</>}
+              {(run.heldCount ?? 0) > 0 && <>; {units(run.heldCount!)} held line{run.heldCount === 1 ? " is" : "s are"} never paid</>}.
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3">

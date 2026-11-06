@@ -438,6 +438,12 @@ async function getOne<T>(path: string): Promise<T> {
  *  upload. */
 export const omniCall = {
   get: getOne,
+  /** A file omnichannel answers with (a CSV), named as its Content-Disposition says. */
+  download: async (path: string, fallbackName: string): Promise<CsvDownload> => {
+    const res = await send("GET", path);
+    if (!res.ok) throw await failure(res);
+    return { filename: filenameOf(res.headers.get("Content-Disposition")) ?? fallbackName, blob: await res.blob() };
+  },
   list: async <T>(path: string): Promise<T[]> => {
     const res = await send("GET", path);
     if (!res.ok) throw await failure(res);

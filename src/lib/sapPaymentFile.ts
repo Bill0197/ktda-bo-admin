@@ -9,7 +9,12 @@
  * W01 name differs) run in omnichannel after upload, and the lines it holds
  * come back on the run. Every other rule (E01, E03, E04, E07, E08, E09) is
  * applied here exactly as the service applies it, so the expected total this
- * sends already leaves out the lines those rules hold. */
+ * sends already leaves out the lines those rules hold.
+ *
+ * Omnichannel's SAP pay file (tokenization-omnichannel #98) makes the same six
+ * checks at upload and sends only the passing PayTo=WALLET lines to the
+ * ledger; BANK and SACCO lines are paid elsewhere, not to wallets by this run.
+ * This check splits the file the same way: to wallets, routed, held. */
 import { CHECK_TEXT, Summary, checkLine, compareControl, csvCell, formatKes, parseKes, type CheckCode, type CheckedLine, type ControlCheck, type ControlSheet, type FileSummary, type RegisterEntry } from "./bulk-file";
 import { MAX_LINES, headerFor, parseErrorLine, parseLine, toCanonicalCsv, type HeaderMap } from "./file-rules";
 
@@ -42,11 +47,17 @@ export function formatProblem(firstLine: string): string {
 const asItsOwnRegister = (line: { name: string; walletId: string; factoryCode: string }) =>
   (): RegisterEntry => ({ name: line.name, walletId: line.walletId, status: "active", factoryCode: line.factoryCode });
 
-/** Exception report columns. */
-export const EXCEPTION_HEADER = "LineNo,GNo,Name,WalletID,FactoryCode,AmountKES,Check,Code,Reason";
+/** Exception report columns: omnichannel's own (GET /{runId}/exceptions), so both reports read alike. */
+export const EXCEPTION_HEADER = "line_no,grower_no,name,pay_to,amount_kes,code,reason";
 
-const exceptionRow = (l: CheckedLine) =>
-  [l.lineNo, l.grower, l.name, l.walletId, l.factoryCode, formatKes(l.amount), l.check, l.code, l.reason].map(csvCell).join(",");
+/** A held line, or a line paid by BANK or SACCO (code ROUTED_BANK, ROUTED_SACCO), as omnichannel writes it. */
+const exceptionRow = (l: CheckedLine) => {
+  const held = l.check === "error";
+  return [l.lineNo, l.grower, l.name, l.payTo, formatKes(l.amount), held ? l.code : `ROUTED_${l.payTo}`, held ? l.reason : `Paid by ${l.payTo}, not to the wallet`].map(csvCell).join(",");
+};
+
+/** A line the checks pass, paid by bank or SACCO rather than to the wallet. */
+const isRouted = (l: CheckedLine) => l.check !== "error" && l.payTo !== "WALLET";
 
 /** How many exception lines are kept for the on-screen table; the CSV keeps up to MAX_EXCEPTION_ROWS. */
 export const PREVIEW_EXCEPTIONS = 200;
@@ -59,10 +70,14 @@ export type SapCheckResult = {
   /** Net of the lines this check holds (errors), in cents. */
   heldCents: number;
   heldCount: number;
+  /** Lines that pass but are paid by BANK or SACCO: not paid to wallets by this run. */
+  routedCents: number;
+  routedCount: number;
   warningCount: number;
-  /** What the run should credit: the file's net less the held lines, in cents. */
+  /** What the run should credit to wallets: the WALLET lines that pass, in cents. */
   expectedCents: number;
-  /** The first exception lines, for the on-screen table. */
+  expectedCount: number;
+  /** The first held and routed lines, for the on-screen table. */
   preview: CheckedLine[];
   exceptionsTotal: number;
   /** The exception report, header included; capped at MAX_EXCEPTION_ROWS lines. */
@@ -78,9 +93,13 @@ export class SapFileChecker {
   private lines = 0;
   private readonly seen = new Map<string, number>();
   private readonly sum = new Summary();
-  private readonly preview: CheckedLine[] = [];
+  // Held lines first on screen: they are what someone has to fix.
+  private readonly heldPreview: CheckedLine[] = [];
+  private readonly routedPreview: CheckedLine[] = [];
   private readonly rows: string[] = [EXCEPTION_HEADER];
   private exceptionsTotal = 0;
+  private routedCents = 0;
+  private routedCount = 0;
 
   /** One physical line of the file, header first. Throws with an operator-facing message when the file can't be checked. */
   feed(raw: string): void {
@@ -101,9 +120,15 @@ export class SapFileChecker {
     // The run's own numbering, as the service keeps it: the Nth payment line.
     checked.lineNo = this.lines;
     this.sum.add(checked);
-    if (checked.code !== "OK") {
+    const routed = isRouted(checked);
+    if (routed) {
+      this.routedCount++;
+      this.routedCents += checked.amount;
+    }
+    if (checked.check === "error" || routed) {
       this.exceptionsTotal++;
-      if (this.preview.length < PREVIEW_EXCEPTIONS) this.preview.push(checked);
+      const list = routed ? this.routedPreview : this.heldPreview;
+      if (list.length < PREVIEW_EXCEPTIONS) list.push(checked);
       if (this.rows.length <= MAX_EXCEPTION_ROWS) this.rows.push(exceptionRow(checked));
     }
   }
@@ -121,9 +146,12 @@ export class SapFileChecker {
       summary,
       heldCents: summary.heldNet,
       heldCount: summary.errors,
+      routedCents: this.routedCents,
+      routedCount: this.routedCount,
       warningCount: summary.warnings,
-      expectedCents: summary.net - summary.heldNet,
-      preview: this.preview,
+      expectedCents: summary.net - summary.heldNet - this.routedCents,
+      expectedCount: this.lines - summary.errors - this.routedCount,
+      preview: [...this.heldPreview, ...this.routedPreview].slice(0, PREVIEW_EXCEPTIONS),
       exceptionsTotal: this.exceptionsTotal,
       exceptionsCsv: `${this.rows.join("\n")}\n`,
       exceptionsTruncated: this.exceptionsTotal > MAX_EXCEPTION_ROWS,
@@ -169,5 +197,18 @@ export function checkControl(sheet: ControlSheet, fileName: string, result: Pick
 }
 
 export const controlOk = (c: ControlResult) => c.check.rows && c.check.total && c.check.sha256;
+
+/* ---- The pay period ---- */
+
+/** omnichannel's own rule (SapPayFile.period): a year 20xx and a month, as
+ *  KTDA_GL_2026_10_600000.csv carries 2026-10. */
+const PERIOD_IN_NAME = /(20\d{2})[_-]?(0[1-9]|1[0-2])(?!\d)/;
+export const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** The pay period a file name carries (YYYY-MM), or null. */
+export function periodFromName(name: string): string | null {
+  const m = PERIOD_IN_NAME.exec(name);
+  return m ? `${m[1]}-${m[2]}` : null;
+}
 
 export { CHECK_TEXT, formatKes, type CheckCode, type CheckedLine, type ControlSheet };

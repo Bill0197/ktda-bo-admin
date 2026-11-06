@@ -41,7 +41,9 @@ sends:
 
 `/admin/omni/api/operator/bulk-loads/upload` has its own location: 100 MB body
 (a 600,000-line SAP file is about 85 MB) and 10-minute body, send and read
-timeouts. The rest of `/admin/omni/` keeps 64 MB and 300 s.
+timeouts. The rest of `/admin/omni/` keeps 64 MB and 300 s. (Omnichannel itself takes
+bulk files up to 200 MB, `BULK_LOAD_MAX_FILE_SIZE`; this site's 100 MB is the lower limit, and the
+back office refuses a larger file before sending it.)
 
 > **Security (UAT only):** there is no session gate in front of
 > `/admin/omni/*`, and the operator subject is what the browser says it is. It
