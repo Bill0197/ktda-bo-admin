@@ -10,11 +10,16 @@
  * wallet. PAYMENT (grower_no,amount_kes,payment_ref) credits those wallets; a
  * grower who was never onboarded is rejected, and payment_ref makes each row
  * safe to send twice. A PAYMENT upload is refused with 409 until an ONBOARDING
- * run has completed for the institution. */
+ * run has completed for the institution.
+ *
+ * REGISTRATION and ACTIVATION are the farmer journey's proposed flows
+ * (journeyContract.ts): not on omnichannel yet, and said so plainly when
+ * omnichannel refuses one. */
 import { OmniApiError, omniCall } from "./omniApi";
 import { institutionApi } from "./api.institution";
+import { BULK_COLUMNS, NOT_AVAILABLE, PROPOSED_FLOWS, notBuiltYet, type BulkFlow } from "./journeyContract";
 
-export type BulkFlow = "ONBOARDING" | "PAYMENT";
+export { BULK_COLUMNS, type BulkFlow };
 export type RunStatus = "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
 
 export type BulkRun = {
@@ -28,7 +33,8 @@ export type BulkRun = {
   sourceName: string;
   status: RunStatus;
   totalRows: number;
-  /** Wallets created (ONBOARDING) or credited (PAYMENT). */
+  /** Wallets created (ONBOARDING), farmers registered (REGISTRATION), wallets
+   *  opened (ACTIVATION) or credited (PAYMENT). */
   processedCount: number;
   /** Rows already applied by an earlier run. */
   skippedCount: number;
@@ -62,11 +68,6 @@ export type BulkReconciliation = {
   expectedTotal: number | null;
   /** creditedTotal equals expectedTotal to the cent; null without one. */
   matchesExpected: boolean | null;
-};
-
-export const BULK_COLUMNS: Record<BulkFlow, string[]> = {
-  ONBOARDING: ["grower_no", "national_id", "full_name", "msisdn"],
-  PAYMENT: ["grower_no", "amount_kes", "payment_ref"],
 };
 
 /** Payments at or over this need approval, so the backend refuses them here. */
@@ -104,7 +105,15 @@ export const bulkLoads = {
     // first upload, and names it from this field.
     if (institutionName) form.append("institutionName", institutionName);
     form.append("currency", currency);
-    return plainForbidden(omniCall.post<BulkRun>(`${BASE}/upload`, form));
+    const sent = plainForbidden(omniCall.post<BulkRun>(`${BASE}/upload`, form));
+    // A flow this omnichannel does not have yet says so; nothing is retried
+    // under another flow.
+    return PROPOSED_FLOWS.has(flow)
+      ? sent.catch((e: unknown) => {
+        if (e instanceof OmniApiError && notBuiltYet(e.status, e.message)) throw new OmniApiError(e.status, NOT_AVAILABLE);
+        throw e;
+      })
+      : sent;
   },
   /** Starts the durable job for an uploaded run. */
   process: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/process`, {}),

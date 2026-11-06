@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, FileUp, Play, XCircle } from "lucide-react";
+import { CheckCircle2, Download, FileUp, Info, Play, XCircle } from "lucide-react";
 import { Badge, Button, Field, GlassPanel, NotePanel, PageHeader, ProgressBar, SectionTitle, Skeleton, StatCard } from "../../ui";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { useAction } from "../../lib/tokenConsole/useAction";
@@ -11,6 +11,7 @@ import {
   type BulkFlow, type BulkReconciliation, type BulkRun, type FileSummary,
 } from "../../lib/api.bulkLoad";
 import { ConsoleTable, SourceError, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
+import { JOURNEY, NOT_AVAILABLE, OPENED_BY, SAMPLE_FILES, stepFor, templateCsv, templateName } from "../../lib/journeyContract";
 
 /* Bulk onboarding and bulk payment for an institution's farmers (section 1A of
    the KTDA handoff). The institution is not a choice: omnichannel scopes every
@@ -19,22 +20,40 @@ import { ConsoleTable, SourceError, StatusBadge } from "../../components/tokenco
    start, then a poll about once a second while RUNNING), and the result with
    the reconciliation, read once when the run ends. Payments open only once an
    onboarding run has completed for the institution; omnichannel refuses a
-   payment upload before then (409) and that message is shown as it comes. */
+   payment upload before then (409) and that message is shown as it comes.
+
+   The same page runs the farmer journey's steps (journeyContract.ts): step 1
+   registers farmers (REGISTRATION), step 2 simulates their own onboarding and
+   opens the wallets (ACTIVATION), step 3 is Payment runs (PAYMENT). Step 2
+   opens once a registration run has completed. A flow this environment's
+   omnichannel does not have yet says so; it never falls back to ONBOARDING. */
 
 const POLL_MS = 1000;
 
 const COPY: Record<BulkFlow, { title: string; subtitle: string; processed: string; other: { label: string; to: string } }> = {
   ONBOARDING: {
     title: "Bulk onboarding",
-    subtitle: "Upload a farmer file. Each farmer gets a phone and PIN login, a profile and an empty KES wallet.",
+    subtitle: "Today's one-step onboarding: each farmer in the file gets a phone and PIN login, a profile and an empty KES wallet at once.",
     processed: "Wallets created",
-    other: { label: "Bulk payments", to: "/bulk/payments" },
+    other: { label: "Farmer journey", to: "/journey" },
+  },
+  REGISTRATION: {
+    title: "Register farmers",
+    subtitle: "Step 1: upload grower numbers with basic details. This creates each farmer's record only: no wallet and no PIN.",
+    processed: stepFor("REGISTRATION")!.processed,
+    other: { label: "Farmer journey", to: "/journey" },
+  },
+  ACTIVATION: {
+    title: "Farmer onboarding (simulated)",
+    subtitle: "Step 2: in real life each farmer finishes onboarding in the app or on the web. This file stands in for them, and opens each farmer's KES wallet.",
+    processed: stepFor("ACTIVATION")!.processed,
+    other: { label: "Farmer journey", to: "/journey" },
   },
   PAYMENT: {
     title: "Bulk payments",
-    subtitle: "Upload a payment file to credit farmers' wallets. Re-uploading a file is safe: each payment_ref is applied once.",
-    processed: "Wallets credited",
-    other: { label: "Bulk onboarding", to: "/bulk/onboarding" },
+    subtitle: "Step 3: upload a payment file to credit farmers' wallets. Re-uploading a file is safe: each payment_ref is applied once.",
+    processed: stepFor("PAYMENT")!.processed,
+    other: { label: "Farmer journey", to: "/journey" },
   },
 };
 
@@ -84,7 +103,14 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     if (flow === "PAYMENT") void reloadGate();
   }, [flow, institutionId, reloadGate]);
 
-  const paymentsClosed = flow === "PAYMENT" && gate.data?.onboardingCompleted !== true;
+  // Step 2's gate: a completed run of the step before it, from the recent runs
+  // (omnichannel has no status endpoint for it; it refuses the upload anyway).
+  const opener = flow === "ACTIVATION" ? OPENED_BY.ACTIVATION! : null;
+  const openerDone = !!opener && (history.data ?? []).some(
+    (r) => r.flow === opener && r.status === "COMPLETED" && (!institutionId || r.institutionId === institutionId),
+  );
+  const stepGate = opener ? { loading: history.loading && !history.data, error: history.error, open: openerDone, reload: history.reload } : null;
+  const paymentsClosed = (flow === "PAYMENT" && gate.data?.onboardingCompleted !== true) || (!!stepGate && !stepGate.open);
   const busy = !!run && run.status === "RUNNING";
 
   // Poll while the run is moving; each answer schedules the next.
@@ -187,7 +213,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   return (
     <div>
       <PageHeader
-        eyebrow="KTDA"
+        eyebrow={flow !== "ONBOARDING" ? `Farmer journey · step ${stepFor(flow)!.n} of ${JOURNEY.length}` : "KTDA"}
         title={copy.title}
         subtitle={copy.subtitle}
         actions={
@@ -211,6 +237,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
             </div>
           )}
           {flow === "PAYMENT" && institutionId && <PaymentGate gate={gate} />}
+          {stepGate && institutionId && <ActivationGate gate={stepGate} />}
         </Step>
 
         <Step n={2} title="File">
@@ -218,6 +245,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
             A CSV with a header row: <code className="tabular text-text">{BULK_COLUMNS[flow].join(",")}</code>
             {flow === "PAYMENT" && <>. Each amount_kes under KES {MAX_PAYMENT_KES.toLocaleString()}, to 2 decimals</>}.
           </p>
+          <FileHelp flow={flow} />
           <Field label="CSV file">
             <input
               key={fileInputKey}
@@ -253,7 +281,11 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
           {run && !busy && <Button variant="outline" onClick={startAgain}><FileUp size={14} /> Start another</Button>}
           {run && <span className="tabular text-xs text-text-faint">Run {run.runId}</span>}
         </div>
-        {upload.error && <p role="alert" className="mt-3 text-[13px] text-danger">{upload.error}</p>}
+        {upload.error === NOT_AVAILABLE ? (
+          <div data-testid="not-available" className="mt-3">
+            <NotePanel tone="info" title="Not available on this environment yet">{NOT_AVAILABLE.replace(/^Not available on this environment yet: /, "")}</NotePanel>
+          </div>
+        ) : upload.error && <p role="alert" className="mt-3 text-[13px] text-danger">{upload.error}</p>}
         {process.error && run && (
           <div role="alert" className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-danger">
             <span>The file was uploaded but could not be started: {process.error}</span>
@@ -325,8 +357,42 @@ function PaymentGate({ gate }: { gate: { data: { onboardingCompleted: boolean } 
   }
   return (
     <NotePanel tone="warning" className="mt-3" title="Payments are closed">
-      No onboarding run has completed for this institution yet. Run <Link className="font-medium text-primary-600 hover:text-primary-700" to="/bulk/onboarding">bulk onboarding</Link> first.
+      No onboarding run has completed for this institution yet, so no farmer has a wallet to credit.
+      Run <Link className="font-medium text-primary-600 hover:text-primary-700" to="/journey/activate">step 2, farmer onboarding</Link> first
+      (on this environment today: <Link className="font-medium text-primary-600 hover:text-primary-700" to="/bulk/onboarding">bulk onboarding</Link>).
     </NotePanel>
+  );
+}
+
+function ActivationGate({ gate }: { gate: { loading: boolean; error: string | null; open: boolean; reload: () => Promise<void> } }) {
+  if (gate.error) return <SourceError what="whether a registration run has completed" error={gate.error} onRetry={gate.reload} className="mt-3" />;
+  if (gate.loading) return <Skeleton className="mt-3 h-10" />;
+  if (gate.open) {
+    return <p className="mt-3 flex items-center gap-1.5 text-[12.5px] text-success"><CheckCircle2 size={14} /> A registration run has completed. This step is open.</p>;
+  }
+  return (
+    <NotePanel tone="warning" className="mt-3" title="Step 2 is closed">
+      No registration run has completed for this institution yet, so there is no farmer to onboard.
+      Run <Link className="font-medium text-primary-600 hover:text-primary-700" to="/journey/register">step 1, register farmers</Link> first.
+    </NotePanel>
+  );
+}
+
+/** The flow's header-only template, and the demo's matching sample file. */
+function FileHelp({ flow }: { flow: BulkFlow }) {
+  const sample = SAMPLE_FILES[flow];
+  const link = "inline-flex items-center gap-1.5 text-[12.5px] font-medium text-primary-600 hover:text-primary-700";
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <a className={link} href={`data:text/csv;charset=utf-8,${encodeURIComponent(templateCsv(flow))}`} download={templateName(flow)}>
+        <Download size={13} /> Download template
+      </a>
+      {sample && (
+        <a className={link} href={`${import.meta.env.BASE_URL}${sample}`} download>
+          <Info size={13} /> Sample file (five test farmers)
+        </a>
+      )}
+    </div>
   );
 }
 
