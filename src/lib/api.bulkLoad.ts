@@ -77,11 +77,14 @@ const runPath = (runId: string) => `${BASE}/${encodeURIComponent(runId)}`;
 export const bulkLoads = {
   /** Stores the file and returns the RUNNING run (202). 409 for a PAYMENT
    *  file before onboarding has completed; 400 for an empty file. */
-  upload: (flow: BulkFlow, institutionId: string, file: File, currency = "KES") => {
+  upload: (flow: BulkFlow, institutionId: string, file: File, institutionName?: string | null, currency = "KES") => {
     const form = new FormData();
     form.append("file", file, file.name);
     form.append("flow", flow);
     form.append("institutionId", institutionId);
+    // Optional: omnichannel keeps its own copy of the institution, made on the
+    // first upload, and names it from this field.
+    if (institutionName) form.append("institutionName", institutionName);
     form.append("currency", currency);
     return omniCall.post<BulkRun>(`${BASE}/upload`, form);
   },

@@ -124,7 +124,7 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
 
   const upload = useAction(async () => {
     if (!file || !institutionId) throw new Error("Pick the institution and the file first.");
-    return bulkLoads.upload(flow, institutionId, file);
+    return bulkLoads.upload(flow, institutionId, file, nameOf(institutionId));
   });
   const process = useAction((runId: string) => bulkLoads.process(runId));
 

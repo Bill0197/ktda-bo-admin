@@ -107,6 +107,7 @@ test("onboarding: picks KTDA, uploads, processes, polls to COMPLETED and shows t
   expect(upload.contentType).toMatch(/^multipart\/form-data; boundary=/);
   expect(upload.body).toContain('name="flow"\r\n\r\nONBOARDING');
   expect(upload.body).toContain(`name="institutionId"\r\n\r\n${KTDA}`);
+  expect(upload.body).toContain(`name="institutionName"\r\n\r\nKTDA Holdings`);
   expect(upload.body).toContain('name="currency"\r\n\r\nKES');
   expect(upload.body).toContain('filename="farmers.csv"');
   expect(sent.some((s) => s.method === "POST" && s.path === `/${RUN}/process`)).toBe(true);
