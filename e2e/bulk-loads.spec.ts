@@ -174,6 +174,17 @@ test("no institution configured: omnichannel's 403 is explained, and nothing can
   expect(sent.some((x) => x.method === "POST")).toBe(false);
 });
 
+test("an upload omnichannel refuses as another institution's gets a plain message, not a bare Forbidden", async ({ page }) => {
+  // Spring's own 403 body: no message, no code.
+  const forbidden = { timestamp: "2026-11-06T08:00:00Z", status: 403, error: "Forbidden", path: "/api/operator/bulk-loads/upload" };
+  const sent = await stubBulk(page, { upload: { status: 403, body: forbidden } });
+  await page.goto("/bulk/onboarding");
+  await page.getByLabel("CSV file").setInputFiles(csv("farmers.csv", ONBOARDING_CSV));
+  await page.getByRole("button", { name: "Process" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "the institution is not this back office's" })).toBeVisible();
+  expect(sent.some((x) => x.path.endsWith("/process"))).toBe(false);
+});
+
 test("an omnichannel that lists more than one institution is not trusted to pick one", async ({ page }) => {
   await stubBulk(page, { own: { status: 200, body: [ownKtda(), ownKtda({ id: OTHER, name: "Other Institution" })] } });
   await page.goto("/bulk/onboarding");
