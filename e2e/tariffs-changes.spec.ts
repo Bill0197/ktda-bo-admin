@@ -3,6 +3,11 @@ import { json } from "./stubs";
 import { pick, sentFrom, stubUnyt, type Sent } from "./unyt-fixtures";
 import type { ConfigChange } from "../src/lib/tokenConsole/configChanges";
 import type { TariffValue } from "../src/lib/tokenConsole/types.gen";
+import { isRemovedPage } from "../src/lib/hiddenPages";
+
+// The page is removed from this back office (src/lib/hiddenPages.ts), so its
+// route refuses. These run again if it comes back.
+test.skip(isRemovedPage("/token-console/tariffs"), "removed from the KTDA back office");
 
 /* Tariffs → Change approvals: a rate is staged by one person and applied only
  * when someone else approves it (the engine's /config/changes maker-checker).

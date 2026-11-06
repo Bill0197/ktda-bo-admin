@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { FAIL, IDS, stubUnyt, type Mode } from "./unyt-fixtures";
-import { HIDDEN_PAGES } from "../src/lib/hiddenPages";
+import { isHiddenPage } from "../src/lib/hiddenPages";
 
 /* Every Baracel Unyt page (/token-console/*) the KTDA back office shows (the
  * investment-only ones are hidden, see src/lib/hiddenPages.ts) against stubbed
@@ -24,7 +24,7 @@ type PageCase = {
   search?: string;
 };
 
-const PAGES: PageCase[] = [
+const ALL_PAGES: PageCase[] = [
   { path: "overview", heading: "Overview", empty: "Nothing posted yet", data: ["Subscription by Wanjiru Kamau", "Balanced"], fails: "tok" },
   { path: "investors", heading: "Farmers", empty: "No farmers on the register yet", data: [IDS.investorName, "Otieno Ochieng"], fails: "tok" },
   { path: "accounts", heading: "Accounts", empty: "No accounts open", data: [IDS.fundContract, IDS.loanContract], fails: "tok" },
@@ -47,15 +47,19 @@ const PAGES: PageCase[] = [
   { path: "users", heading: "Tokenization users", empty: "No accounts", data: ["peter@baracel.ae", "10.0.0.7"], fails: "tok" },
 ];
 
+/** The cases for pages this back office still offers (removed pages keep their
+ *  case, for when they come back). */
+const PAGES = ALL_PAGES.filter((c) => !isHiddenPage(`/token-console/${c.path}`));
+
 /** Every route App.tsx serves under /token-console (bar the redirects and the
- *  hidden pages) has a case above. */
+ *  hidden and removed pages) has a case above. */
 test("every shown Unyt route is covered", async () => {
   const fs = await import("node:fs");
   const app = fs.readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const routes = [...app.matchAll(/path="\/token-console\/([\w-]+)" element=\{<ProtectedRoute>/g)]
     .map((m) => m[1])
-    .filter((r) => !HIDDEN_PAGES.has(`/token-console/${r}`));
-  expect(routes.length).toBeGreaterThanOrEqual(17);
+    .filter((r) => !isHiddenPage(`/token-console/${r}`));
+  expect(routes.length).toBeGreaterThanOrEqual(14);
   expect(PAGES.map((p) => p.path).sort()).toEqual([...routes].sort());
 });
 
@@ -127,7 +131,8 @@ test("the Demo data check can fail: a page still on src/mock shows the badge", a
 });
 
 test("overview: a trial balance that cannot be read is not reported as an empty book", async ({ page }) => {
-  await open(page, PAGES[0], "fail");
+  test.skip(isHiddenPage("/token-console/overview"), "removed from the KTDA back office");
+  await open(page, ALL_PAGES[0], "fail");
   await expect(main(page).getByText("Could not load the trial balance")).toBeVisible();
   await expect(main(page)).not.toContainText("nothing has been posted yet");
   await expect(main(page).getByText("the trial balance could not be read")).toBeVisible();
