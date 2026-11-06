@@ -5,19 +5,20 @@ import { Badge, Button, Field, FilterBar, Input, Modal, NotePanel, PageHeader, S
 import { useAsyncData } from "../../lib/useAsyncData";
 import { useAction } from "../../lib/tokenConsole/useAction";
 import { calendarDate, units } from "../../lib/tokenConsole/format";
-import { farmersApi } from "../../lib/api.farmers";
+import { farmersApi, type Registered } from "../../lib/api.farmers";
 import {
-  FARMER_STATES, NOT_AVAILABLE, STATE_LABEL, STATE_MEANS,
-  type Farmer, type FarmerState, type RegisterFarmer, type RegisteredFarmer,
+  FARMER_STATES, NOT_AVAILABLE, STATE_LABEL, STATE_MEANS, SUMMARY_KEY,
+  type Farmer, type FarmerState, type RegisterFarmer,
 } from "../../lib/journeyContract";
 import { SourceError } from "../../components/tokenconsole/ConsoleTable";
 
 /* This institution's farmers and where each is in the journey (registered,
    activated, funded), from omnichannel, which answers only for this back
    office's institution. Search by grower number, name or phone; filter by
-   stage. "Register farmer" creates one record (no wallet, no PIN) through the
-   single-farmer endpoint, never the bulk one. Both endpoints are proposals
-   (journeyContract.ts); where they are missing the page says so. */
+   stage; the counts come from the institution-wide summary. "Register
+   farmer" creates one record (no wallet, no PIN) through the single-farmer
+   endpoint, never the bulk one. See journeyContract.ts; where this
+   environment lacks the endpoints the page says so. */
 
 const SIZE = 20;
 const STATE_TONE: Record<FarmerState, "neutral" | "info" | "success"> = { REGISTERED: "neutral", ACTIVATED: "info", FUNDED: "success" };
@@ -57,12 +58,12 @@ export default function FarmersByStage() {
   const list = useAsyncData(() => farmersApi.list({ state, q, page, size: SIZE }));
   const { reload } = list;
   useEffect(() => { void reload(); }, [state, q, page, reload]);
+  const summary = useAsyncData(() => farmersApi.summary());
 
   const result = list.data;
-  const data = result?.available ? result.page : null;
-  const pages = data ? Math.max(1, Math.ceil(data.total / (data.size || SIZE))) : 1;
-  const counts = data?.counts;
-  const all = counts ? FARMER_STATES.reduce((n, s) => n + (counts[s] ?? 0), 0) : undefined;
+  const data = result?.available ? result.data : null;
+  const counts = summary.data?.available ? summary.data.data : null;
+  const unavailable = (result && !result.available) || (summary.data && !summary.data.available);
 
   return (
     <div>
@@ -80,15 +81,19 @@ export default function FarmersByStage() {
 
       {list.error ? (
         <SourceError what="the farmers" error={list.error} onRetry={list.reload} />
-      ) : result && !result.available ? (
+      ) : unavailable ? (
         <NotAvailable />
       ) : (
         <>
+          {summary.error && <SourceError what="the counts per stage" error={summary.error} onRetry={summary.reload} />}
           <Tabs
             className="mb-4"
             active={state ?? "ALL"}
             onChange={(k) => set({ state: isState(k) ? k : null })}
-            tabs={[{ key: "ALL", label: "All", count: all }, ...FARMER_STATES.map((s) => ({ key: s, label: STATE_LABEL[s], count: counts?.[s] }))]}
+            tabs={[
+              { key: "ALL", label: "All", count: counts?.total },
+              ...FARMER_STATES.map((s) => ({ key: s, label: STATE_LABEL[s], count: counts?.[SUMMARY_KEY[s]] })),
+            ]}
           />
           <FilterBar>
             <SearchInput value={typed} onChange={setTyped} placeholder="Grower number, name or phone" className="w-72" />
@@ -119,7 +124,7 @@ export default function FarmersByStage() {
                       <td className="px-3 py-2">{f.fullName ?? "—"}</td>
                       <td className="px-3 py-2 tabular">{f.phone ?? "—"}</td>
                       <td className="px-3 py-2">{f.factory ?? "—"}</td>
-                      <td className="px-3 py-2"><Badge tone={STATE_TONE[f.state]}>{STATE_LABEL[f.state]}</Badge></td>
+                      <td className="px-3 py-2"><Badge tone={STATE_TONE[f.status]}>{STATE_LABEL[f.status] ?? f.status}</Badge></td>
                       <td className="px-3 py-2 tabular text-text-soft">{since(f)}</td>
                     </tr>
                   ))}
@@ -128,53 +133,61 @@ export default function FarmersByStage() {
             </div>
           )}
 
-          {data && pages > 1 && (
+          {data && data.pages > 1 && (
             <div className="mt-3 flex items-center justify-between text-[12.5px] text-text-soft">
-              <span>{units(data.total)} farmers · page {page} of {pages}</span>
+              <span>{units(data.total)} farmers · page {page} of {data.pages}</span>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => set({ page: page - 1 })}>Previous</Button>
-                <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => set({ page: page + 1 })}>Next</Button>
+                <Button size="sm" variant="outline" disabled={page >= data.pages} onClick={() => set({ page: page + 1 })}>Next</Button>
               </div>
             </div>
           )}
         </>
       )}
 
-      <RegisterFarmerModal open={registering} onClose={() => setRegistering(false)} onDone={() => void list.reload()} />
+      <RegisterFarmerModal
+        open={registering}
+        onClose={() => setRegistering(false)}
+        onDone={() => { void list.reload(); void summary.reload(); }}
+      />
     </div>
   );
 }
 
 /** When the farmer reached the stage they are at. */
 function since(f: Farmer): string {
-  const at = f.state === "FUNDED" ? f.lastFundedAt : f.state === "ACTIVATED" ? f.activatedAt : f.registeredAt;
+  const at = f.status === "FUNDED" ? f.lastFundedAt : f.status === "ACTIVATED" ? f.activatedAt : f.registeredAt;
   return at ? calendarDate(at) : "—";
 }
 
-const EMPTY: RegisterFarmer = { growerNo: "", nationalId: "", fullName: "", phone: "", factory: "" };
-/** A Kenyan mobile in international form: 254 then 9 digits. */
-const PHONE = /^\+?254\d{9}$/;
+type Form = { growerNo: string; fullName: string; phone: string; nationalId: string; factory: string };
+const EMPTY: Form = { growerNo: "", fullName: "", phone: "", nationalId: "", factory: "" };
+/** Omnichannel takes 07…, 2547… or +2547… and checks the rest; this only
+ *  catches what is plainly not a phone number. */
+const PHONE = /^\+?\d[\d ]{8,14}$/;
 
 function RegisterFarmerModal({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
-  const [form, setForm] = useState<RegisterFarmer>(EMPTY);
-  const [done, setDone] = useState<RegisteredFarmer | null>(null);
+  const [form, setForm] = useState<Form>(EMPTY);
+  const [done, setDone] = useState<Registered | null>(null);
   const register = useAction((body: RegisterFarmer) => farmersApi.register(body));
 
   const close = () => { setForm(EMPTY); setDone(null); register.reset(); onClose(); };
-  const field = (k: keyof RegisterFarmer) => ({
+  const field = (k: keyof Form) => ({
     value: form[k],
     onChange: (e: ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value })),
   });
-  const trimmed: RegisterFarmer = {
-    growerNo: form.growerNo.trim(), nationalId: form.nationalId.trim(), fullName: form.fullName.trim(),
-    phone: form.phone.trim().replace(/^\+/, ""), factory: form.factory.trim(),
+  const body: RegisterFarmer = {
+    growerNo: form.growerNo.trim(), fullName: form.fullName.trim(), phone: form.phone.trim(),
+    ...(form.nationalId.trim() ? { nationalId: form.nationalId.trim() } : {}),
+    ...(form.factory.trim() ? { factory: form.factory.trim() } : {}),
   };
-  const problem = !trimmed.growerNo || !trimmed.nationalId || !trimmed.fullName || !trimmed.phone || !trimmed.factory
-    ? "Every field is needed."
-    : !PHONE.test(trimmed.phone) ? "Phone must be a Kenyan mobile in international form: 254 then 9 digits." : null;
+  const touched = Object.values(form).some((v) => v.trim() !== "");
+  const problem = !body.growerNo || !body.fullName || !body.phone
+    ? "Grower number, full name and phone are needed."
+    : !PHONE.test(body.phone) ? "That does not look like a phone number. Use 07…, 2547… or +2547…." : null;
 
   const submit = async () => {
-    const r = await register.run(trimmed);
+    const r = await register.run(body);
     if (!r) return;
     setDone(r);
     onDone();
@@ -194,19 +207,22 @@ function RegisterFarmerModal({ open, onClose, onDone }: { open: boolean; onClose
     >
       {done ? (
         <div data-testid="registered">
-          <NotePanel tone="success" title="Registered">
-            Farmer {done.growerNo} is registered and awaiting activation: no wallet and no PIN until they finish onboarding.
+          <NotePanel tone="success" title={done.created ? "Registered" : "Already registered"}>
+            {done.created
+              ? `Farmer ${done.farmer.growerNo} is registered and awaiting activation: no wallet and no PIN until they finish onboarding.`
+              : `Farmer ${done.farmer.growerNo} was already registered with this phone. Nothing changed.`}
+            {" "}Stage: {STATE_LABEL[done.farmer.status] ?? done.farmer.status}.
           </NotePanel>
         </div>
       ) : (
         <div className="grid gap-3">
           <p className="text-[12.5px] text-text-soft">Creates the farmer's record only. The farmer then finishes onboarding in the app or on the web, which opens their wallet.</p>
           <Field label="Grower number"><Input aria-label="Grower number" {...field("growerNo")} /></Field>
-          <Field label="National ID"><Input aria-label="National ID" {...field("nationalId")} /></Field>
           <Field label="Full name"><Input aria-label="Full name" {...field("fullName")} /></Field>
-          <Field label="Phone"><Input aria-label="Phone" inputMode="tel" placeholder="2547XXXXXXXX" {...field("phone")} /></Field>
-          <Field label="Factory"><Input aria-label="Factory" {...field("factory")} /></Field>
-          {form !== EMPTY && problem && <p className="text-[12.5px] text-text-soft" data-testid="form-problem">{problem}</p>}
+          <Field label="Phone"><Input aria-label="Phone" inputMode="tel" placeholder="07XXXXXXXX" {...field("phone")} /></Field>
+          <Field label="National ID (optional)"><Input aria-label="National ID" {...field("nationalId")} /></Field>
+          <Field label="Factory (optional)"><Input aria-label="Factory" {...field("factory")} /></Field>
+          {touched && problem && <p className="text-[12.5px] text-text-soft" data-testid="form-problem">{problem}</p>}
           {register.error === NOT_AVAILABLE ? <NotAvailable /> : register.error && <p role="alert" className="text-[13px] text-danger">{register.error}</p>}
         </div>
       )}

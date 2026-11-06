@@ -223,7 +223,7 @@ test("payment: a PARTIAL run shows its message in amber and checks the file tota
     }),
   });
   await page.goto("/bulk/payments");
-  await expect(page.getByText("Onboarding has completed. Payments are open.")).toBeVisible();
+  await expect(page.getByText("Farmers have wallets. Payments are open.")).toBeVisible();
   await page.getByLabel("CSV file").setInputFiles(csv("payments.csv", PAYMENT_CSV));
   await expect(page.getByTestId("file-summary")).toContainText("2 rows, total KES 4,000.00");
   await page.getByRole("button", { name: "Process" }).click();

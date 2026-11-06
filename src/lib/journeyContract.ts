@@ -1,45 +1,70 @@
 /* The KTDA farmer journey: register, activate (a wallet opens), fund.
 
-   PROPOSED, NOT AGREED. Omnichannel today has two bulk flows, ONBOARDING (the
-   farmer, the KES wallet and a login in one step) and PAYMENT, and no farmers
-   endpoint. Everything this back office assumes about the rest lives in this
-   file (flow names, CSV columns, gates, endpoint paths and shapes), so the
-   change is small when the real contract is confirmed. See
-   docs/ktda/ktda-journeys-implementation-notes.md for the backend's notes.
+   The contract as omnichannel built it (branch feat/farmer-registration-
+   activation; not merged or deployed everywhere yet). Everything this back
+   office relies on about it lives in this file: flow names, CSV columns,
+   gates, endpoint paths and shapes. Where an environment does not have it
+   yet, the pages say "not available on this environment yet".
 
-   The lifecycle:
-     REGISTERED  the farmer record only (grower number, name, phone, factory):
-                 no wallet, no PIN. In real life the farmer then finishes
-                 onboarding in the app or on the web.
-     ACTIVATED   onboarding finished and the KES wallet open. In the demo a
-                 CSV stands in for the farmers' own onboarding.
+   The lifecycle (no other states; setting a PIN does not change it):
+     REGISTERED  on the register, login claimable, no wallet. In real life the
+                 farmer then finishes onboarding in the app or on the web.
+     ACTIVATED   wallet open and linked, not paid yet. In the demo a CSV stands
+                 in for the farmers' own onboarding: the app does not open a
+                 wallet yet, so the file is the only way here today.
      FUNDED      the wallet has been credited at least once. */
 
-/** The bulk-loads flow values: today's two and the two proposed. */
+/** The bulk-loads flow values. ONBOARDING stays as the one-step flow. */
 export type BulkFlow = "ONBOARDING" | "REGISTRATION" | "ACTIVATION" | "PAYMENT";
 
-/** The CSV header each flow takes. ONBOARDING and PAYMENT are live; the
- *  other two are proposals to confirm. */
-export const BULK_COLUMNS: Record<BulkFlow, string[]> = {
-  ONBOARDING: ["grower_no", "national_id", "full_name", "msisdn"],
-  REGISTRATION: ["grower_no", "full_name", "msisdn", "factory"],
-  ACTIVATION: ["grower_no", "national_id", "date_of_birth", "id_document_ref"],
-  PAYMENT: ["grower_no", "amount_kes", "payment_ref"],
+/** What a flow's CSV takes. REGISTRATION and ACTIVATION find their columns by
+ *  header name, in any order, ignoring extra columns; ONBOARDING and PAYMENT
+ *  read them by position. No value may contain a comma. */
+export type FlowColumns = { required: string[]; optional: string[]; byName: boolean; notes?: string };
+
+export const COLUMNS: Record<BulkFlow, FlowColumns> = {
+  ONBOARDING: { required: ["grower_no", "national_id", "full_name", "msisdn"], optional: [], byName: false },
+  REGISTRATION: {
+    required: ["grower_no", "full_name", "msisdn"], optional: ["factory", "national_id"], byName: true,
+  },
+  ACTIVATION: {
+    required: ["grower_no"], optional: ["national_id", "date_of_birth", "id_document_ref"], byName: true,
+    notes: "national_id is needed unless registration gave one (a different one replaces it); date_of_birth as YYYY-MM-DD.",
+  },
+  PAYMENT: { required: ["grower_no", "amount_kes", "payment_ref"], optional: [], byName: false },
 };
 
-/** Flows omnichannel does not have yet: an upload of one answers "not
- *  available on this environment yet", never falls back to ONBOARDING. */
-export const PROPOSED_FLOWS: ReadonlySet<BulkFlow> = new Set(["REGISTRATION", "ACTIVATION"]);
+/** Every column a flow reads, required first: the template's header. */
+export const BULK_COLUMNS: Record<BulkFlow, string[]> = Object.fromEntries(
+  (Object.keys(COLUMNS) as BulkFlow[]).map((f) => [f, [...COLUMNS[f].required, ...COLUMNS[f].optional]]),
+) as Record<BulkFlow, string[]>;
 
-/** Which flow's completed run opens which. PAYMENT's gate is omnichannel's own
- *  answer (GET /bulk-loads/onboarding-status); under the proposal it turns
- *  true once an ACTIVATION run has completed, and today once an ONBOARDING
- *  run has. ACTIVATION has no such endpoint, so the page reads it from the
- *  recent runs; omnichannel refuses the upload (409) either way. */
-export const OPENED_BY: Partial<Record<BulkFlow, BulkFlow>> = {
-  ACTIVATION: "REGISTRATION",
-  PAYMENT: "ACTIVATION",
+/** Flows not on every environment yet: an upload of one there says "not
+ *  available on this environment yet", and never falls back to ONBOARDING. */
+export const NEW_FLOWS: ReadonlySet<BulkFlow> = new Set(["REGISTRATION", "ACTIVATION"]);
+
+/** GET /bulk-loads/onboarding-status?institutionId= . registrationCompleted
+ *  is missing on an omnichannel without the journey. */
+export type OnboardingStatus = {
+  /** Any farmer has a wallet: a PARTIAL activation counts, so does ONBOARDING. */
+  onboardingCompleted: boolean;
+  /** Anyone is on the register, a farmer registered singly included. */
+  registrationCompleted?: boolean;
 };
+
+/** Which answer of onboarding-status opens a step. Omnichannel refuses the
+ *  upload (409) either way: ACTIVATION with nobody registered, PAYMENT with
+ *  nobody activated. */
+export const GATE: Partial<Record<BulkFlow, keyof OnboardingStatus>> = {
+  ACTIVATION: "registrationCompleted",
+  PAYMENT: "onboardingCompleted",
+};
+
+/** A REGISTRATION run posts nothing to the ledger, so it has no
+ *  reconciliation (omnichannel answers 409); do not ask for one. An
+ *  ACTIVATION run has one once wallets were opened (amounts 0), and answers
+ *  409 when nobody was eligible. */
+export const HAS_RECONCILIATION: Record<BulkFlow, boolean> = { ONBOARDING: true, REGISTRATION: false, ACTIVATION: true, PAYMENT: true };
 
 /** The three steps, in order, as the demo walks them. */
 export type JourneyStep = {
@@ -50,28 +75,33 @@ export type JourneyStep = {
   to: string;
   /** What one processed row means for this step. */
   processed: string;
+  /** What a skipped row means. */
+  skipped: string;
   /** One line on what the step does, for the overview. */
   does: string;
 };
 
 export const JOURNEY: JourneyStep[] = [
   {
-    n: 1, flow: "REGISTRATION", title: "Register farmers", to: "/journey/register", processed: "Farmers registered",
+    n: 1, flow: "REGISTRATION", title: "Register farmers", to: "/journey/register",
+    processed: "Farmers registered", skipped: "Already registered with the same phone",
     does: "Creates each farmer's record from their grower number and basic details. No wallet and no PIN yet.",
   },
   {
-    n: 2, flow: "ACTIVATION", title: "Farmer onboarding (simulated)", to: "/journey/activate", processed: "Wallets opened",
-    does: "Stands in for the farmers finishing onboarding themselves in the app or on the web. Opens each farmer's KES wallet.",
+    n: 2, flow: "ACTIVATION", title: "Farmer onboarding (simulated)", to: "/journey/activate",
+    processed: "Wallets opened", skipped: "Already activated, or named twice in the file",
+    does: "Stands in for the farmers finishing onboarding themselves in the app or on the web. Opens and links each farmer's KES wallet.",
   },
   {
-    n: 3, flow: "PAYMENT", title: "Fund wallets", to: "/bulk/payments", processed: "Wallets credited",
+    n: 3, flow: "PAYMENT", title: "Fund wallets", to: "/bulk/payments",
+    processed: "Wallets credited", skipped: "Already applied",
     does: "Credits the farmers' wallets. Each payment_ref is applied once, so a file is safe to send again.",
   },
 ];
 
 export const stepFor = (flow: BulkFlow) => JOURNEY.find((s) => s.flow === flow) ?? null;
 
-/* ---- Farmers (proposed omnichannel endpoints, scoped to the institution) ---- */
+/* ---- Farmers (omnichannel, scoped to this back office's institution) ---- */
 
 export type FarmerState = "REGISTERED" | "ACTIVATED" | "FUNDED";
 export const FARMER_STATES: FarmerState[] = ["REGISTERED", "ACTIVATED", "FUNDED"];
@@ -81,48 +111,54 @@ export const STATE_LABEL: Record<FarmerState, string> = {
   FUNDED: "Funded",
 };
 export const STATE_MEANS: Record<FarmerState, string> = {
-  REGISTERED: "Has a record, still has to onboard: no wallet yet",
-  ACTIVATED: "Onboarded, wallet open, not paid yet",
+  REGISTERED: "On the register, still has to onboard: no wallet yet",
+  ACTIVATED: "Wallet open, not paid yet",
   FUNDED: "Wallet credited at least once",
 };
 
+/** One farmer. The national ID is never returned. */
 export type Farmer = {
   growerNo: string;
   fullName: string | null;
+  /** E.164, "+2547…". */
   phone: string | null;
   factory: string | null;
-  state: FarmerState;
+  status: FarmerState;
   registeredAt: string | null;
   activatedAt: string | null;
   lastFundedAt: string | null;
 };
 
-/** GET /farmers?state=&q=&page=&size= : one page, and the institution's
- *  counts per state (over every farmer, not just this page). */
-export type FarmersPage = {
-  items: Farmer[];
-  page: number;
-  size: number;
-  total: number;
-  counts: Record<FarmerState, number>;
-};
+/** GET /farmers/summary: over the whole institution, not a filtered list.
+ *  activated leaves out the funded, so the three add up to total. */
+export type FarmersSummary = { registered: number; activated: number; funded: number; total: number };
+export const SUMMARY_KEY: Record<FarmerState, keyof FarmersSummary> = { REGISTERED: "registered", ACTIVATED: "activated", FUNDED: "funded" };
 
-/** POST /farmers: one farmer, the record only. Idempotent on growerNo; 409
- *  when that grower exists with a different identity. */
-export type RegisterFarmer = { growerNo: string; nationalId: string; fullName: string; phone: string; factory: string };
-export type RegisteredFarmer = { growerNo: string; status: "REGISTERED" };
+/** POST /farmers. Only growerNo, fullName and phone are required; phone may
+ *  be 07…, 2547… or +2547…. 201 when this call registered the farmer, 200
+ *  when they were already registered with the same phone, 409 when the grower
+ *  number is held with a different phone or national ID, 400 for a bad value
+ *  (no code beyond the status; the message says what). */
+export type RegisterFarmer = { growerNo: string; fullName: string; phone: string; nationalId?: string; factory?: string };
 
+/** GET /farmers?state=&q=&page=&size= : a plain array, paged by the X-Total-*
+ *  headers, page from 1, size up to 100. q matches grower number and name
+ *  (contains, any case) and the phone however it is typed. */
 export const FARMERS_PATH = "/farmers";
+export const FARMERS_SUMMARY_PATH = "/farmers/summary";
+export const farmerPath = (growerNo: string) => `${FARMERS_PATH}/${encodeURIComponent(growerNo)}`;
+export const FARMERS_MAX_SIZE = 100;
 
-/* ---- Not built yet ---- */
+/* ---- Not on this environment yet ---- */
 
 /** What the page says when this environment's omnichannel has no such flow
  *  or endpoint. */
-export const NOT_AVAILABLE = "Not available on this environment yet: omnichannel here does not have this step. The demo needs the backend change described in the KTDA journeys notes.";
+export const NOT_AVAILABLE = "Not available on this environment yet: omnichannel here does not have the farmer journey. It needs the omnichannel release with registration and activation.";
 
 /** Whether a failed call means "this environment does not have it": an
- *  unknown path or method (404, 405, 501), or today's answer to an unknown
- *  flow value (400 "Parameter 'flow' must be a valid BulkFlow"). */
+ *  unknown path or method (404, 405, 501), or an omnichannel without the new
+ *  flows answering 400 "Parameter 'flow' must be a valid BulkFlow". A 404 for
+ *  one farmer (GET /farmers/{growerNo}) is an ordinary not-found, not this. */
 export function notBuiltYet(status: number, message: string | null | undefined): boolean {
   if (status === 404 || status === 405 || status === 501) return true;
   return status === 400 && /parameter 'flow'|bulkflow/i.test(message ?? "");
@@ -130,7 +166,7 @@ export function notBuiltYet(status: number, message: string | null | undefined):
 
 /* ---- Template and samples ---- */
 
-/** A header-only CSV for the flow. */
+/** A header-only CSV for the flow: required columns, then the optional ones. */
 export const templateCsv = (flow: BulkFlow) => `${BULK_COLUMNS[flow].join(",")}\n`;
 
 export const templateName = (flow: BulkFlow) => `ktda-${flow.toLowerCase()}-template.csv`;

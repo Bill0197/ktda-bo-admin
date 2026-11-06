@@ -137,7 +137,7 @@ async function getPage<T>(path: string, page: number, size: number): Promise<Pag
   return { items, page, pages: num("X-Total-Pages", page), total: num("X-Total-Count", items.length) };
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function postWithStatus<T>(path: string, body: unknown): Promise<{ status: number; data: T }> {
   const res = await send("POST", path, body);
   const text = await res.text();
   let data: unknown = null;
@@ -147,7 +147,11 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     data = text;
   }
   if (!res.ok) throw errorFrom(res.status, data);
-  return data as T;
+  return { status: res.status, data: data as T };
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  return (await postWithStatus<T>(path, body)).data;
 }
 
 /** The tokenization product, as omnichannel names it; `externalRef` is the
@@ -425,7 +429,11 @@ export const omniCall = {
     if (!res.ok) throw await failure(res);
     return listOf<T>(res);
   },
+  /** One page of a paged list (X-Total-* headers), page from 1. */
+  page: getPage,
   post,
+  /** A POST whose success status matters (201 created vs 200 already there). */
+  postWithStatus,
 };
 
 const paymentPath = (id: string) => `/payments/${encodeURIComponent(id)}`;
