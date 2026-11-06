@@ -23,16 +23,17 @@ const UUID = "[0-9a-fA-F-]+";
 // the Customer desk (and suspending a profile, proposing to reinstate or close one,
 // and the approvals of those proposals), re-screening
 // and the closure requests in Support, the Transactions page and its payment issues
-// (retry, resolve, match, unmatched), and the Market page (the dealing settings and
-// their change log, a proposal, an approval or a rejection), and Reports and
+// (retry, resolve, match, unmatched), and Reports and
 // Surveillance (the CSV reports, the alert queue with assign and close, and the
 // snapshot and rule runs), and the bulk onboarding and payment runs (a CSV
 // upload, Process, the run, the recent runs, its reconciliation, and whether
 // onboarding has completed for an institution), and this back office's own
-// institution (omnichannel lists only the caller's).
+// institution and its settings (omnichannel answers only for the caller's).
+// Nothing under fx, market or content: those are investing features KTDA does
+// not offer, and omnichannel refuses them for an institution without them.
 const ALLOWED = {
-  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|market/settings/changes|market/settings/changes/${UUID}/(approve|reject)|fx/settings/changes|fx/settings/changes/${UUID}/(approve|reject)|reporting/alerts/${UUID}/(assign|close)|reporting/runs/(snapshot|surveillance)|bulk-loads/upload|bulk-loads/${UUID}/process)$`),
-  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|market/settings|market/settings/changes|fx/settings|fx/settings/changes|fx/conversions|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs|bulk-loads|bulk-loads/onboarding-status|bulk-loads/${UUID}(/reconciliation)?|institutions)$`),
+  POST: new RegExp(`^/omni/api/operator/(link-codes|notifications|investors/${UUID}/kyc-status|onboarding/documents/${UUID}/review|onboarding/applications/rescreen|customers/${UUID}/(suspend|reinstate|close)|customers/interventions/${UUID}/(approve|reject)|payments/${UUID}/(retry|resolve|match|unmatched)|reporting/alerts/${UUID}/(assign|close)|reporting/runs/(snapshot|surveillance)|bulk-loads/upload|bulk-loads/${UUID}/process)$`),
+  GET: new RegExp(`^/omni/api/operator/(onboarding/(applications|applications/screening-hits|documents|documents/${UUID}/content)|support/tickets|customers|customers/interventions|customers/${UUID}(/(timeline|messages|activity|interventions))?|transactions|transactions/summary|payments/issues|reporting/reports/(transactions|holdings|token-supply|suspicious-activity)\\.csv|reporting/alerts|reporting/alerts/${UUID}|reporting/runs|bulk-loads|bulk-loads/onboarding-status|bulk-loads/${UUID}(/reconciliation)?|institutions|institution/settings)$`),
 };
 const FORWARDED = ["accept", "content-type", "authorization"];
 // Lists are paged: the totals travel in these headers, the body stays an array.

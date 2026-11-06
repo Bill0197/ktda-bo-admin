@@ -3,7 +3,7 @@ import {
   UserCheck, Inbox, ListChecks, CalendarCheck2, Activity, Radar, Wallet, ArrowLeftRight, MessageSquareWarning,
   GitCompareArrows, TriangleAlert, FileBarChart2, BookOpenCheck, Scale, CalendarClock, HandCoins, Landmark,
   FileSpreadsheet, FileSearch, ShieldAlert, FolderSearch, ShieldCheck, Siren, Settings, SlidersHorizontal, ServerCog,
-  UserCog, ScrollText, Percent, KeyRound, ToggleLeft,
+  UserCog, ScrollText, Percent, KeyRound, ToggleLeft, Building2,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { NavItem } from "../ui";
@@ -55,6 +55,7 @@ const KTDA_NAV: NavDef[] = [
   { label: "General ledger", to: "/ledger", section: "Money", icon: BookOpenCheck },
   { label: "Engine reports", to: "/token-console/reports", section: "Money", icon: FileSpreadsheet },
 
+  { label: "Institution", to: "/institution", section: "Admin", icon: Building2 },
   { label: "Configuration", to: "/token-console/configuration", section: "Admin", icon: SlidersHorizontal },
   { label: "System health", to: "/system", section: "Admin", icon: ServerCog },
   { label: "Users & roles", to: "/users", section: "Admin", icon: UserCog },

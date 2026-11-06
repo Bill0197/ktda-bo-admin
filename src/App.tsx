@@ -43,6 +43,7 @@ const TokenConsoleTrialBalance = lazy(() => import("./pages/tokenconsole/TrialBa
 const TokenConsoleReconciliation = lazy(() => import("./pages/tokenconsole/Reconciliation"));
 const TokenConsoleRuns = lazy(() => import("./pages/tokenconsole/Runs"));
 const BulkLoad = lazy(() => import("./pages/ktda/BulkLoad"));
+const Institution = lazy(() => import("./pages/ktda/Institution"));
 const TokenConsolePolicies = lazy(() => import("./pages/tokenconsole/Policies"));
 const TokenConsoleCompliance = lazy(() => import("./pages/tokenconsole/Compliance"));
 const TokenConsoleChanges = lazy(() => import("./pages/tokenconsole/Changes"));
@@ -98,6 +99,7 @@ function AppRoutes() {
       <Route path="/token-console/reconciliation" element={<ProtectedRoute><TokenConsoleReconciliation /></ProtectedRoute>} />
       <Route path="/bulk/onboarding" element={<ProtectedRoute><BulkLoad key="onboarding" flow="ONBOARDING" /></ProtectedRoute>} />
       <Route path="/bulk/payments" element={<ProtectedRoute><BulkLoad key="payments" flow="PAYMENT" /></ProtectedRoute>} />
+          <Route path="/institution" element={<ProtectedRoute><Institution /></ProtectedRoute>} />
       <Route path="/token-console/runs" element={<ProtectedRoute><TokenConsoleRuns /></ProtectedRoute>} />
       <Route path="/token-console/policies" element={<ProtectedRoute><TokenConsolePolicies /></ProtectedRoute>} />
       <Route path="/token-console/compliance" element={<ProtectedRoute><TokenConsoleCompliance /></ProtectedRoute>} />

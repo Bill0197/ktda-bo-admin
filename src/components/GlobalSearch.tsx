@@ -23,6 +23,14 @@ export function GlobalSearch() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
+  // The close that follows a blur waits a moment (so a click on a result lands
+  // first). Any focus or typing cancels it, or it would hide the new results.
+  const closing = useRef<number | null>(null);
+  const cancelClose = () => {
+    if (closing.current !== null) window.clearTimeout(closing.current);
+    closing.current = null;
+  };
+  useEffect(() => cancelClose, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -76,9 +84,9 @@ export function GlobalSearch() {
         aria-autocomplete="list"
         placeholder="Search farmers, runs, pages"
         value={q}
-        onChange={(e) => { setQ(e.target.value); setCursor(0); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+        onChange={(e) => { cancelClose(); setQ(e.target.value); setCursor(0); setOpen(true); }}
+        onFocus={() => { cancelClose(); setOpen(true); }}
+        onBlur={() => { cancelClose(); closing.current = window.setTimeout(() => setOpen(false), 120); }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setCursor((c) => Math.min(c + 1, results.length - 1)); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }

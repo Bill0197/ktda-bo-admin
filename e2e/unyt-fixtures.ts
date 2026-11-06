@@ -4,8 +4,8 @@ import type { AssetBackingRowActual } from "../src/lib/tokenConsole/spec-deviati
 import type { ConfigChange } from "../src/lib/tokenConsole/configChanges";
 import type { BondTerms, MarketQuote } from "../src/lib/tokenConsole/prices";
 import type {
-  CheckedApplication, CustomerSummary, CustomerTransactionEntry, FxBookEntry, FxChange, FxOverview, Intervention, MarketChange,
-  MarketOverview, PaymentIssue, QueuedDocument, ReportingRun, SurveillanceAlert, TransactionTotals,
+  CheckedApplication, CustomerSummary, CustomerTransactionEntry, Intervention,
+  PaymentIssue, QueuedDocument, ReportingRun, SurveillanceAlert, TransactionTotals,
 } from "../src/lib/omniApi";
 import { OTHER, json, signIn } from "./stubs";
 
@@ -184,28 +184,6 @@ const activeSessions: T.ActiveSessionResponse[] = [{ email: "amina@baracel.ae", 
 const loginAudit: T.LoginAuditResponse[] = [{ id: "LA-1", email: "amina@baracel.ae", event: "LOGIN_SUCCESS", detail: "ok", ipAddress: "10.0.0.7", userAgent: "Chrome", occurredAt: AT }];
 const adminConfig: T.ConfigResponse = { maxConcurrentSessions: 2 };
 
-const marketSettings: MarketOverview = {
-  settings: { tradingOpen: "09:00", tradingClose: "15:00", zone: "Africa/Nairobi", weekendsOpen: false, halted: false, haltedOfferings: [], source: "defaults", changeId: null, since: null },
-  pending: null,
-};
-const marketChanges: MarketChange[] = [
-  { id: "11111111-1111-4111-8111-111111111111", status: "APPROVED", tradingOpen: "08:30", tradingClose: "15:00", weekendsOpen: false, halted: false, haltedOfferings: [], note: "Earlier open for the auction", proposedBy: OTHER, proposedAt: AT, decidedBy: "staff:amina@baracel.ae", decidedAt: AT, decisionNote: null },
-];
-
-const fxSettings: FxOverview = {
-  settings: {
-    base: "USD", quote: "KES", midRate: 129.89, rateAsOf: AT, rateValidUntil: "2099-01-01T00:00:00Z", rateSource: "BACK_OFFICE", marginPct: 2, marginFloorPct: 0,
-    quoteTtlSeconds: 60, minAmount: 100, perConversion: null, perDay: null, suspended: false, source: "change", changeId: "22222222-2222-4222-8222-222222222222", since: AT,
-  },
-  pending: null,
-};
-const fxChanges: FxChange[] = [
-  { id: "22222222-2222-4222-8222-222222222222", status: "APPROVED", midRate: 129.89, rateAsOf: AT, rateValidUntil: "2099-01-01T00:00:00Z", marginPct: 2, marginFloorPct: 0, quoteTtlSeconds: 60, minAmount: 100, perConversion: null, perDay: null, suspended: false, note: "CBK mid", proposedBy: OTHER, proposedAt: AT, decidedBy: "staff:amina@baracel.ae", decidedAt: AT, decisionNote: null },
-];
-const fxBook: FxBookEntry[] = [
-  { profileId: IDS.profile, investorId: IDS.investor, quote: { id: "55555555-5555-4555-8555-555555555555", from: "KES", to: "USD", sellAmount: 2000, buyAmount: 15.25, rate: 131.1889, midRate: 129.89, spreadPct: 2, expiresAt: null, status: "CONVERTED", createdAt: AT, convertedAt: AT, reference: "FX-5555", failureReason: null } },
-];
-
 const application = (identityResult: CheckedApplication["identityResult"]): CheckedApplication => ({
   id: `app-${identityResult.toLowerCase()}`, profileId: IDS.profile, fullName: "Otieno Ochieng", dateOfBirth: "1990-04-02", nationality: "KE",
   identityResult, identityMismatches: identityResult === "MISMATCH" ? ["dateOfBirth"] : null, identitySource: "IPRS", identityCheckedAt: AT,
@@ -296,11 +274,6 @@ const TOK: [RegExp, Answer][] = [
 
 /** Omnichannel's operator GET routes (path after /omni/api/operator). */
 const OMNI: [RegExp, Answer][] = [
-  [/^\/market\/settings$/, { body: marketSettings }],
-  [/^\/market\/settings\/changes$/, { body: marketChanges }],
-  [/^\/fx\/settings$/, { body: fxSettings }],
-  [/^\/fx\/settings\/changes$/, { body: fxChanges }],
-  [/^\/fx\/conversions$/, { body: fxBook, paged: true }],
   [/^\/onboarding\/applications\/screening-hits$/, { body: [application("MISMATCH")], paged: true }],
   [/^\/onboarding\/applications$/, { body: null, paged: true }], // by identityResult, below
   [/^\/onboarding\/documents$/, { body: documents, paged: true }],
@@ -317,8 +290,6 @@ const OMNI: [RegExp, Answer][] = [
 /** What an object endpoint answers when there is nothing to show; every list answers []. */
 const EMPTY_OBJECTS: [RegExp, unknown][] = [
   [/^\/admin\/config$/, { maxConcurrentSessions: 0 }],
-  [/^\/market\/settings$/, marketSettings],
-  [/^\/fx\/settings$/, { settings: { ...fxSettings.settings, midRate: null, rateAsOf: null, rateValidUntil: null, rateSource: null, source: "defaults", changeId: null, since: null }, pending: null }],
 ];
 
 export type Mode = "empty" | "data" | "fail";
