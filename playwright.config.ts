@@ -7,7 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
  *
  *   npm run test:e2e
  *
- * Its own port, so a dev server already running on 5174 is left alone. */
+ * Its own port and Vite cache, so a dev server already running on 5174 is
+ * left alone. */
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
@@ -24,6 +25,9 @@ export default defineConfig({
     command: "npm run dev -- --port 5185 --strictPort",
     url: "http://localhost:5185",
     reuseExistingServer: false,
+    // Its own Vite cache: re-optimizing into the shared node_modules/.vite
+    // would break a dev server already running from this tree.
+    env: { BO_ADMIN_VITE_CACHE_DIR: "node_modules/.vite-e2e" },
     timeout: 60_000,
   },
 });
