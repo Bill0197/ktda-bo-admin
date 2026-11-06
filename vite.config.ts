@@ -208,6 +208,12 @@ export default defineConfig(({ mode }) => {
   const targets = targetsFor(mode);
   const tokAgent = targets.tok ? pool(targets.tok) : null;
   return {
+    // Where the app is served. "/" in dev and on Cloudflare Pages (its own
+    // origin); on the UAT EC2 box it is served under a path prefix behind the
+    // shared ALB (e.g. /admin/), so the build is told that base and every asset
+    // URL carries it. React Router reads the same value (import.meta.env.BASE_URL)
+    // for its basename — see src/main.tsx.
+    base: process.env.VITE_BASE || "/",
     plugins: [react(), tailwindcss(), unsetTargets(targets), omniSessionGate(targets, tokAgent)],
     // A second server from this tree (the Playwright one) sets its own, so
     // its dependency re-optimizing never deletes a running server's cache.

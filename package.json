@@ -11,7 +11,7 @@
     "test:e2e": "playwright test",
     "test:e2e:live": "playwright test -c playwright.live.config.ts",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",
-    "deploy": "node -e \"console.error('Deploy is disabled: it still targets the Investcent Cloudflare project. Set up a KTDA target first (see deploy/README.md).');process.exit(1)\""
+    "deploy": "node -e \"console.error('Deploy to UAT is: Actions -> Deploy to EC2 -> Run workflow, or by hand: deploy/deploy.sh <host> <ssh-key.pem> (see deploy/README.md).');process.exit(1)\""
   },
   "dependencies": {
     "react": "^19.2.8",
