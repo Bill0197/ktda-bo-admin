@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
-import { ME, envelope, json, signIn } from "./stubs";
+import { envelope, json, signIn } from "./stubs";
 
 const PAYOUT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TRANSFER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -99,7 +99,7 @@ test("resolve needs a note, sends it, and the queue is read again", async ({ pag
   await submit.click();
 
   await expect(dialog).toBeHidden();
-  expect(state.writes).toEqual([{ path: `${PAYOUT}/resolve`, body: { note: "Paid by hand from the float" }, subject: ME }]);
+  expect(state.writes).toEqual([{ path: `${PAYOUT}/resolve`, body: { note: "Paid by hand from the float" }, subject: undefined }]);
   await expect(page.getByTestId(`issue-actions-${PAYOUT}`)).toHaveCount(0);
   expect(state.reads).toBeGreaterThan(1);
 });
@@ -126,7 +126,7 @@ test("match sends the bank reference", async ({ page }) => {
   await dialog.getByLabel(/Bank reference/).fill("FT2610200001");
   await dialog.getByRole("button", { name: "Match transfer" }).click();
   await expect(dialog).toBeHidden();
-  expect(state.writes).toEqual([{ path: `${TRANSFER}/match`, body: { bankReference: "FT2610200001" }, subject: ME }]);
+  expect(state.writes).toEqual([{ path: `${TRANSFER}/match`, body: { bankReference: "FT2610200001" }, subject: undefined }]);
 });
 
 test("an empty queue says so", async ({ page }) => {

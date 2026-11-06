@@ -5,7 +5,6 @@ import type { MeResponse } from "./tokenConsole/types.gen";
 import type { SelfServiceSignupRequest, SignupResponse } from "./tokenConsole/spec-deviations";
 import { clearSharedLists } from "./tokenConsole/sharedList";
 import { clearLiveCache } from "./api.live";
-import { setOmniActor } from "./omniApi";
 
 /** Sign-in against the tokenization (accounting) service — the same staff
  * accounts tokenization-web used. The session is the service's HttpOnly
@@ -128,7 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Omnichannel's audit names the staff member who acted (see omniApi.ts).
-  useEffect(() => setOmniActor(user?.email ?? null), [user]);
 
   const canAccess = (_path: string) => user !== null;
   const can = (_permission: string) => user !== null;

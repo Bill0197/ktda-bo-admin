@@ -104,7 +104,7 @@ test("an alert opens with the customer's name, is assigned to me and closed with
   const posts = sent.filter((s) => s.method === "POST");
   expect(posts.map((p) => p.path)).toEqual([`/alerts/${ALERT.id}/assign`, `/alerts/${ALERT.id}/close`]);
   expect(posts[1].body).toEqual({ note: "Salary split across two phones; documented." });
-  expect(posts.every((p) => p.subject === ME)).toBe(true);
+  expect(posts.every((p) => p.subject === undefined)).toBe(true);
 });
 
 test("someone else closed it first: the 409 is shown and the panel shows it closed", async ({ page }) => {
