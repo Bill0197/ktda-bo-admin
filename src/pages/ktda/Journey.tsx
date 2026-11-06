@@ -57,7 +57,7 @@ export default function Journey() {
         eyebrow="KTDA"
         title="Farmer journey"
         subtitle="Three uploads take a farmer from registered to activated (wallet open) to funded. Walk them in order."
-        actions={<Link to="/farmers" className="text-sm font-medium text-primary-600 hover:text-primary-700">Farmers by stage →</Link>}
+        actions={<Link to="/farmers" className="text-sm font-medium text-primary-600 hover:text-primary-700">Farmers →</Link>}
       />
 
       {own.error && <SourceError what="this back office's institution" error={own.error} onRetry={own.reload} />}

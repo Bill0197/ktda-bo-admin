@@ -322,7 +322,7 @@ test.describe("farmers by stage", () => {
   test("lists the farmers with their stage, and the institution-wide counts from the summary", async ({ page }) => {
     const sent = await stub(page);
     await page.goto("/farmers");
-    await expect(page.getByRole("heading", { name: "Farmers by stage", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Farmers", level: 1 })).toBeVisible();
     const table = page.getByTestId("farmers-table");
     await expect(table.locator('[data-grower="TEST000001"]')).toContainText("Funded");
     await expect(table.locator('[data-grower="TEST000001"]')).toContainText("+254700000101");

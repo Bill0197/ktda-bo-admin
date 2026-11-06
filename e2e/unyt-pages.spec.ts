@@ -59,7 +59,7 @@ test("every shown Unyt route is covered", async () => {
   const routes = [...app.matchAll(/path="\/token-console\/([\w-]+)" element=\{<ProtectedRoute>/g)]
     .map((m) => m[1])
     .filter((r) => !isHiddenPage(`/token-console/${r}`));
-  expect(routes.length).toBeGreaterThanOrEqual(14);
+  expect(routes.length).toBeGreaterThanOrEqual(13);
   expect(PAGES.map((p) => p.path).sort()).toEqual([...routes].sort());
 });
 

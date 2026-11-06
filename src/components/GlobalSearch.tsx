@@ -12,8 +12,8 @@ type Result = { key: string; label: string; hint: string; to: string; farmer?: b
 /** A grower number: one token with at least three digits ("GN-104233", "104233"). */
 const looksLikeGrowerNo = (q: string) => /^[A-Za-z0-9/-]+$/.test(q) && (q.match(/\d/g)?.length ?? 0) >= 3;
 
-/** Where a grower number goes: the live Farmers list, searched for it. */
-const farmerSearchPath = (growerNo: string) => `/token-console/investors?q=${encodeURIComponent(growerNo)}`;
+/** Where a grower number goes: this institution's Farmers list, searched for it. */
+const farmerSearchPath = (growerNo: string) => `/farmers?q=${encodeURIComponent(growerNo)}`;
 
 const isMac = typeof navigator !== "undefined" && /Mac|iP(hone|ad)/.test(navigator.platform);
 

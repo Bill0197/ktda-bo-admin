@@ -11,9 +11,9 @@
    for the engine. */
 
 export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
-  // Farmer Services: the demo farmer register. The live one is the engine's,
-  // under Baracel Unyt (/token-console/investors, labelled Farmers). Demo
-  // pages (screening, KYC, cases) still link to its records.
+  // Farmer Services: the demo farmer register. The live one is Farmers
+  // (/farmers, omnichannel's, for this institution). Demo pages (screening,
+  // KYC, cases) still link to its records.
   "/clients",
   // Baracel Unyt: kept for KTDA requirements (Policies drive the batch runs).
   "/token-console/policies",
@@ -26,6 +26,7 @@ export const REMOVED_PAGES: ReadonlySet<string> = new Set([
   "/token-console/users",         // the engine's staff accounts
   "/token-console/overview",      // the engine's books across every institution
   "/token-console/funds",         // every institution in the engine
+  "/token-console/investors",     // the engine's investors, every institution's (Farmers is /farmers)
   "/settings",                    // platform settings
   "/feature-flags",               // platform feature flags
 ]);
