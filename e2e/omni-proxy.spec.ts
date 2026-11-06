@@ -59,6 +59,12 @@ test("the back office may read its own institution, and nothing else about insti
   expect(read.res.status).toBe(200);
   expect(read.upstream?.url).toBe("https://omni.test/api/operator/institutions");
 
+  const settings = await call("/omni/api/operator/institution/settings", { env: { OMNI_INSTITUTION_ID: KTDA } });
+  expect(settings.res.status).toBe(200);
+  expect(settings.upstream?.headers.get("x-dev-institution")).toBe(KTDA);
+  const settingsWrite = await call("/omni/api/operator/institution/settings", { method: "POST" });
+  expect(settingsWrite.res.status).toBe(404);
+
   const other = await call(`/omni/api/operator/institutions/${KTDA}`);
   expect(other.res.status).toBe(404);
   expect(other.upstream).toBeUndefined();
