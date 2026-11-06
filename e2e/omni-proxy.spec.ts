@@ -99,12 +99,19 @@ test("signed out: no cookie, or one the engine refuses, answers 401 and omnichan
   }
 });
 
-test("the farmer journey's reads and single register pass, with the paging headers; nothing deeper under farmers does", async () => {
+test("the farmer journey's reads, a farmer's wallet and the single register pass, with the paging headers; nothing deeper under farmers does", async () => {
   const list = await call("/omni/api/operator/farmers?state=REGISTERED&q=TEST&page=1&size=20");
   expect(list.res.status).toBe(200);
   for (const [h, v] of [["x-total-count", "45"], ["x-page", "1"], ["x-size", "20"], ["x-total-pages", "3"]]) expect(list.res.headers.get(h)).toBe(v);
   expect((await call("/omni/api/operator/farmers/summary")).res.status).toBe(200);
   expect((await call("/omni/api/operator/farmers/TEST000001")).res.status).toBe(200);
+  expect((await call("/omni/api/operator/farmers/TEST000001/wallet")).res.status).toBe(200);
+  const moves = await call("/omni/api/operator/farmers/TEST000001/wallet/movements?currency=KES&page=2&size=20");
+  expect(moves.res.status).toBe(200);
+  expect(moves.res.headers.get("x-total-pages")).toBe("3");
+  const below = await call("/omni/api/operator/farmers/TEST000001/wallet/movements/x");
+  expect(below.res.status).toBe(404);
+  expect(below.upstream).toBeUndefined();
   expect((await call("/omni/api/operator/farmers", { method: "POST" })).res.status).toBe(200);
   // One farmer is a read, not something to post to.
   expect((await call("/omni/api/operator/farmers/TEST000001", { method: "POST" })).res.status).toBe(404);

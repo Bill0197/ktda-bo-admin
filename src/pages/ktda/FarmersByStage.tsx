@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { Badge, Button, Field, FilterBar, Input, Modal, NotePanel, PageHeader, SearchInput, Skeleton, Tabs } from "../../ui";
 import { useAsyncData } from "../../lib/useAsyncData";
@@ -17,7 +17,8 @@ import { SourceError } from "../../components/tokenconsole/ConsoleTable";
    office's institution. Search by grower number, name or phone; filter by
    stage; the counts come from the institution-wide summary. "Register
    farmer" creates one record (no wallet, no PIN) through the single-farmer
-   endpoint, never the bulk one. See journeyContract.ts; where this
+   endpoint, never the bulk one. A row opens the farmer's profile and wallet
+   (FarmerDetail). See journeyContract.ts; where this
    environment lacks the endpoints the page says so. */
 
 const SIZE = 20;
@@ -37,6 +38,7 @@ export default function FarmersByStage() {
   const [typed, setTyped] = useState(q);
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [registering, setRegistering] = useState(false);
+  const navigate = useNavigate();
 
   const set = (next: { state?: FarmerState | null; q?: string; page?: number }) => {
     const p = new URLSearchParams(params);
@@ -119,8 +121,15 @@ export default function FarmersByStage() {
                 </thead>
                 <tbody>
                   {data.items.map((f) => (
-                    <tr key={f.growerNo} className="border-t border-border/60" data-grower={f.growerNo}>
-                      <td className="px-3 py-2 font-mono text-[12.5px]">{f.growerNo}</td>
+                    <tr
+                      key={f.growerNo}
+                      className="cursor-pointer border-t border-border/60 hover:bg-surface-sunken/60"
+                      data-grower={f.growerNo}
+                      onClick={() => navigate(farmerHref(f.growerNo))}
+                    >
+                      <td className="px-3 py-2 font-mono text-[12.5px]">
+                        <Link to={farmerHref(f.growerNo)} className="text-primary-600 hover:underline" onClick={(e) => e.stopPropagation()}>{f.growerNo}</Link>
+                      </td>
                       <td className="px-3 py-2">{f.fullName ?? "—"}</td>
                       <td className="px-3 py-2 tabular">{f.phone ?? "—"}</td>
                       <td className="px-3 py-2">{f.factory ?? "—"}</td>
@@ -153,6 +162,8 @@ export default function FarmersByStage() {
     </div>
   );
 }
+
+const farmerHref = (growerNo: string) => `/farmers/${encodeURIComponent(growerNo)}`;
 
 /** When the farmer reached the stage they are at. */
 function since(f: Farmer): string {
@@ -213,6 +224,7 @@ function RegisterFarmerModal({ open, onClose, onDone }: { open: boolean; onClose
               : `Farmer ${done.farmer.growerNo} was already registered with this phone. Nothing changed.`}
             {" "}Stage: {STATE_LABEL[done.farmer.status] ?? done.farmer.status}.
           </NotePanel>
+          <Link to={farmerHref(done.farmer.growerNo)} className="mt-3 inline-block text-sm font-medium text-primary-600 hover:text-primary-700">Open the farmer's profile →</Link>
         </div>
       ) : (
         <div className="grid gap-3">
