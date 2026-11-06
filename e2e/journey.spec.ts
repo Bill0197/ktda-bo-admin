@@ -336,7 +336,7 @@ test.describe("register farmer", () => {
 });
 
 test("the three sample files carry the same five test growers, in each step's columns", () => {
-  const rows = (flow: BulkFlow) => sample(flow).trim().split("\n").map((l) => l.split(","));
+  const rows = (flow: BulkFlow) => sample(flow).trim().split(/\r?\n/).map((l) => l.split(","));
   const growers = (flow: BulkFlow) => rows(flow).slice(1).map((r) => r[0]);
   for (const flow of ["REGISTRATION", "ACTIVATION", "PAYMENT"] as BulkFlow[]) {
     expect(rows(flow)[0]).toEqual(BULK_COLUMNS[flow]);
