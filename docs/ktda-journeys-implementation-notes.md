@@ -58,6 +58,27 @@ separately from the wallet**:
 
 ---
 
+## Back-office build checklist (what YOU build in `ktda-bo-admin`)
+
+The back office owns the **operator** journeys (1, 3, 4). Journey 2 is the farmer app (`farmer-web`), not here.
+
+- [ ] **Institution label** — read `GET …/omni/api/operator/institutions`, show the one KTDA entry (name).
+- [ ] **Journey 1 — Register farmer (single)**: a form (grower no, national ID, name, phone, factory) → the
+      single-register endpoint *(pending backend — see reference)*. Success → farmer in *Registered* state.
+- [ ] **Farmers list/search** with lifecycle state (Registered → Activated → Funded) *(needs the backend
+      state field — pending)*. This is where operators see who still needs to self-activate.
+- [ ] **Journey 3 — Bulk onboarding**: `BulkLoad.tsx` (flow `ONBOARDING`) — upload → process → poll →
+      counts. **Already built**; keep.
+- [ ] **Journey 4 — Bulk funding**: `BulkLoad.tsx` (flow `PAYMENT`), gated on `…/bulk-loads/onboarding-status`.
+      **Already built**; keep.
+- [ ] **Always call through the proxy** (`/<base>/omni/...`, `/<base>/tok/...`). **Never** send
+      `X-Dev-Institution` / `X-Dev-Subject` from the browser — the proxy sets them. Don't choose the
+      institution client-side; it's fixed to KTDA by the deployment.
+
+Everything below is the detail behind each item.
+
+---
+
 ## Journey 1 — Institution onboarding (single farmer)  **← new back-office UI**
 
 **Operator action:** register one farmer with basic details. No wallet, no PIN.
@@ -138,6 +159,92 @@ COMPLETED for KTDA — use `GET …/bulk-loads/onboarding-status`.
   requires the wallet to exist. Under the target split, that means a farmer must have **self-onboarded**
   (wallet opened) before they can be funded, OR bulk onboarding must open the wallet. **This is the main
   reason the wallet-timing decision below matters.**
+
+---
+
+## Omnichannel operator API — reference
+
+All paths are `/api/operator/*` on omnichannel. From the back office you call them **through the proxy**
+as `/<base>/omni/api/operator/*` (the proxy adds the institution + subject headers; never send them from
+the browser). All are **scoped to the caller's institution (KTDA)** — a run/record for another
+institution is 404/403. Content type JSON unless noted.
+
+### Institutions
+```
+GET /api/operator/institutions
+→ 200 [ { "id": "2d878f14-…", "name": "KTDA", "localCurrency": "KES", "country": null, "status": "ACTIVE" } ]
+```
+In the dev profile this returns exactly the caller's one institution. Use it to label the UI.
+
+### Bulk onboarding / funding
+
+**1. Upload (stage a run)** — `multipart/form-data`:
+```
+POST /api/operator/bulk-loads/upload
+  parts: file=<csv>,  flow=ONBOARDING|PAYMENT,  institutionId=<uuid>,
+         institutionName=<string, optional>,     currency=KES
+→ 202  BulkRun (status RUNNING, nothing processed yet)
+   409  if flow=PAYMENT and no onboarding run has COMPLETED for the institution
+   400  empty file
+```
+
+**2. Process (start the durable run)**:
+```
+POST /api/operator/bulk-loads/{runId}/process   → 200 BulkRun
+```
+
+**3. Poll** (every ~1s until a terminal status):
+```
+GET /api/operator/bulk-loads/{runId}            → 200 BulkRun
+```
+
+**4. Recent runs** / **5. Reconciliation** / **6. Funding gate**:
+```
+GET /api/operator/bulk-loads                                         → 200 [ BulkRun, … ] (latest 50)
+GET /api/operator/bulk-loads/{runId}/reconciliation?expectedTotal=   → 200 BulkReconciliation
+GET /api/operator/bulk-loads/onboarding-status?institutionId=<uuid>  → 200 { "onboardingCompleted": true|false }
+```
+
+**`BulkRun`** (poll this; terminal = COMPLETED | PARTIAL | FAILED):
+```json
+{ "runId":"…", "flow":"ONBOARDING", "institutionId":"2d878f14-…", "currency":"KES",
+  "sourceName":"farmers.csv", "status":"RUNNING",
+  "totalRows":0, "processedCount":0, "skippedCount":0, "failureCount":0, "totalAmount":0.00,
+  "startedAt":"…Z", "completedAt":null, "message":null }
+```
+`processedCount` = wallets opened (ONBOARDING) / credited (PAYMENT); `skippedCount` = already applied
+(idempotent re-run); `failureCount` = rejected rows; `message` = human summary on completion.
+
+**`BulkReconciliation`** (the proof panel, to the cent):
+```json
+{ "runId":"…", "flow":"PAYMENT", "institutionId":"…", "institutionName":"KTDA", "status":"COMPLETED",
+  "walletCount":123, "processedCount":123, "skippedCount":0, "failureCount":0,
+  "creditedTotal":1234567.89, "depositDebitTotal":1234567.89, "depositCreditTotal":1234567.89,
+  "doubleEntryBalanced":true, "expectedTotal":1234567.89, "matchesExpected":true }
+```
+
+**CSV formats:** ONBOARDING `grower_no,national_id,full_name,msisdn` · PAYMENT
+`grower_no,amount_kes,payment_ref` (header row required; `payment_ref` is the idempotency key).
+
+### Single-farmer register (journey 1) — PROPOSED, not built
+```
+POST /api/operator/farmers   { growerNo, nationalId, fullName, phone, factory }
+→ 201 { growerNo, status:"REGISTERED", … }   (idempotent on growerNo; 409 on identity clash)
+```
+
+### Farmer self-service (journey 2) — investor-api, used by the FARMER APP, not the back office
+```
+POST /api/farmer/otp      { phone }                         → { ok:true, devCode?:"123456" }  (devCode only outside prod)
+POST /api/farmer/set-pin  { phone, otp, pin, grower }       → { ok:true, tokens:{accessToken,…}, investor:{id:"inv_ktda_<grower>"} }
+     404 grower not registered · 409 grower registered to a different phone · 401 bad OTP
+```
+Listed for completeness; the back office doesn't call these.
+
+### Error envelope (all services)
+```json
+{ "timestamp":"…Z", "status":409, "error":"Conflict", "message":"…human text…" }
+```
+Show `message` to the operator; branch on `status`.
 
 ---
 
