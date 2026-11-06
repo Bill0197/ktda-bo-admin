@@ -68,8 +68,8 @@ const KTDA_NAV: NavDef[] = [
   { label: "Engine overview", to: "/token-console/overview", section: "Admin", icon: LayoutDashboard },
 ];
 
-/* Routes that stay registered but have no menu entry: the hidden pages
-   (hiddenPages.ts), and the demo Transactions and Reconciliation pages, which
+/* Routes that stay registered but have no menu entry: the hidden and removed
+   pages (hiddenPages.ts; the removed ones the route refuses too), and the demo Transactions and Reconciliation pages, which
    the live ones above replace in the menu. */
 export const NAV_DEFS: NavDef[] = KTDA_NAV.filter((n) => !isHiddenPage(n.to));
 
