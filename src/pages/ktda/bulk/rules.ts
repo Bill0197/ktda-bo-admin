@@ -1,0 +1,61 @@
+/* The page's rules and helpers for bulk payment runs, kept apart from the
+   components so each can be tested and reused on its own. */
+import type { BulkRun } from "../../../lib/api.bulkLoad";
+import { formatKes } from "../../../lib/bulk-file";
+import { checkControl, controlOk, type ControlResult } from "../../../lib/sapPaymentFile";
+import type { ControlState, SapCheckState } from "./useSapCheck";
+
+/** Integer cents as "KES 1,234,567.89", without going through a float. */
+export function kesCents(cents: number): string {
+  const [whole, frac] = formatKes(cents).replace("-", "").split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${cents < 0 ? "−" : ""}KES ${grouped}.${frac}`;
+}
+
+/** Saves text as a file in the browser (an exception report, say). */
+export function downloadText(name: string, text: string, type = "text/csv;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  // Give the download a moment to start before the URL goes.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** A file's name without its extension, for a report named after it. */
+export const baseName = (name: string) => name.replace(/\.[^.]+$/, "");
+
+/** The control sheet against the checked file, once both are in. */
+export function controlFor(check: SapCheckState, control: ControlState): ControlResult | null {
+  if (check.kind !== "done" || control.kind !== "ok") return null;
+  return checkControl(control.sheet, check.file.name, check.done.result, check.done.sha256);
+}
+
+/** Why the file may not be sent yet, or null when it may. */
+export function sapBlocker(check: SapCheckState, control: ControlState): string | null {
+  if (check.kind === "checking") return "The file is still being checked.";
+  if (check.kind === "error") return "The file could not be checked, so it cannot be sent.";
+  if (check.kind !== "done") return "Choose the file first.";
+  if (check.done.result.expectedCents <= 0) return "Every line is held, so there is nothing to pay.";
+  if (control.kind === "reading") return "The control sheet is still being read.";
+  if (control.kind === "error") return "The control sheet could not be read. Remove it or pick the right one.";
+  const c = controlFor(check, control);
+  if (c && !controlOk(c)) return "The file does not match its control sheet, so it is not the file SAP sent. Get the right file or control sheet.";
+  return null;
+}
+
+/* ---- Maker-checker ---- */
+
+/** Subjects every caller shares when a proxy cannot name the operator. */
+export const SHARED_SUBJECTS = new Set(["ktda-operator", "dev-operator"]);
+
+/** Why `me` may not release this run, or null when they may. */
+export function releaseBlocker(run: BulkRun, me: string | null): string | null {
+  if (run.status !== "SUBMITTED") return null;
+  if (!me) return "Sign in to release this run.";
+  if (run.submittedBy && run.submittedBy === me) return "You submitted this run. A different operator must sign in and release it.";
+  return null;
+}

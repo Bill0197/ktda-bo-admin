@@ -119,3 +119,17 @@ test("the farmer journey's reads, a farmer's wallet and the single register pass
   expect(deeper.res.status).toBe(404);
   expect(deeper.upstream).toBeUndefined();
 });
+
+test("a payment run's release passes, and the actor is the session's, never the operator the browser names", async () => {
+  const run = "44444444-4444-4444-8444-444444444444";
+  const { res, upstream } = await call(`/omni/api/operator/bulk-loads/${run}/release`, {
+    method: "POST",
+    headers: { "x-operator-subject": "staff:someone-else@ktda.test", "x-dev-subject": "staff:forged@ktda.test" },
+  });
+  expect(res.status).toBe(200);
+  expect(upstream?.url).toBe(`https://omni.test/api/operator/bulk-loads/${run}/release`);
+  expect(upstream?.headers.get("x-dev-subject")).toBe("staff:officer@ktda.test");
+  expect(upstream?.headers.has("x-operator-subject")).toBe(false);
+  const deeper = await call(`/omni/api/operator/bulk-loads/${run}/release/x`, { method: "POST" });
+  expect(deeper.res.status).toBe(404);
+});

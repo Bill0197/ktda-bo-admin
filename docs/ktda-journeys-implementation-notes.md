@@ -51,7 +51,8 @@ separately from the wallet**:
 ### How the back office reaches the backend (UAT)
 - The box's nginx proxies the back office's calls over localhost (no CORS / no cert trouble):
   - `/admin/omni/*` → omnichannel `:8087` — **the proxy injects `X-Dev-Institution` (KTDA) and
-    `X-Dev-Subject` (a static operator) itself**; never send institution/subject from the browser.
+    `X-Dev-Subject` itself**; never send institution/subject from the browser. The subject is the
+    signed-in operator the app names in `X-Operator-Subject` (else the shared `ktda-operator`).
   - `/admin/tok/*` → the accounting engine `:8086/api/*` (sign-in / session).
 - So from your code, call `/<base>/omni/api/operator/...` and `/<base>/tok/api/...`. The institution
   scoping is handled for you by the proxy.
@@ -225,6 +226,31 @@ GET /api/operator/bulk-loads/onboarding-status?institutionId=<uuid>  → 200 { "
 
 **CSV formats:** ONBOARDING `grower_no,national_id,full_name,msisdn` · PAYMENT
 `grower_no,amount_kes,payment_ref` (header row required; `payment_ref` is the idempotency key).
+
+### SAP payment file and maker-checker (journey 4) — back office built; omnichannel PRs pending
+
+The back office codes against this contract and feature-detects it from the answers, so an omnichannel
+without it keeps today's behaviour.
+
+- **PAYMENT takes KTDA's SAP export** (16 columns, `LineNo,GNo,Name,WalletID,PhoneNo,FactoryCode,…,Amount,PayTo`)
+  as well as `grower_no,amount_kes,payment_ref`; the page tells them apart by the header. A SAP file is checked
+  in the browser first with the KTDA back office's rules (`src/lib/file-rules.ts` + `bulk-file.ts`, copied
+  verbatim from `baracel/ktda` apps/backoffice-web; `src/lib/sapPaymentFile.ts` runs them in a worker): counts
+  by rule code, net, held lines, an exception CSV, and an optional `<file>.control.json` (lines, total,
+  SHA-256; a mismatch blocks Submit). Rules needing the farmer register (E02, E05, E06, W01) are omnichannel's.
+- **Expected total** sent to the reconciliation = the file less the lines that will be held (integer cents);
+  omnichannel's own `expectedTotal` on the run wins when it sends one (it also holds register lines).
+- **Maker-checker:** after `POST …/{runId}/process` (or straight from upload) a PAYMENT run is `SUBMITTED`;
+  `POST …/{runId}/release` by a **different** operator starts it (409 if the same). A SAP file on an
+  omnichannel whose upload answer has no approval fields is stored but **not** started.
+- **Same file twice:** upload answers 409 with a message naming the earlier run's id; the page offers to open it.
+- Optional fields the page reads (all may be absent): on `BulkRun` `submittedBy, submittedAt, releasedBy,
+  releasedAt, heldCount, heldTotal, expectedTotal, expectedCount, clashCount, heldLines[]`; on
+  `BulkReconciliation` `runPostedTotal, runPostedCount, expectedCount, matchesExpectedCount, heldCount,
+  heldTotal, clashCount, heldLines[]`. `heldLines[]` = `{ lineNo, growerNo, code, reason, amount?, phone? }`;
+  `code: "CLASH"` marks a registration row whose phone is another farmer's.
+- **Who acts:** every omnichannel call carries `X-Operator-Subject: staff:<email>`; the UAT nginx forwards it
+  as `X-Dev-Subject` (see deploy/README.md). UAT-only; production uses real staff tokens.
 
 ### Single-farmer register (journey 1) — PROPOSED, not built
 ```

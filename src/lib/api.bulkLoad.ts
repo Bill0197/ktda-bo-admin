@@ -12,15 +12,39 @@
  * safe to send twice. A PAYMENT upload is refused with 409 until an ONBOARDING
  * run has completed for the institution.
  *
+ * PAYMENT also takes KTDA's SAP export (16 columns, sapPaymentFile.ts) where
+ * omnichannel has the SAP adapter: it derives the accounting file itself and
+ * holds the lines that fail a check, with the reason. There a PAYMENT run
+ * stops at SUBMITTED after Process and waits for a different operator to
+ * release it (maker-checker). Both are read from the run omnichannel answers,
+ * never assumed: a run without the approval fields is an omnichannel without
+ * them, and the page keeps today's one-step behaviour.
+ *
  * REGISTRATION and ACTIVATION are the farmer journey's flows
  * (journeyContract.ts): not on every environment yet, and said so plainly
  * where omnichannel refuses one. */
 import { OmniApiError, omniCall } from "./omniApi";
+import { formatKes, parseKes } from "./bulk-file";
 import { institutionApi } from "./api.institution";
 import { BULK_COLUMNS, COLUMNS, NEW_FLOWS, NOT_AVAILABLE, notBuiltYet, type BulkFlow, type OnboardingStatus } from "./journeyContract";
 
 export { BULK_COLUMNS, type BulkFlow };
-export type RunStatus = "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
+/** SUBMITTED: a PAYMENT run waiting for a second operator to release it
+ *  (an omnichannel with maker-checker only). */
+export type RunStatus = "SUBMITTED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
+
+/** A line omnichannel held instead of paying (a SAP file), or would not
+ *  register (CLASH: the phone belongs to another farmer). */
+export type HeldLine = {
+  lineNo: number;
+  growerNo: string | null;
+  /** The rule (E02_UNKNOWN_GROWER, CLASH, ...), when omnichannel names one. */
+  code: string | null;
+  reason: string;
+  /** KES; absent for a registration row. */
+  amount?: number | null;
+  phone?: string | null;
+};
 
 export type BulkRun = {
   runId: string;
@@ -46,7 +70,37 @@ export type BulkRun = {
   completedAt: string | null;
   /** A summary with sample failures; always shown on PARTIAL and FAILED. */
   message: string | null;
+
+  /* Maker-checker (PAYMENT, an omnichannel that has it). Absent elsewhere:
+     the run then starts on Process, as it always has. */
+  /** Who uploaded and submitted it (omnichannel's subject, "staff:<email>"). */
+  submittedBy?: string | null;
+  submittedAt?: string | null;
+  /** Who released it; must differ from submittedBy (omnichannel answers 409 otherwise). */
+  releasedBy?: string | null;
+  releasedAt?: string | null;
+
+  /* What omnichannel's own checks set aside (the SAP adapter, CLASH rows). */
+  /** Lines held, never paid (SAP file). */
+  heldCount?: number | null;
+  /** Their net, KES. */
+  heldTotal?: number | null;
+  /** What this run should credit: the file less the held lines, KES. */
+  expectedTotal?: number | null;
+  expectedCount?: number | null;
+  /** Registration rows refused because the phone is another farmer's. */
+  clashCount?: number | null;
+  /** The held lines and CLASH rows themselves (omnichannel may send the first few only). */
+  heldLines?: HeldLine[] | null;
 };
+
+/** The run comes from an omnichannel with maker-checker. */
+export const hasApproval = (r: BulkRun) => r.status === "SUBMITTED" || "submittedBy" in r || "releasedBy" in r;
+
+/** The earlier run a "same file" 409 names, when its message carries the id. */
+export function earlierRunIn(message: string | null | undefined): string | null {
+  return /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.exec(message ?? "")?.[0] ?? null;
+}
 
 /** The proof panel. An ONBOARDING run has the same shape with amounts 0. */
 export type BulkReconciliation = {
@@ -68,6 +122,18 @@ export type BulkReconciliation = {
   expectedTotal: number | null;
   /** creditedTotal equals expectedTotal to the cent; null without one. */
   matchesExpected: boolean | null;
+
+  /* This run on its own, where accounting compares it (newer omnichannel):
+     the totals above are the institution's, these are what this run posted. */
+  runPostedTotal?: number | null;
+  runPostedCount?: number | null;
+  expectedCount?: number | null;
+  /** runPostedCount equals expectedCount; null without one. */
+  matchesExpectedCount?: boolean | null;
+  heldCount?: number | null;
+  heldTotal?: number | null;
+  clashCount?: number | null;
+  heldLines?: HeldLine[] | null;
 };
 
 /** Payments at or over this need approval, so the backend refuses them here. */
@@ -115,14 +181,19 @@ export const bulkLoads = {
       })
       : sent;
   },
-  /** Starts the durable job for an uploaded run. */
+  /** Starts the durable job for an uploaded run; a PAYMENT run on an
+   *  omnichannel with maker-checker answers SUBMITTED instead. */
   process: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/process`, {}),
+  /** The second operator's release of a SUBMITTED run: it then runs. 409
+   *  when the caller is the one who submitted it. */
+  release: (runId: string) => omniCall.post<BulkRun>(`${runPath(runId)}/release`, {}),
   run: (runId: string) => omniCall.get<BulkRun>(runPath(runId)),
   /** The latest 50 runs, every institution and flow, newest first. */
   recent: () => omniCall.list<BulkRun>(BASE),
-  reconciliation: (runId: string, expectedTotal?: number | null) =>
+  /** `expectedCents` is what the run should have credited, in cents. */
+  reconciliation: (runId: string, expectedCents?: number | null) =>
     omniCall.get<BulkReconciliation>(
-      `${runPath(runId)}/reconciliation${expectedTotal != null ? `?expectedTotal=${expectedTotal.toFixed(2)}` : ""}`,
+      `${runPath(runId)}/reconciliation${expectedCents != null ? `?expectedTotal=${formatKes(expectedCents)}` : ""}`,
     ),
   /** Whether payments (any farmer has a wallet) and step 2 (anyone is
    *  registered) are open for the institution. */
@@ -144,6 +215,11 @@ export type FileSummary = {
   problem: string | null;
   /** Rows the backend will refuse, as a heads-up (amount too large). */
   warnings: string[];
+  /** PAYMENT: what the run should credit, in cents: the rows that pass the
+   *  checks the backend applies (a KES amount above zero and under the
+   *  approval threshold, a payment_ref not already earlier in the file).
+   *  Null for other flows. */
+  expectedCents?: number | null;
 };
 
 export function summariseCsv(flow: BulkFlow, text: string): FileSummary {
@@ -173,12 +249,24 @@ export function summariseCsv(flow: BulkFlow, text: string): FileSummary {
   if (flow !== "PAYMENT") return { rows, total: null, problem: null, warnings: [] };
 
   const at = header.indexOf("amount_kes");
+  const refAt = header.indexOf("payment_ref");
   let cents = 0;
   let parsed = true;
   let tooLarge = 0;
+  // Integer cents, no floats: only rows that will be credited count.
+  let expected = 0;
+  let refused = 0;
+  const refs = new Set<string>();
   for (let i = 1; i < lines.length; i++) {
-    const raw = lines[i].split(",")[at]?.trim() ?? "";
+    const cells = lines[i].split(",");
+    const raw = cells[at]?.trim() ?? "";
+    const ref = cells[refAt]?.trim() ?? "";
     const amount = Number(raw);
+    const exact = parseKes(raw);
+    const repeat = ref !== "" && refs.has(ref);
+    if (ref !== "") refs.add(ref);
+    if (exact !== null && exact > 0 && exact < MAX_PAYMENT_KES * 100 && ref !== "" && !repeat) expected += exact;
+    else refused++;
     if (raw === "" || !Number.isFinite(amount)) {
       parsed = false;
       continue;
@@ -189,5 +277,9 @@ export function summariseCsv(flow: BulkFlow, text: string): FileSummary {
   const warnings = tooLarge
     ? [`${tooLarge.toLocaleString()} row${tooLarge === 1 ? "" : "s"} at or over KES ${MAX_PAYMENT_KES.toLocaleString()} will be refused.`]
     : [];
-  return { rows, total: parsed ? cents / 100 : null, problem: null, warnings };
+  if (refused > tooLarge) {
+    const other = refused - tooLarge;
+    warnings.push(`${other.toLocaleString()} row${other === 1 ? "" : "s"} without a KES amount above zero or a payment_ref of their own will not be credited.`);
+  }
+  return { rows, total: parsed ? cents / 100 : null, problem: null, warnings, expectedCents: expected };
 }

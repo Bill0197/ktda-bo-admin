@@ -51,10 +51,23 @@ function errorFrom(status: number, data: unknown): OmniApiError {
 
 const BASE = `${import.meta.env.VITE_OMNI_BASE ?? "/omni"}/api/operator`;
 
-/* Who is acting, for omnichannel's audit (`reviewedBy`), is never sent from
-   here: UAT omnichannel takes it from X-Dev-Subject, and every proxy sets that
-   header itself (the dev proxy and functions/omni from the verified engine
-   session) and drops any a browser sends. */
+/* Who is acting, for omnichannel's audit (`reviewedBy`) and its maker-checker
+   (a payment run's submitter and releaser must differ): UAT omnichannel takes
+   it from X-Dev-Subject. The dev proxy and functions/omni set that header
+   themselves from the verified engine session and drop any a browser sends.
+   The UAT box's nginx cannot read the session, so every call also carries the
+   signed-in staff member's subject as X-Operator-Subject, which that nginx
+   forwards as X-Dev-Subject (deploy/nginx/ktda-bo-admin.conf). That is a
+   UAT-only convenience: the browser states who it is. Production must use
+   omnichannel's secured profile with real staff tokens. */
+export const OPERATOR_HEADER = "X-Operator-Subject";
+let operatorSubject: string | null = null;
+
+/** Who the calls below act as: the signed-in staff member (auth.tsx), or
+ *  nobody once they sign out. */
+export function setOmniOperator(email: string | null | undefined) {
+  operatorSubject = email ? omniSubjectFor(email) : null;
+}
 
 /** What omnichannel records when a call carries no X-Dev-Subject. */
 const NO_SUBJECT = "dev-operator";
@@ -79,6 +92,7 @@ async function send(method: "GET" | "POST", path: string, body?: unknown): Promi
   const form = body instanceof FormData;
   const headers: Record<string, string> = {};
   if (body !== undefined && !form) headers["Content-Type"] = "application/json";
+  if (operatorSubject) headers[OPERATOR_HEADER] = operatorSubject;
   try {
     return await fetch(`${BASE}${path}`, {
       method,
