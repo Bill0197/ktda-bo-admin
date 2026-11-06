@@ -59,7 +59,7 @@ test("someone else's closure is approved from the queue, as me, and leaves it", 
   await expect(page.getByText("Approved. The profile has been updated.")).toBeVisible();
 
   expect(book.sent).toHaveLength(1);
-  expect(book.sent[0]).toMatchObject({ method: "POST", path: `/customers/interventions/${proposal().id}/approve`, body: { note: "Closure form signed" }, subject: ME });
+  expect(book.sent[0]).toMatchObject({ method: "POST", path: `/customers/interventions/${proposal().id}/approve`, body: { note: "Closure form signed" }, subject: undefined });
   await expect(page.getByText("Nothing is waiting for a second person")).toBeVisible();
 
   await page.getByRole("tab", { name: "Full log" }).click();

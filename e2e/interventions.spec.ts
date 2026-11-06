@@ -82,7 +82,7 @@ test("proposing a reinstatement shows it pending; the proposer cannot approve it
   await dialog.getByRole("button", { name: "Propose reinstate" }).click();
   await expect(dialog).toBeHidden();
 
-  expect(state.writes).toEqual([{ path: `${CUSTOMER}/reinstate`, body: { note: "Checked, a false alarm" }, subject: ME }]);
+  expect(state.writes).toEqual([{ path: `${CUSTOMER}/reinstate`, body: { note: "Checked, a false alarm" }, subject: undefined }]);
   const pending = page.getByTestId("pending-intervention");
   await expect(pending).toContainText("You (amina@baracel.ae)");
   await expect(pending.getByTestId("second-person")).toBeVisible();
@@ -122,7 +122,7 @@ test("someone else's proposal can be approved, and the profile status refreshes"
   await dialog.getByRole("button", { name: "Approve" }).click();
   await expect(dialog).toBeHidden();
 
-  expect(state.writes).toEqual([{ path: `interventions/${PROPOSAL}/approve`, body: {}, subject: ME }]);
+  expect(state.writes).toEqual([{ path: `interventions/${PROPOSAL}/approve`, body: {}, subject: undefined }]);
   await expect(view(page).getByText("Active", { exact: true })).toBeVisible();
   expect(reads.summary).toBeGreaterThan(1);
   await expect(page.getByTestId("pending-intervention")).toHaveCount(0);
@@ -140,7 +140,7 @@ test("a proposal can be rejected with a note; the profile stays as it was", asyn
   await dialog.getByRole("button", { name: "Reject" }).click();
   await expect(dialog).toBeHidden();
 
-  expect(state.writes).toEqual([{ path: `interventions/${PROPOSAL}/reject`, body: { note: "Wrong customer" }, subject: ME }]);
+  expect(state.writes).toEqual([{ path: `interventions/${PROPOSAL}/reject`, body: { note: "Wrong customer" }, subject: undefined }]);
   await expect(page.getByTestId("customer-interventions")).toContainText("Rejected");
   await expect(view(page).getByText("Active", { exact: true })).toBeVisible();
 });

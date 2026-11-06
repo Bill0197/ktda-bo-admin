@@ -51,20 +51,16 @@ function errorFrom(status: number, data: unknown): OmniApiError {
 
 const BASE = `${import.meta.env.VITE_OMNI_BASE ?? "/omni"}/api/operator`;
 
-/** Who is acting, for omnichannel's audit (`reviewedBy`). UAT omnichannel has
- *  no staff login and takes it from X-Dev-Subject; the deployed proxy sets it
- *  from the verified BO Admin session, so this is only what the dev proxy
- *  passes on. */
-let actor: string | null = null;
-export function setOmniActor(email: string | null) {
-  actor = email ? omniSubjectFor(email) : null;
-}
+/* Who is acting, for omnichannel's audit (`reviewedBy`), is never sent from
+   here: UAT omnichannel takes it from X-Dev-Subject, and every proxy sets that
+   header itself (the dev proxy and functions/omni from the verified engine
+   session) and drops any a browser sends. */
 
 /** What omnichannel records when a call carries no X-Dev-Subject. */
 const NO_SUBJECT = "dev-operator";
 
-/** The subject omnichannel records for this staff member: the same value
- *  sent as X-Dev-Subject here and set by functions/omni from the session.
+/** The subject omnichannel records for this staff member: the value the
+ *  proxies set as X-Dev-Subject from the session.
  *  Compare a record's `proposedBy` / `decidedBy` with this, never with the
  *  bare email. */
 export function omniSubjectFor(email: string | null | undefined): string {
@@ -83,7 +79,6 @@ async function send(method: "GET" | "POST", path: string, body?: unknown): Promi
   const form = body instanceof FormData;
   const headers: Record<string, string> = {};
   if (body !== undefined && !form) headers["Content-Type"] = "application/json";
-  if (actor) headers["X-Dev-Subject"] = actor;
   try {
     return await fetch(`${BASE}${path}`, {
       method,
