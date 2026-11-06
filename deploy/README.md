@@ -1,82 +1,105 @@
-> **Disabled for the KTDA back office.** Everything in this folder, and the
-> `deploy-ec2.yml.disabled` workflow, still targets Investcent's UAT box. The scripts
-> exit at once, `npm run deploy` refuses and the workflow is renamed so GitHub does
-> not load it. Retarget them to a KTDA host, then remove the guards.
+# Deploying the KTDA Back Office to the UAT EC2 box
 
-# Deploying BO Admin to the UAT EC2 box
+The KTDA Back Office is served on the UAT box (`3.226.168.177`) by nginx, under
+`/admin/` on port `8185`, behind the shared ALB **ktda-apps-lb** that already
+fronts the KTDA stub apps (`/backoffice`, `/farmer`, `/agent`, `/merchant` on
+8181-8184) and terminates TLS. nginx serves the built SPA and reverse-proxies
+the backends on the **same box over plaintext localhost**, so there is no CORS,
+the engine's session cookie works, and none of the self-signed-certificate
+trouble a Cloudflare Pages build hits.
 
-BO Admin replaces tokenization-web on the UAT box (3.226.168.177, the only target behind the
-tokenization-web load balancer). It is served the same way: nginx
-serves the built app and forwards API calls to the services on the same box, so there is no
-CORS, and the engine's session cookie works as it does for tokenization-web today.
+Public URL: **https://ktda-apps-lb-1116460916.us-east-1.elb.amazonaws.com/admin/**
 
 | Browser calls | nginx forwards to |
 |---|---|
-| `/tok/*` | the accounting engine, `127.0.0.1:8086/api/*` |
-| `/omni/api/operator/*` (POST only, signed-in staff only) | omnichannel, `127.0.0.1:8087/api/operator/*` |
-| `/omni/api/operator/onboarding/{applications,documents,documents/<id>/content}` (GET only, signed-in staff only) | the same, for the Identity checks page |
-| `/omni/api/operator/customers`, `/customers/<id>` and `/customers/<id>/{timeline,messages,activity}` (GET only, signed-in staff only) | the same, for the Customer desk |
-| `/omni/api/operator/onboarding/applications/screening-hits` and `/support/tickets` (GET only, signed-in staff only) | the same, for the KYC desk's re-screening hits and the Customer desk's Support tab |
-| `/omni/api/operator/transactions` and `/transactions/summary` (GET only, signed-in staff only) | the same, for the Transactions page |
-| anything else | the app (`/var/www/bo-admin`, falling back to `index.html`) |
+| `/admin/tok/*` | the accounting engine, `127.0.0.1:8086/api/*` (sign-in, session, live data) |
+| `/admin/omni/*` | omnichannel's staff endpoints, `127.0.0.1:8087/*` |
+| anything else under `/admin/` | the app (`/var/www/ktda-bo-admin`, falling back to `index.html`) |
+| `/` | a `200 ok` health stub for the ALB target group |
 
-The build needs no environment variables.
+The SPA is built with **Vite base `/admin/`** (and React Router basename
+`/admin`), and `VITE_TOK_BASE=/admin/tok` / `VITE_OMNI_BASE=/admin/omni`, so
+every asset and API URL carries the prefix the ALB routes on.
+
+## Institution scoping (and a UAT security note)
+
+omnichannel runs its **dev profile** on UAT: it scopes every operator call to
+the institution in `X-Dev-Institution` and names the actor in `X-Dev-Subject`,
+and needs **both** headers or it falls back to its own default institution. The
+`/admin/omni/` location sets them itself —
+`X-Dev-Institution: 2d878f14-0d76-4aa0-b9d7-ffe4ace1562e` (KTDA) and
+`X-Dev-Subject: ktda-operator` — overriding anything the browser sends, so a
+client can neither choose the institution nor impersonate an actor.
+
+> **Security (UAT only):** a static subject with no session gate leaves the
+> operator surface open to anyone who can reach `/admin/omni/*`. This is
+> acceptable for the UAT dev environment. The production answer is the secured
+> omnichannel profile with real staff tokens, not a static subject.
 
 ## Deploy
 
-**Option A — GitHub Actions.** *Actions → Deploy to EC2 → Run workflow.* Tick
-**Disable tokenization-web's site** the first time (see below). It builds, deploys to the box and
-runs the smoke check. Pushing to `main` does not
-deploy — it only runs when started by hand.
+**Option A — GitHub Actions.** *Actions → Deploy to EC2 → Run workflow.* It
+builds, provisions nginx on `:8185`, syncs the build and runs a smoke check
+(`GET /admin/` is 200, and `/admin/omni/api/operator/institutions` returns
+KTDA). Pushing to `main` does not deploy — it only runs when started by hand.
 
-Needs the repository secret tokenization-web's deploy uses:
-
-```
-gh secret set UAT_EC2_SSH_KEY < uniapp1.pem            # box1, 3.226.168.177
-```
-
-**Option B — by hand**, from the `bo-admin` folder:
+Needs the repository secret the KTDA stub apps' deploy uses:
 
 ```
-deploy/deploy.sh 3.226.168.177 ~/keys/uniapp1.pem
+gh secret set UAT_EC2_SSH_KEY --repo baracel-dev/ktda-bo-admin < uat.pem
 ```
 
-Either way it ends with a smoke check on the box: `GET /` must be `200` and
-`GET /tok/auth/me` must be `401` (nginx reaches the engine, nobody is signed in).
+**Option B — by hand**, from the repo root (when the box is reachable only from
+your machine, e.g. via EC2 Instance Connect):
 
-## First deploy: replacing tokenization-web
+```
+deploy/deploy.sh 3.226.168.177 ~/keys/uat.pem
+```
 
-Both apps claim port 80 as nginx's default site, so they can't run side by side. The first
-deploy must be told to take over (the checkbox, or `--replace-tokenization-web`). It then
-**renames** `/etc/nginx/conf.d/tokenization-web.conf` to `.disabled` — nothing is deleted.
-Without the flag, provisioning stops and says so.
+Both end with the same smoke check.
 
-To roll back: rename that file back, remove `/etc/nginx/conf.d/bo-admin.conf`, and
-`sudo systemctl reload nginx`.
+## One-time: add the ALB route
 
-## What `provision.sh` does (idempotent)
+The ALB does not yet route `/admin` anywhere. Once, create a target group for
+`:8185`, register the box, and add a path rule on the HTTPS:443 listener
+(reusing the existing cert) — alongside the stub apps' rules, without touching
+them:
 
-Installs nginx if missing, removes the stock default server once (backup at
-`nginx.conf.orig`), installs `nginx/bo-admin.conf`, creates `/var/www/bo-admin` and labels it
-for SELinux, turns on `httpd_can_network_connect` (without it the proxies return 502), opens
-port 80 in firewalld if it's running, then `nginx -t` and enables nginx.
+```
+LB=ktda-apps-lb-1116460916.us-east-1.elb.amazonaws.com           # region us-east-1
+VPC=$(aws ec2 describe-instances --region us-east-1 --instance-ids i-0e1cdfbe0495615bb \
+      --query 'Reservations[0].Instances[0].VpcId' --output text)
+
+TG=$(aws elbv2 create-target-group --region us-east-1 --name ktda-bo-admin-tg \
+      --protocol HTTP --port 8185 --vpc-id "$VPC" --target-type instance \
+      --health-check-path / --matcher HttpCode=200 \
+      --query 'TargetGroups[0].TargetGroupArn' --output text)
+
+aws elbv2 register-targets --region us-east-1 --target-group-arn "$TG" \
+      --targets Id=i-0e1cdfbe0495615bb,Port=8185
+
+L443=$(aws elbv2 describe-listeners --region us-east-1 \
+      --load-balancer-arn $(aws elbv2 describe-load-balancers --region us-east-1 \
+        --names ktda-apps-lb --query 'LoadBalancers[0].LoadBalancerArn' --output text) \
+      --query "Listeners[?Port==\`443\`].ListenerArn" --output text)
+
+aws elbv2 create-rule --region us-east-1 --listener-arn "$L443" --priority 50 \
+      --conditions Field=path-pattern,Values='/admin,/admin/*' \
+      --actions Type=forward,TargetGroupArn="$TG"
+```
+
+## What `provision-ktda-bo-admin.sh` does (idempotent)
+
+Installs nginx if missing, installs `nginx/ktda-bo-admin.conf`, creates
+`/var/www/ktda-bo-admin` and labels it for SELinux, allows nginx to listen on
+`:8185` (`http_port_t`) and to make outbound connections
+(`httpd_can_network_connect`, without which the proxies 502), opens `:8185` in
+firewalld if it is running, then `nginx -t` and enables nginx. It shares the
+`/tmp/ktda-provision.lock` flock with the stub apps' provisioning so concurrent
+deploys don't race on the SELinux policy store.
 
 ## Prerequisites
 
-- The engine (`8086`) and omnichannel (`8087`) running on the box. If the engine is down the
-  app loads but every call returns 502.
-- nginx built with `http_auth_request_module` — the RHEL package is. It gates the omnichannel
-  calls: on UAT omnichannel checks no token itself, so nginx only forwards a call when the
-  engine confirms the caller's session.
-
-## Certificate
-
-The load balancer still presents its self-signed certificate, so users see the browser's
-"not secure" warning once and click through — the same as with tokenization-web today. A real
-certificate on a real hostname removes it; nothing in this setup needs to change for that.
-
-## Checked before hand-off
-
-The config was run locally with nginx against live UAT: all 79 BO Admin pages load and sign-in
-holds; a signed-out omnichannel call gets 401 and a signed-in one reaches omnichannel, with the
-browser's `Origin` and cookie removed; a 401 from the engine carries no `Set-Cookie`.
+The engine (`8086`) and omnichannel (`8087`) running on the box — both already
+front the `tokenization-engine-lb` / `tokenization-omnichannel-lb` target groups
+and report healthy. If the engine is down the app loads but calls return 502.

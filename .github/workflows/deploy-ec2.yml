@@ -1,0 +1,115 @@
+name: Deploy to EC2
+
+# Builds the KTDA Back Office and ships it to the UAT EC2 box, served by nginx
+# under /admin/ on port 8185 behind the shared ALB (ktda-apps-lb) — the same
+# shape as the KTDA stub apps. nginx reverse-proxies the engine (8086) and
+# omnichannel (8087) on localhost, so there is no CORS and no self-signed-cert
+# trouble (unlike a Cloudflare Pages build). See deploy/README.md.
+#
+# Manual only (Actions -> Deploy to EC2 -> Run workflow): pushing to main does
+# not deploy, so a merge can't replace what's on the box by surprise.
+#
+# Required repository secret (Settings -> Secrets and variables -> Actions),
+# the same key the KTDA stub apps' deploy uses:
+#   UAT_EC2_SSH_KEY   — private SSH key for the UAT box (ec2-user@3.226.168.177)
+
+on:
+  workflow_dispatch:
+
+env:
+  # Served under this path behind the ALB; the build bakes it as the Vite base
+  # and React Router basename, and the /omni and /tok calls carry it too.
+  PREFIX: /admin
+  PORT: "8185"
+  SITE: ktda-bo-admin
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build (base ${{ env.PREFIX }}/)
+        run: npm run build
+        env:
+          VITE_BASE: ${{ env.PREFIX }}/
+          VITE_TOK_BASE: ${{ env.PREFIX }}/tok
+          VITE_OMNI_BASE: ${{ env.PREFIX }}/omni
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-ktda-bo-admin-uat
+      cancel-in-progress: false
+    env:
+      DEPLOY_USER: ec2-user
+      DEPLOY_HOST: 3.226.168.177
+      # Pin the host key (same box the KTDA stub apps deploy to) so we
+      # authenticate the server, not trust-on-first-use.
+      HOSTKEY: "3.226.168.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJjEUPefQEaMlyQhlql3mNpYL2xSC7vdPflh3OcM3tRv"
+      DEPLOY_PATH: /var/www/ktda-bo-admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Configure SSH
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "${{ secrets.UAT_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if ! [ -s ~/.ssh/deploy_key ]; then
+            echo "::error::Secret UAT_EC2_SSH_KEY is empty — set it on this repo (same key the KTDA stub apps use)"
+            exit 1
+          fi
+          echo "$HOSTKEY" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Provision host (nginx site on :${{ env.PORT }}, idempotent)
+        run: |
+          SCP="scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes"
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${DEPLOY_USER}@${DEPLOY_HOST}"
+          $SCP deploy/nginx/ktda-bo-admin.conf       ${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/ktda-bo-admin.conf
+          $SCP deploy/provision-ktda-bo-admin.sh     ${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/provision-ktda-bo-admin.sh
+          $SSH "chmod +x /tmp/provision-ktda-bo-admin.sh && /tmp/provision-ktda-bo-admin.sh"
+
+      - name: Sync build to webroot
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            --rsync-path="sudo rsync" \
+            dist/ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
+
+      - name: Relabel and reload nginx
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "flock /tmp/ktda-provision.lock sudo bash -c 'restorecon -R ${DEPLOY_PATH} && nginx -t && systemctl reload nginx'"
+
+      - name: Smoke check (from the box itself)
+        run: |
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${DEPLOY_USER}@${DEPLOY_HOST}"
+          page=$($SSH "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:${PORT}${PREFIX}/")
+          inst=$($SSH "curl -s --max-time 10 http://127.0.0.1:${PORT}${PREFIX}/omni/api/operator/institutions")
+          echo "GET ${PREFIX}/ -> $page"
+          echo "GET ${PREFIX}/omni/api/operator/institutions -> $inst"
+          test "$page" = "200"
+          # The proxy injects the KTDA institution + a subject, so omnichannel
+          # must answer for KTDA, not its default institution.
+          echo "$inst" | grep -q "2d878f14-0d76-4aa0-b9d7-ffe4ace1562e"
+
+      - name: Summary
+        run: echo "Deployed **${{ env.SITE }}** -> UAT box :${{ env.PORT }} under ${{ env.PREFIX }}/ (ALB: https://ktda-apps-lb-1116460916.us-east-1.elb.amazonaws.com${{ env.PREFIX }}/)" >> "$GITHUB_STEP_SUMMARY"

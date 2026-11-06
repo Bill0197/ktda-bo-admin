@@ -144,6 +144,12 @@ function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets):
 export default defineConfig(({ mode }) => {
   const targets = targetsFor(mode);
   return {
+    // Where the app is served. "/" in dev and on Cloudflare Pages (its own
+    // origin); on the UAT EC2 box it is served under a path prefix behind the
+    // shared ALB (e.g. /admin/), so the build is told that base and every asset
+    // URL carries it. React Router reads the same value (import.meta.env.BASE_URL)
+    // for its basename — see src/main.tsx.
+    base: process.env.VITE_BASE || "/",
     plugins: [react(), tailwindcss(), unsetTargets(targets)],
     define: {
       __APP_VERSION__: JSON.stringify(appVersion()),
