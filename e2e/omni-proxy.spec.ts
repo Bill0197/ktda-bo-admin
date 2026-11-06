@@ -16,20 +16,20 @@ type Handler = (ctx: { request: Request; env: Record<string, string> }) => Promi
 const PROXY = "../functions/omni/[[path]].js";
 const proxy = async () => ((await import(PROXY)) as { onRequest: Handler }).onRequest;
 
-async function call(path: string, opts: { env?: Record<string, string>; method?: string; headers?: Record<string, string> } = {}) {
+async function call(path: string, opts: { env?: Record<string, string>; method?: string; headers?: Record<string, string>; me?: number; cookie?: string | null } = {}) {
   const calls: Call[] = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     calls.push({ url, headers: new Headers(init?.headers) });
     // The session check against the engine, then omnichannel itself.
-    if (url.endsWith("/api/auth/me")) return new Response(JSON.stringify({ email: "officer@ktda.test" }), { status: 200 });
+    if (url.endsWith("/api/auth/me")) return new Response(JSON.stringify({ email: "officer@ktda.test" }), { status: opts.me ?? 200 });
     return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
   try {
     const request = new Request(`https://bo.test${path}`, {
       method: opts.method ?? "GET",
-      headers: { cookie: "JSESSIONID=abc", ...opts.headers },
+      headers: { ...(opts.cookie === null ? {} : { cookie: opts.cookie ?? "JSESSIONID=abc" }), ...opts.headers },
     });
     const onRequest = await proxy();
     const res = await onRequest({ request, env: { ...ENV, ...opts.env } });
@@ -86,5 +86,15 @@ test("currency exchange, the market and its content are not reachable at all", a
     const { res, upstream } = await call(path, { method, env: { OMNI_INSTITUTION_ID: KTDA } });
     expect(res.status, `${method} ${path}`).toBe(404);
     expect(upstream, `${method} ${path}`).toBeUndefined();
+  }
+});
+
+test("signed out: no cookie, or one the engine refuses, answers 401 and omnichannel is never called", async () => {
+  for (const opts of [{ cookie: null }, { me: 401 }]) {
+    for (const path of ["/omni/api/operator/bulk-loads", "/omni/api/operator/institutions"]) {
+      const { res, upstream } = await call(path, opts);
+      expect(res.status).toBe(401);
+      expect(upstream).toBeUndefined();
+    }
   }
 });

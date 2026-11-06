@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
-import { Agent as HttpAgent } from "node:http";
-import { Agent as HttpsAgent } from "node:https";
+import { Agent as HttpAgent, request as httpRequest, type IncomingMessage } from "node:http";
+import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -95,14 +95,75 @@ function unsetTargets({ tok, omni, institution }: Targets): Plugin {
   };
 }
 
-function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets): Record<string, ProxyOptions> {
+/* The sign-in gate in front of /omni, as functions/omni and nginx's
+   auth_request have it: omnichannel on UAT checks no token, so nothing goes
+   to it unless the caller holds a live engine session. The engine's
+   GET /api/auth/me decides, with the caller's cookie: 2xx lets the call
+   through, anything else answers 401, and an engine that cannot be reached
+   answers 503. The audit name omnichannel records (x-dev-subject) is set from
+   that session, never from the browser. */
+type Session = { email: string | null } | false | null;
+
+function engineSession(tok: string, agent: HttpAgent | HttpsAgent, cookie: string | undefined): Promise<Session> {
+  if (!cookie) return Promise.resolve(false);
+  const url = new URL("/api/auth/me", tok);
+  const send = url.protocol === "https:" ? httpsRequest : httpRequest;
+  return new Promise((resolve) => {
+    const req = send(url, { method: "GET", agent, headers: { cookie, accept: "application/json" }, rejectUnauthorized: false, timeout: 15000 }, (res: IncomingMessage) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (c: string) => { body += c; });
+      res.on("end", () => {
+        const status = res.statusCode ?? 0;
+        if (status >= 500) return resolve(null);
+        if (status < 200 || status >= 300) return resolve(false);
+        try {
+          const me = JSON.parse(body) as { email?: unknown };
+          resolve({ email: typeof me.email === "string" ? me.email : null });
+        } catch {
+          resolve({ email: null });
+        }
+      });
+    });
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => resolve(null));
+    req.end();
+  });
+}
+
+function omniSessionGate({ tok, omni }: Targets, tokAgent: HttpAgent | HttpsAgent | null): Plugin {
+  return {
+    name: "omni-session-gate",
+    configureServer(server) {
+      if (!omni) return;
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith("/omni/")) return next();
+        const answer = (status: number, error: string) => {
+          res.statusCode = status;
+          res.setHeader("content-type", "application/json");
+          res.setHeader("cache-control", "no-store");
+          res.end(JSON.stringify({ error }));
+        };
+        if (!tok || !tokAgent) return answer(503, "The dev proxy checks the engine session before any omnichannel call. Set TOK_TARGET and restart the dev server.");
+        const session = await engineSession(tok, tokAgent, req.headers.cookie);
+        if (session === null) return answer(503, "The engine cannot be reached to check the session. Please try again shortly.");
+        if (!session) return answer(401, "Sign in to the back office first.");
+        delete req.headers["x-dev-subject"];
+        if (session.email) req.headers["x-dev-subject"] = `staff:${session.email}`;
+        next();
+      });
+    },
+  };
+}
+
+function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets, tokAgent: HttpAgent | HttpsAgent | null): Record<string, ProxyOptions> {
   const proxy: Record<string, ProxyOptions> = {};
-  if (TOK_TARGET) {
+  if (TOK_TARGET && tokAgent) {
     // Anchored with a trailing slash: Vite matches keys as plain prefixes,
     // and a bare "/tok" would also swallow /tokenization/* and /token-console/*.
     proxy["^/tok/"] = {
       target: TOK_TARGET,
-      agent: pool(TOK_TARGET),
+      agent: tokAgent,
       changeOrigin: true,
       secure: false,
       rewrite: (path) => path.replace(/^\/tok/, "/api"),
@@ -131,6 +192,8 @@ function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets):
       configure: (p) => {
         p.on("proxyReq", (req) => {
           req.removeHeader("origin");
+          // The engine session is for the gate above, not for omnichannel.
+          req.removeHeader("cookie");
           // The institution is this server's to say, never the browser's.
           req.removeHeader("x-dev-institution");
           if (institution) req.setHeader("X-Dev-Institution", institution);
@@ -143,14 +206,15 @@ function proxyFor({ tok: TOK_TARGET, omni: OMNI_TARGET, institution }: Targets):
 
 export default defineConfig(({ mode }) => {
   const targets = targetsFor(mode);
+  const tokAgent = targets.tok ? pool(targets.tok) : null;
   return {
-    plugins: [react(), tailwindcss(), unsetTargets(targets)],
+    plugins: [react(), tailwindcss(), unsetTargets(targets), omniSessionGate(targets, tokAgent)],
     define: {
       __APP_VERSION__: JSON.stringify(appVersion()),
     },
     server: {
       port: 5174,
-      proxy: proxyFor(targets),
+      proxy: proxyFor(targets, tokAgent),
     },
   };
 });
