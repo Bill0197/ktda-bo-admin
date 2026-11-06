@@ -341,7 +341,8 @@ test.describe("farmers by stage", () => {
     await expect(page.getByText("45 farmers · page 1 of 3")).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
     await expect(page.getByText("45 farmers · page 2 of 3")).toBeVisible();
-    expect(sent.some((s) => s.path === "/farmers" && s.query.get("page") === "2")).toBe(true);
+    // The label follows the URL at once; the read of page 2 follows it.
+    await expect.poll(() => sent.some((s) => s.path === "/farmers" && s.query.get("page") === "2")).toBe(true);
   });
 
   test("a stage filter and a search go to omnichannel as state and q", async ({ page }) => {
