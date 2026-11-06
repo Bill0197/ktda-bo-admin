@@ -209,6 +209,9 @@ export default defineConfig(({ mode }) => {
   const tokAgent = targets.tok ? pool(targets.tok) : null;
   return {
     plugins: [react(), tailwindcss(), unsetTargets(targets), omniSessionGate(targets, tokAgent)],
+    // A second server from this tree (the Playwright one) sets its own, so
+    // its dependency re-optimizing never deletes a running server's cache.
+    cacheDir: process.env.BO_ADMIN_VITE_CACHE_DIR?.trim() || "node_modules/.vite",
     define: {
       __APP_VERSION__: JSON.stringify(appVersion()),
     },

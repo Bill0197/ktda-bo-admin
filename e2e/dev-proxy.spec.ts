@@ -31,6 +31,9 @@ const omni = httpServer((req, res) => {
   res.end("[]");
 });
 
+// One dev server for the file, so its cache folder has a single owner.
+test.describe.configure({ mode: "serial" });
+
 let vite: ViteDevServer;
 let base = "";
 const saved = { ...process.env };
@@ -38,7 +41,9 @@ const saved = { ...process.env };
 test.beforeAll(async () => {
   const [tok, om] = await Promise.all([listen(engine), listen(omni)]);
   Object.assign(process.env, { TOK_TARGET: tok, OMNI_TARGET: om, OMNI_INSTITUTION_ID: KTDA });
-  vite = await createServer({ logLevel: "silent", server: { port: 0, strictPort: false, hmr: false } });
+  // Its own cache folder: the default (node_modules/.vite) belongs to any dev
+  // server running from this tree, and re-optimizing there breaks it.
+  vite = await createServer({ logLevel: "silent", cacheDir: "node_modules/.vite-dev-proxy-test", server: { port: 0, strictPort: false, hmr: false } });
   await vite.listen();
   base = `http://localhost:${(vite.httpServer!.address() as AddressInfo).port}`;
 });
