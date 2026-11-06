@@ -69,7 +69,7 @@ export default function FarmersByStage() {
     <div>
       <PageHeader
         eyebrow="KTDA"
-        title="Farmers by stage"
+        title="Farmers"
         subtitle="This institution's farmers and where each is: registered (still has to onboard), activated (wallet open) or funded."
         actions={
           <div className="flex items-center gap-3">

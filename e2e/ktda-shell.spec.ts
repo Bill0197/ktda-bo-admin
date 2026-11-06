@@ -38,7 +38,8 @@ test.describe("signed in", () => {
     await expect(menu.getByRole("link", { name: "Approvals", exact: true })).toHaveAttribute("href", "/approvals");
 
     await menu.getByRole("button", { name: "People", exact: true }).click();
-    await expect(menu.getByRole("link", { name: "Farmers", exact: true })).toHaveAttribute("href", "/token-console/investors");
+    await expect(menu.getByRole("link", { name: "Farmers", exact: true })).toHaveAttribute("href", "/farmers");
+    await expect(menu.getByRole("link", { name: "Farmer journey", exact: true })).toHaveAttribute("href", "/journey");
     await expect(menu.getByRole("link", { name: "Onboarding review", exact: true })).toHaveAttribute("href", "/kyc-queue");
     await expect(menu.getByRole("link", { name: "Messages", exact: true })).toHaveAttribute("href", "/campaigns");
     await expect(menu.getByRole("link", { name: "Bulk onboarding", exact: true })).toHaveAttribute("href", "/bulk/onboarding");
@@ -65,7 +66,8 @@ test.describe("signed in", () => {
     expect(hrefs.filter((h) => h && (HIDDEN_PAGES.has(h) || REMOVED_PAGES.has(h)))).toEqual([]);
     expect(hrefs).not.toContain("/transactions");
     expect(hrefs).not.toContain("/reconciliation");
-    expect(hrefs.filter((h) => h === "/token-console/investors")).toHaveLength(1);
+    expect(hrefs.filter((h) => h === "/farmers")).toHaveLength(1);
+    expect(hrefs).not.toContain("/token-console/investors");
   });
 
   test("a hidden page still opens by its address", async ({ page }) => {
@@ -80,7 +82,7 @@ test.describe("signed in", () => {
     for (const label of ["Configuration", "Tariffs", "Change approvals", "Engine users", "Platform settings", "Feature flags", "Engine overview", "Institutions"]) {
       await expect(menu.getByRole("link", { name: label, exact: true })).toHaveCount(0);
     }
-    expect(REMOVED_PAGES.size).toBe(8);
+    expect(REMOVED_PAGES.size).toBe(9);
     for (const path of REMOVED_PAGES) {
       await page.goto(path);
       await expect(page.getByTestId("page-removed")).toContainText("Not part of this back office");
@@ -90,12 +92,15 @@ test.describe("signed in", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test("the live Farmers page says farmers", async ({ page }) => {
-    await page.route(/\/tok\/accounting\/investors$/, (route) => json(route, []));
-    await page.goto("/token-console/investors");
+  test("Farmers is this institution's list; the engine-wide one is refused", async ({ page }) => {
+    await page.route(/\/omni\/api\/operator\/farmers$|\/omni\/api\/operator\/farmers\?/, (route) => json(route, []));
+    await page.route(/\/omni\/api\/operator\/farmers\/summary$/, (route) => json(route, { registered: 0, activated: 0, funded: 0, total: 0 }));
+    await page.goto("/farmers");
     await expect(page.getByRole("heading", { name: "Farmers", level: 1 })).toBeVisible();
-    await expect(page.getByText("No farmers on the register yet")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Onboard farmer" })).toBeVisible();
+    await expect(page.getByTestId("farmers-empty")).toContainText("No farmers registered yet");
+    await expect(page.getByRole("button", { name: "Register farmer" })).toBeVisible();
+    await page.goto("/token-console/investors");
+    await expect(page.getByTestId("page-removed")).toBeVisible();
   });
 
   test("a group's count is the sum of its entries' counts", async ({ page }) => {
@@ -130,7 +135,7 @@ test.describe("signed in", () => {
     await search.fill("GN-104233");
     await expect(page.getByRole("option").first()).toContainText("Farmer GN-104233");
     await search.press("Enter");
-    await expect(page).toHaveURL(/\/token-console\/investors\?q=GN-104233$/);
+    await expect(page).toHaveURL(/\/farmers\?q=GN-104233$/);
   });
 
   test("the theme switch sets light, dark or the system theme, and remembers it", async ({ page }) => {
