@@ -98,3 +98,11 @@ test("signed out: no cookie, or one the engine refuses, answers 401 and omnichan
     }
   }
 });
+
+test("the farmer journey's farmers list and single register pass; nothing deeper under farmers does", async () => {
+  expect((await call("/omni/api/operator/farmers?state=REGISTERED&q=TEST&page=1&size=20")).res.status).toBe(200);
+  expect((await call("/omni/api/operator/farmers", { method: "POST" })).res.status).toBe(200);
+  const deeper = await call("/omni/api/operator/farmers/TEST000001/wallet", { method: "POST" });
+  expect(deeper.res.status).toBe(404);
+  expect(deeper.upstream).toBeUndefined();
+});
