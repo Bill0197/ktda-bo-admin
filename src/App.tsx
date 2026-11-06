@@ -90,7 +90,7 @@ function AppRoutes() {
       {/* Baracel Unyt, the merged tokenization console. The bare prefix is not a page: its
           overview lives one level down so a grant on it cannot cover the
           console's other pages (see canAccess in lib/auth.tsx). */}
-      <Route path="/token-console" element={<Navigate to="/token-console/overview" replace />} />
+      <Route path="/token-console" element={<Navigate to="/" replace />} />
       <Route path="/token-console/overview" element={<ProtectedRoute><TokenConsoleOverview /></ProtectedRoute>} />
       <Route path="/token-console/investors" element={<ProtectedRoute><TokenConsoleInvestors /></ProtectedRoute>} />
       <Route path="/token-console/accounts" element={<ProtectedRoute><TokenConsoleAccounts /></ProtectedRoute>} />

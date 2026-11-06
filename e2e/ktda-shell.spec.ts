@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { json, signIn, STAFF } from "./stubs";
-import { HIDDEN_PAGES } from "../src/lib/hiddenPages";
+import { HIDDEN_PAGES, REMOVED_PAGES } from "../src/lib/hiddenPages";
 
 /* The KTDA shell: placeholder branding, the prototype's navigation (four
  * top-level items, People, Money and Admin), the top bar's search, theme
@@ -51,7 +51,7 @@ test.describe("signed in", () => {
     await expect(menu.getByRole("link", { name: "Reports", exact: true })).toHaveAttribute("href", "/reports");
 
     await menu.getByRole("button", { name: "Admin", exact: true }).click();
-    for (const [label, href] of [["Configuration", "/token-console/configuration"], ["System health", "/system"], ["Users & roles", "/users"], ["Audit log", "/audit-log"]]) {
+    for (const [label, href] of [["Institution", "/institution"], ["System health", "/system"], ["Users & roles", "/users"], ["Audit log", "/audit-log"]]) {
       await expect(menu.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
     }
 
@@ -62,7 +62,7 @@ test.describe("signed in", () => {
 
   test("no hidden page and no replaced demo page has a menu link", async ({ page }) => {
     const hrefs = await menuHrefs(page);
-    expect(hrefs.filter((h) => h && HIDDEN_PAGES.has(h))).toEqual([]);
+    expect(hrefs.filter((h) => h && (HIDDEN_PAGES.has(h) || REMOVED_PAGES.has(h)))).toEqual([]);
     expect(hrefs).not.toContain("/transactions");
     expect(hrefs).not.toContain("/reconciliation");
     expect(hrefs.filter((h) => h === "/token-console/investors")).toHaveLength(1);
@@ -72,6 +72,22 @@ test.describe("signed in", () => {
     await page.goto("/token-console/policies");
     await expect(page.getByText("Access denied")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Accrual & distribution policies", level: 1 })).toBeVisible();
+  });
+
+  test("the platform's own tools are refused by their address, and nowhere in the menu", async ({ page }) => {
+    const menu = nav(page);
+    for (const section of ["People", "Money", "Admin"]) await menu.getByRole("button", { name: section, exact: true }).click();
+    for (const label of ["Configuration", "Tariffs", "Change approvals", "Engine users", "Platform settings", "Feature flags", "Engine overview", "Institutions"]) {
+      await expect(menu.getByRole("link", { name: label, exact: true })).toHaveCount(0);
+    }
+    expect(REMOVED_PAGES.size).toBe(8);
+    for (const path of REMOVED_PAGES) {
+      await page.goto(path);
+      await expect(page.getByTestId("page-removed")).toContainText("Not part of this back office");
+      await expect(page.locator("main h1")).toHaveCount(1);
+    }
+    await page.goto("/token-console");
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test("the live Farmers page says farmers", async ({ page }) => {

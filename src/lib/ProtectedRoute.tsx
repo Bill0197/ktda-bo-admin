@@ -5,6 +5,7 @@ import { Badge, InfoTip, RouteLoader } from "../ui";
 import { useAuth, ROLE_LABELS } from "./auth";
 import { AdminLayout } from "../layout/AdminLayout";
 import { isDemoRoute } from "./dataSource";
+import { isRemovedPage } from "./hiddenPages";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { role, isLoading, canAccess } = useAuth();
@@ -16,6 +17,22 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   if (isLoading) return <RouteLoader />;
 
   if (!role) return <Navigate to="/login" replace />;
+
+  // The platform's own tools are not part of a client's back office: refused
+  // for every role, whatever its page list says.
+  if (isRemovedPage(location.pathname)) {
+    return (
+      <AdminLayout>
+        <div data-testid="page-removed" className="flex flex-col items-center text-center gap-3 py-24">
+          <div className="h-12 w-12 rounded-full bg-surface-sunken text-text-soft flex items-center justify-center"><ShieldOff size={22} /></div>
+          <h1 className="text-lg font-semibold text-text">Not part of this back office</h1>
+          <p className="text-sm text-text-soft max-w-sm">
+            This page changes or shows the platform's own set-up, so it is run by the platform's operator, not from an institution's back office.
+          </p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   if (!canAccess(location.pathname)) {
     return (

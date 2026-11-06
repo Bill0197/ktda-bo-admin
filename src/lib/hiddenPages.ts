@@ -1,7 +1,14 @@
-/* Pages the KTDA back office keeps but does not show. The routes stay
-   registered (a direct link still opens them); they leave the navigation
-   (navConfig.tsx) and every role's page list (mock/fixtures/admin.ts). The
-   investment-only pages that used to be listed here have been deleted. */
+/* Pages the KTDA back office keeps in the code but does not offer.
+
+   HIDDEN_PAGES: no menu entry and no place in any role's page list
+   (mock/fixtures/admin.ts), but a direct link still opens them.
+
+   REMOVED_PAGES: the platform's own tools. A client institution's staff must
+   not change the platform's set-up or see every institution in the engine,
+   so these are hidden and the route refuses them too (ProtectedRoute). The
+   code stays, so a page can come back by taking it off this list. Refusing
+   the route here does not close the engine endpoints behind it; that is
+   for the engine. */
 
 export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   // Farmer Services: the demo farmer register. The live one is the engine's,
@@ -12,4 +19,22 @@ export const HIDDEN_PAGES: ReadonlySet<string> = new Set([
   "/token-console/policies",
 ]);
 
-export const isHiddenPage = (path: string) => HIDDEN_PAGES.has(path);
+export const REMOVED_PAGES: ReadonlySet<string> = new Set([
+  "/token-console/configuration", // schemes, products and packages, engine-wide
+  "/token-console/tariffs",       // the platform's tariff rates and domains
+  "/token-console/changes",       // approvals for configuration and tariff changes
+  "/token-console/users",         // the engine's staff accounts
+  "/token-console/overview",      // the engine's books across every institution
+  "/token-console/funds",         // every institution in the engine
+  "/settings",                    // platform settings
+  "/feature-flags",               // platform feature flags
+]);
+
+const under = (set: ReadonlySet<string>, path: string) =>
+  [...set].some((p) => path === p || path.startsWith(`${p}/`));
+
+/** Refused by the route, as well as left out of the menu. */
+export const isRemovedPage = (path: string) => under(REMOVED_PAGES, path);
+
+/** Left out of the menu and the role page lists (hidden or removed). */
+export const isHiddenPage = (path: string) => HIDDEN_PAGES.has(path) || isRemovedPage(path);

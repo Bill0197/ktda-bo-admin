@@ -2,6 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { json } from "./stubs";
 import { sentFrom, stubUnyt, type Sent } from "./unyt-fixtures";
 import type { AdminUserResponse } from "../src/lib/tokenConsole/types.gen";
+import { isRemovedPage } from "../src/lib/hiddenPages";
+
+// The page is removed from this back office (src/lib/hiddenPages.ts), so its
+// route refuses. These run again if it comes back.
+test.skip(isRemovedPage("/token-console/users"), "removed from the KTDA back office");
 
 /* Tokenization users: who may sign in to BO Admin. Signups are approved or
  * rejected here, accounts disabled and re-enabled, and the per-account session
