@@ -11,7 +11,10 @@ import {
   type BulkFlow, type BulkReconciliation, type BulkRun, type FileSummary,
 } from "../../lib/api.bulkLoad";
 import { ConsoleTable, SourceError, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
-import { JOURNEY, NOT_AVAILABLE, OPENED_BY, SAMPLE_FILES, stepFor, templateCsv, templateName } from "../../lib/journeyContract";
+import { OmniApiError } from "../../lib/omniApi";
+import {
+  COLUMNS, GATE, HAS_RECONCILIATION, JOURNEY, NOT_AVAILABLE, SAMPLE_FILES, stepFor, templateCsv, templateName,
+} from "../../lib/journeyContract";
 
 /* Bulk onboarding and bulk payment for an institution's farmers (section 1A of
    the KTDA handoff). The institution is not a choice: omnichannel scopes every
@@ -25,7 +28,9 @@ import { JOURNEY, NOT_AVAILABLE, OPENED_BY, SAMPLE_FILES, stepFor, templateCsv, 
    The same page runs the farmer journey's steps (journeyContract.ts): step 1
    registers farmers (REGISTRATION), step 2 simulates their own onboarding and
    opens the wallets (ACTIVATION), step 3 is Payment runs (PAYMENT). Step 2
-   opens once a registration run has completed. A flow this environment's
+   opens once anyone is registered, step 3 once anyone has a wallet (both from
+   omnichannel's onboarding-status). A registration run has no
+   reconciliation: it posts nothing to the ledger. A flow this environment's
    omnichannel does not have yet says so; it never falls back to ONBOARDING. */
 
 const POLL_MS = 1000;
@@ -88,6 +93,8 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
   const [recon, setRecon] = useState<BulkReconciliation | null>(null);
   const [reconError, setReconError] = useState<string | null>(null);
   const [reconTick, setReconTick] = useState(0);
+  /** Why this run has no reconciliation to show (a registration run, say). */
+  const [noRecon, setNoRecon] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
 
   const mine = useMemo(() => own.data ?? [], [own.data]);
@@ -97,19 +104,20 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     (id && mine.find((i) => i.id === id)?.name) || (engine.data ?? []).find((i) => i.institutionId === id)?.name || null;
 
   const history = useAsyncData(() => bulkLoads.recent());
-  const gate = useAsyncData(async () => (flow === "PAYMENT" && institutionId ? bulkLoads.onboardingStatus(institutionId) : null));
+  // Steps 2 and 3 open on omnichannel's own answer (onboarding-status); it
+  // refuses the upload (409) either way.
+  const gateKey = GATE[flow] ?? null;
+  const gate = useAsyncData(async () => (gateKey && institutionId ? bulkLoads.onboardingStatus(institutionId) : null));
   const { reload: reloadGate } = gate;
   useEffect(() => {
-    if (flow === "PAYMENT") void reloadGate();
-  }, [flow, institutionId, reloadGate]);
+    if (gateKey) void reloadGate();
+  }, [gateKey, institutionId, reloadGate]);
 
-  // Step 2's gate: a completed run of the step before it, from the recent runs
-  // (omnichannel has no status endpoint for it; it refuses the upload anyway).
-  const opener = flow === "ACTIVATION" ? OPENED_BY.ACTIVATION! : null;
-  const openerDone = !!opener && (history.data ?? []).some(
-    (r) => r.flow === opener && r.status === "COMPLETED" && (!institutionId || r.institutionId === institutionId),
-  );
-  const stepGate = opener ? { loading: history.loading && !history.data, error: history.error, open: openerDone, reload: history.reload } : null;
+  // An omnichannel without the journey has no registrationCompleted.
+  const stepGateMissing = flow === "ACTIVATION" && !!gate.data && gate.data.registrationCompleted === undefined;
+  const stepGate = flow === "ACTIVATION"
+    ? { loading: gate.loading && !gate.data, error: gate.error, open: gate.data?.registrationCompleted === true, missing: stepGateMissing, reload: gate.reload }
+    : null;
   const paymentsClosed = (flow === "PAYMENT" && gate.data?.onboardingCompleted !== true) || (!!stepGate && !stepGate.open);
   const busy = !!run && run.status === "RUNNING";
 
@@ -140,11 +148,25 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
     if (!finishedId) return;
     let stopped = false;
     setReconError(null);
+    setNoRecon(null);
+    void history.reload();
+    if (gateKey) void reloadGate();
+    if (!HAS_RECONCILIATION[flow]) {
+      setNoRecon("A registration run posts nothing to the ledger, so it has no reconciliation.");
+      return;
+    }
     bulkLoads.reconciliation(finishedId, flow === "PAYMENT" ? expectedTotal : null).then(
       (r) => { if (!stopped) setRecon(r); },
-      (e) => { if (!stopped) setReconError(e instanceof Error ? e.message : "Could not read the reconciliation."); },
+      (e) => {
+        if (stopped) return;
+        // An activation run that opened no wallet has nothing to reconcile.
+        if (flow === "ACTIVATION" && e instanceof OmniApiError && e.status === 409) {
+          setNoRecon("No farmer in the file was eligible, so no wallet was opened and there is nothing to reconcile.");
+        } else {
+          setReconError(e instanceof Error ? e.message : "Could not read the reconciliation.");
+        }
+      },
     );
-    void history.reload();
     return () => {
       stopped = true;
     };
@@ -242,8 +264,18 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
 
         <Step n={2} title="File">
           <p className="mb-3 text-[12.5px] text-text-soft">
-            A CSV with a header row: <code className="tabular text-text">{BULK_COLUMNS[flow].join(",")}</code>
-            {flow === "PAYMENT" && <>. Each amount_kes under KES {MAX_PAYMENT_KES.toLocaleString()}, to 2 decimals</>}.
+            {COLUMNS[flow].byName ? (
+              <>
+                A CSV with a header row naming its columns, in any order. Needed: <code className="tabular text-text">{COLUMNS[flow].required.join(", ")}</code>
+                {COLUMNS[flow].optional.length > 0 && <>; optional: <code className="tabular text-text">{COLUMNS[flow].optional.join(", ")}</code></>}.
+                {" "}No value may contain a comma.{COLUMNS[flow].notes && <> {COLUMNS[flow].notes}</>}
+              </>
+            ) : (
+              <>
+                A CSV with a header row: <code className="tabular text-text">{BULK_COLUMNS[flow].join(",")}</code>
+                {flow === "PAYMENT" && <>. Each amount_kes under KES {MAX_PAYMENT_KES.toLocaleString()}, to 2 decimals</>}.
+              </>
+            )}
           </p>
           <FileHelp flow={flow} />
           <Field label="CSV file">
@@ -298,13 +330,15 @@ export default function BulkLoad({ flow }: { flow: BulkFlow }) {
             <Button size="sm" variant="outline" onClick={() => { setPollError(null); setPollTick((t) => t + 1); }}>Resume</Button>
           </div>
         )}
-        {run && <Progress run={run} seenAt={seenAt} processedLabel={copy.processed} />}
+        {run && <Progress run={run} seenAt={seenAt} processedLabel={copy.processed} skippedHint={stepFor(flow)?.skipped ?? "Already applied"} />}
       </Step>
 
       {run && run.status !== "RUNNING" && (
         <Step n={4} title="Result" className="mb-6">
           <Outcome run={run} />
-          {reconError ? (
+          {noRecon ? (
+            <p className="mt-4 text-[12.5px] text-text-soft" data-testid="no-recon">{noRecon}</p>
+          ) : reconError ? (
             <SourceError what="the reconciliation" error={reconError} onRetry={() => setReconTick((t) => t + 1)} className="mt-4" />
           ) : recon ? (
             <ReconPanel recon={recon} institutionName={recon.institutionName ?? nameOf(recon.institutionId)} />
@@ -353,26 +387,33 @@ function PaymentGate({ gate }: { gate: { data: { onboardingCompleted: boolean } 
   if (gate.error) return <SourceError what="whether onboarding has completed" error={gate.error} onRetry={gate.reload} className="mt-3" />;
   if (gate.loading || !gate.data) return <Skeleton className="mt-3 h-10" />;
   if (gate.data.onboardingCompleted) {
-    return <p className="mt-3 flex items-center gap-1.5 text-[12.5px] text-success"><CheckCircle2 size={14} /> Onboarding has completed. Payments are open.</p>;
+    return <p className="mt-3 flex items-center gap-1.5 text-[12.5px] text-success"><CheckCircle2 size={14} /> Farmers have wallets. Payments are open.</p>;
   }
   return (
     <NotePanel tone="warning" className="mt-3" title="Payments are closed">
-      No onboarding run has completed for this institution yet, so no farmer has a wallet to credit.
+      No farmer of this institution has a wallet yet, so there is nothing to credit.
       Run <Link className="font-medium text-primary-600 hover:text-primary-700" to="/journey/activate">step 2, farmer onboarding</Link> first
       (on this environment today: <Link className="font-medium text-primary-600 hover:text-primary-700" to="/bulk/onboarding">bulk onboarding</Link>).
     </NotePanel>
   );
 }
 
-function ActivationGate({ gate }: { gate: { loading: boolean; error: string | null; open: boolean; reload: () => Promise<void> } }) {
-  if (gate.error) return <SourceError what="whether a registration run has completed" error={gate.error} onRetry={gate.reload} className="mt-3" />;
+function ActivationGate({ gate }: { gate: { loading: boolean; error: string | null; open: boolean; missing: boolean; reload: () => Promise<void> } }) {
+  if (gate.error) return <SourceError what="whether anyone is registered" error={gate.error} onRetry={gate.reload} className="mt-3" />;
   if (gate.loading) return <Skeleton className="mt-3 h-10" />;
+  if (gate.missing) {
+    return (
+      <div data-testid="not-available" className="mt-3">
+        <NotePanel tone="info" title="Not available on this environment yet">{NOT_AVAILABLE.replace(/^Not available on this environment yet: /, "")}</NotePanel>
+      </div>
+    );
+  }
   if (gate.open) {
-    return <p className="mt-3 flex items-center gap-1.5 text-[12.5px] text-success"><CheckCircle2 size={14} /> A registration run has completed. This step is open.</p>;
+    return <p className="mt-3 flex items-center gap-1.5 text-[12.5px] text-success"><CheckCircle2 size={14} /> Farmers are on the register. This step is open.</p>;
   }
   return (
     <NotePanel tone="warning" className="mt-3" title="Step 2 is closed">
-      No registration run has completed for this institution yet, so there is no farmer to onboard.
+      Nobody is on this institution's register yet, so there is no farmer to onboard.
       Run <Link className="font-medium text-primary-600 hover:text-primary-700" to="/journey/register">step 1, register farmers</Link> first.
     </NotePanel>
   );
@@ -396,7 +437,7 @@ function FileHelp({ flow }: { flow: BulkFlow }) {
   );
 }
 
-function Progress({ run, seenAt, processedLabel }: { run: BulkRun; seenAt: number; processedLabel: string }) {
+function Progress({ run, seenAt, processedLabel, skippedHint }: { run: BulkRun; seenAt: number; processedLabel: string; skippedHint: string }) {
   const done = run.processedCount + run.skippedCount + run.failureCount;
   const end = run.completedAt ? Date.parse(run.completedAt) : seenAt;
   const seconds = Math.max(0, (end - Date.parse(run.startedAt)) / 1000);
@@ -413,7 +454,7 @@ function Progress({ run, seenAt, processedLabel }: { run: BulkRun; seenAt: numbe
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatCard label="Rows read" value={units(run.totalRows)} />
         <StatCard label={processedLabel} value={units(run.processedCount)} />
-        <StatCard label="Skipped" value={units(run.skippedCount)} hint="Already applied" />
+        <StatCard label="Skipped" value={units(run.skippedCount)} hint={skippedHint} />
         <StatCard label="Failed" value={units(run.failureCount)} />
         <StatCard label="Throughput" value={rate == null ? "—" : `${units(rate)}/s`} hint={run.flow === "PAYMENT" ? money(run.totalAmount, run.currency) : undefined} />
       </div>

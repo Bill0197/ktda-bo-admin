@@ -12,12 +12,12 @@
  * safe to send twice. A PAYMENT upload is refused with 409 until an ONBOARDING
  * run has completed for the institution.
  *
- * REGISTRATION and ACTIVATION are the farmer journey's proposed flows
- * (journeyContract.ts): not on omnichannel yet, and said so plainly when
- * omnichannel refuses one. */
+ * REGISTRATION and ACTIVATION are the farmer journey's flows
+ * (journeyContract.ts): not on every environment yet, and said so plainly
+ * where omnichannel refuses one. */
 import { OmniApiError, omniCall } from "./omniApi";
 import { institutionApi } from "./api.institution";
-import { BULK_COLUMNS, NOT_AVAILABLE, PROPOSED_FLOWS, notBuiltYet, type BulkFlow } from "./journeyContract";
+import { BULK_COLUMNS, COLUMNS, NEW_FLOWS, NOT_AVAILABLE, notBuiltYet, type BulkFlow, type OnboardingStatus } from "./journeyContract";
 
 export { BULK_COLUMNS, type BulkFlow };
 export type RunStatus = "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
@@ -108,7 +108,7 @@ export const bulkLoads = {
     const sent = plainForbidden(omniCall.post<BulkRun>(`${BASE}/upload`, form));
     // A flow this omnichannel does not have yet says so; nothing is retried
     // under another flow.
-    return PROPOSED_FLOWS.has(flow)
+    return NEW_FLOWS.has(flow)
       ? sent.catch((e: unknown) => {
         if (e instanceof OmniApiError && notBuiltYet(e.status, e.message)) throw new OmniApiError(e.status, NOT_AVAILABLE);
         throw e;
@@ -124,9 +124,10 @@ export const bulkLoads = {
     omniCall.get<BulkReconciliation>(
       `${runPath(runId)}/reconciliation${expectedTotal != null ? `?expectedTotal=${expectedTotal.toFixed(2)}` : ""}`,
     ),
-  /** Whether payments are open for the institution. */
+  /** Whether payments (any farmer has a wallet) and step 2 (anyone is
+   *  registered) are open for the institution. */
   onboardingStatus: (institutionId: string) =>
-    plainForbidden(omniCall.get<{ onboardingCompleted: boolean }>(`${BASE}/onboarding-status?institutionId=${encodeURIComponent(institutionId)}`)),
+    plainForbidden(omniCall.get<OnboardingStatus>(`${BASE}/onboarding-status?institutionId=${encodeURIComponent(institutionId)}`)),
 };
 
 /* A light read of the file before it is sent: the backend validates every
@@ -147,15 +148,28 @@ export type FileSummary = {
 
 export function summariseCsv(flow: BulkFlow, text: string): FileSummary {
   const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
-  const expected = BULK_COLUMNS[flow];
+  const { required, byName } = COLUMNS[flow];
   if (lines.length === 0) return { rows: 0, total: null, problem: "The file is empty.", warnings: [] };
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const missing = expected.filter((c) => !header.includes(c));
+  const missing = required.filter((c) => !header.includes(c));
   if (missing.length) {
-    return { rows: 0, total: null, problem: `The header must have ${expected.join(",")}. Missing: ${missing.join(", ")}.`, warnings: [] };
+    // Omnichannel would take the file and fail the run on Process; say it now.
+    const problem = byName
+      ? `The file's header row has no ${missing.join(", ")} column${missing.length === 1 ? "" : "s"}. It needs ${required.join(", ")}.`
+      : `The header must have ${BULK_COLUMNS[flow].join(",")}. Missing: ${missing.join(", ")}.`;
+    return { rows: 0, total: null, problem, warnings: [] };
   }
   const rows = lines.length - 1;
   if (rows === 0) return { rows: 0, total: null, problem: "The file has a header but no rows.", warnings: [] };
+  if (flow === "ACTIVATION") {
+    const at = header.indexOf("date_of_birth");
+    const bad = at < 0 ? 0 : lines.slice(1).filter((l) => {
+      const v = l.split(",")[at]?.trim() ?? "";
+      return v !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(v);
+    }).length;
+    const warnings = bad ? [`${bad.toLocaleString()} row${bad === 1 ? "" : "s"} with a date_of_birth not in YYYY-MM-DD form will fail.`] : [];
+    return { rows, total: null, problem: null, warnings };
+  }
   if (flow !== "PAYMENT") return { rows, total: null, problem: null, warnings: [] };
 
   const at = header.indexOf("amount_kes");

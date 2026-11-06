@@ -6,14 +6,15 @@ import { useAsyncData } from "../../lib/useAsyncData";
 import { dateTime, units } from "../../lib/tokenConsole/format";
 import { bulkLoads, type BulkRun } from "../../lib/api.bulkLoad";
 import { farmersApi } from "../../lib/api.farmers";
-import { FARMER_STATES, JOURNEY, NOT_AVAILABLE, STATE_LABEL, STATE_MEANS, type JourneyStep } from "../../lib/journeyContract";
+import { FARMER_STATES, JOURNEY, NOT_AVAILABLE, STATE_LABEL, STATE_MEANS, SUMMARY_KEY, type JourneyStep } from "../../lib/journeyContract";
 import { SourceError, StatusBadge } from "../../components/tokenconsole/ConsoleTable";
 
 /* The farmer journey in one place, for a demo walked step by step: register
    (CSV 1), farmer onboarding simulated (CSV 2, opens the wallets), fund
    (CSV 3, Payment runs). Each step shows what its last run did and whether it
-   is open, and if not, why. Below, how many of the institution's farmers are
-   at each stage. The flows and endpoints are in journeyContract.ts. */
+   is open (omnichannel's onboarding-status), and if not, why. Below, how many
+   of the institution's farmers are at each stage (GET /farmers/summary). The
+   flows and endpoints are in journeyContract.ts. */
 
 type Gate = { open: boolean; why: string | null; loading: boolean };
 
@@ -27,23 +28,24 @@ export default function Journey() {
   useEffect(() => {
     if (institutionId) void reloadFunding();
   }, [institutionId, reloadFunding]);
-  const farmers = useAsyncData(() => farmersApi.list({ size: 1 }));
+  const farmers = useAsyncData(() => farmersApi.summary());
 
   const mine = (runs.data ?? []).filter((r) => !institution || r.institutionId === institution.id);
   const last = (flow: BulkRun["flow"]) =>
     mine.filter((r) => r.flow === flow).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null;
-  const completed = (flow: BulkRun["flow"]) => mine.some((r) => r.flow === flow && r.status === "COMPLETED");
 
   const gateFor = (step: JourneyStep): Gate => {
     if (step.n === 1) return { open: true, why: null, loading: false };
+    if ((funding.loading || !own.data) && !funding.data && !funding.error) return { open: false, why: null, loading: true };
+    if (funding.error) return { open: false, why: `Could not check whether this step is open: ${funding.error}`, loading: false };
     if (step.n === 2) {
-      if (runs.loading && !runs.data) return { open: false, why: null, loading: true };
-      return completed("REGISTRATION")
+      if (funding.data && funding.data.registrationCompleted === undefined) {
+        return { open: false, why: "Not available on this environment yet: omnichannel here does not have the farmer journey.", loading: false };
+      }
+      return funding.data?.registrationCompleted
         ? { open: true, why: null, loading: false }
-        : { open: false, why: "Waiting for step 1: no registration run has completed yet.", loading: false };
+        : { open: false, why: "Waiting for step 1: nobody is on the register yet.", loading: false };
     }
-    if (funding.loading && !funding.data) return { open: false, why: null, loading: true };
-    if (funding.error) return { open: false, why: `Could not check whether payments are open: ${funding.error}`, loading: false };
     return funding.data?.onboardingCompleted
       ? { open: true, why: null, loading: false }
       : { open: false, why: "Waiting for step 2: no farmer has a wallet yet, so there is nothing to credit.", loading: false };
@@ -83,7 +85,7 @@ export default function Journey() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
             {FARMER_STATES.map((st) => (
-              <StatCard key={st} label={STATE_LABEL[st]} value={units(farmers.data!.available ? farmers.data!.page.counts[st] ?? 0 : 0)} hint={STATE_MEANS[st]} to={`/farmers?state=${st}`} />
+              <StatCard key={st} label={STATE_LABEL[st]} value={units(farmers.data!.available ? farmers.data!.data[SUMMARY_KEY[st]] ?? 0 : 0)} hint={STATE_MEANS[st]} to={`/farmers?state=${st}`} />
             ))}
           </div>
         )}

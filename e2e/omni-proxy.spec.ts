@@ -24,7 +24,7 @@ async function call(path: string, opts: { env?: Record<string, string>; method?:
     calls.push({ url, headers: new Headers(init?.headers) });
     // The session check against the engine, then omnichannel itself.
     if (url.endsWith("/api/auth/me")) return new Response(JSON.stringify({ email: "officer@ktda.test" }), { status: opts.me ?? 200 });
-    return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    return new Response("[]", { status: 200, headers: { "content-type": "application/json", "x-total-count": "45", "x-page": "1", "x-size": "20", "x-total-pages": "3" } });
   }) as typeof fetch;
   try {
     const request = new Request(`https://bo.test${path}`, {
@@ -99,9 +99,15 @@ test("signed out: no cookie, or one the engine refuses, answers 401 and omnichan
   }
 });
 
-test("the farmer journey's farmers list and single register pass; nothing deeper under farmers does", async () => {
-  expect((await call("/omni/api/operator/farmers?state=REGISTERED&q=TEST&page=1&size=20")).res.status).toBe(200);
+test("the farmer journey's reads and single register pass, with the paging headers; nothing deeper under farmers does", async () => {
+  const list = await call("/omni/api/operator/farmers?state=REGISTERED&q=TEST&page=1&size=20");
+  expect(list.res.status).toBe(200);
+  for (const [h, v] of [["x-total-count", "45"], ["x-page", "1"], ["x-size", "20"], ["x-total-pages", "3"]]) expect(list.res.headers.get(h)).toBe(v);
+  expect((await call("/omni/api/operator/farmers/summary")).res.status).toBe(200);
+  expect((await call("/omni/api/operator/farmers/TEST000001")).res.status).toBe(200);
   expect((await call("/omni/api/operator/farmers", { method: "POST" })).res.status).toBe(200);
+  // One farmer is a read, not something to post to.
+  expect((await call("/omni/api/operator/farmers/TEST000001", { method: "POST" })).res.status).toBe(404);
   const deeper = await call("/omni/api/operator/farmers/TEST000001/wallet", { method: "POST" });
   expect(deeper.res.status).toBe(404);
   expect(deeper.upstream).toBeUndefined();

@@ -15,5 +15,9 @@ TEST-ID-*, payment references TEST-PAY-*. The phone numbers 254700000101 to
 format); before any upload to a shared environment, confirm they are numbers
 the test environment does not send real SMS to.
 
-The columns for steps 1 and 2 are a proposal, not yet agreed with the backend
-(src/lib/journeyContract.ts).
+Steps 1 and 2 find their columns by header name, in any order, and ignore
+extra columns: step 1 needs grower_no, full_name and msisdn (factory and
+national_id optional); step 2 needs grower_no, and national_id unless step 1
+gave one (date_of_birth as YYYY-MM-DD, id_document_ref optional). Step 3 reads
+its three columns by position. No value may contain a comma. The full
+contract is in src/lib/journeyContract.ts.
